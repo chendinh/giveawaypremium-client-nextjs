@@ -1,0 +1,235 @@
+.alice-carousel {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  margin: auto;
+  direction: ltr;
+}
+
+.alice-carousel__wrapper {
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+  width: 100%;
+  // height: auto;
+  // height: 80vh !important;
+}
+
+.alice-carousel__stage {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  white-space: nowrap;
+}
+.alice-carousel__stage-item {
+  position: relative;
+  display: inline-block;
+  width: 100% !important;
+  height: 100%;
+  vertical-align: top;
+  white-space: normal;
+  line-height: 0;
+}
+.alice-carousel__stage-item * {
+  line-height: initial;
+}
+.alice-carousel__stage-item.__cloned {
+  visibility: hidden;
+  opacity: 0;
+}
+
+.alice-carousel__prev-btn,
+.alice-carousel__next-btn {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 50%;
+  padding: 15px 10px;
+}
+.alice-carousel__prev-btn [data-area]::after,
+.alice-carousel__next-btn [data-area]::after {
+  position: relative;
+  content: attr(data-area);
+  text-transform: capitalize;
+}
+
+.alice-carousel__prev-btn {
+  text-align: right;
+}
+
+.alice-carousel__prev-btn-item,
+.alice-carousel__next-btn-item {
+  display: inline-block;
+  cursor: pointer;
+  color: #eb6024;
+}
+.alice-carousel__prev-btn-item:hover,
+.alice-carousel__next-btn-item:hover {
+  color: darkred;
+}
+.alice-carousel__prev-btn-item.__inactive,
+.alice-carousel__next-btn-item.__inactive {
+  opacity: 0.4;
+}
+
+.alice-carousel__play-btn {
+  position: absolute;
+  top: 30px;
+  left: 20px;
+  display: inline-block;
+}
+.alice-carousel__play-btn:hover {
+  cursor: pointer;
+}
+.alice-carousel__play-btn-wrapper {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  padding: 10px;
+  border-radius: 50%;
+  background-color: #fff;
+}
+
+.alice-carousel__play-btn-item {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  border: 0;
+  outline: none;
+  background: transparent;
+}
+.alice-carousel__play-btn-item::before,
+.alice-carousel__play-btn-item::after {
+  position: absolute;
+  pointer-events: none;
+  display: block;
+  width: 0;
+  height: 0;
+  content: '';
+  transition: all 0.3s linear;
+  border-width: 8px 0 8px 15px;
+  border-style: solid;
+  border-color: transparent;
+  border-left-color: #eb6024;
+}
+.alice-carousel__play-btn-item::before {
+  left: 5px;
+  height: 14px;
+}
+.alice-carousel__play-btn-item::after {
+  top: 7px;
+  left: 18px;
+}
+.alice-carousel__play-btn-item.__pause::before,
+.alice-carousel__play-btn-item.__pause::after {
+  height: 30px;
+  border-width: 0 0 0 10px;
+}
+.alice-carousel__play-btn-item.__pause::after {
+  top: 0;
+  left: 18px;
+}
+
+.alice-carousel__dots {
+  margin: 30px 3px 5px;
+  padding: 0;
+  list-style: none;
+  text-align: center;
+  left: 48% !important;
+}
+.alice-carousel__dots-item {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 15px;
+  cursor: pointer;
+  border-radius: 50%;
+  opacity: 0.2;
+  background-color: #eb6024;
+}
+.alice-carousel__dots-item:hover,
+.alice-carousel__dots-item.__active {
+  background-color: #eb6024;
+  opacity: 1;
+}
+
+.banner-wrapper-desktop,
+.banner-wrapper-mobile {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  width: 100vw;
+  cursor: pointer;
+  .alice-carousel__dots {
+    position: absolute;
+    top: auto;
+    bottom: 0;
+    left: 50%;
+    right: auto;
+    margin-bottom: 20px;
+    z-index: 2;
+  }
+}
+
+.banner-wrapper-mobile {
+  .alice-carousel__dots {
+    margin-left: -35px;
+    margin-bottom: 10px;
+  }
+}
+
+// .alice-carousel__prev-btn,
+// .alice-carousel__next-btn {
+//     position: absolute;
+//     top: 40%;
+//     width: auto;
+//     font-size: 30px;
+// }
+
+// .alice-carousel__next-btn {
+//    right: 0
+// }
+
+.alice-carousel__slide-info {
+  position: absolute;
+  // top: 20px;
+  // right: 20px;
+  display: inline-block;
+  padding: 5px 10px;
+  color: #eb6024;
+  border-radius: 5px;
+  background-color: #eb6024;
+}
+.alice-carousel__slide-info-item {
+  vertical-align: middle;
+  line-height: 0;
+  vertical-align: middle !important;
+  line-height: 0 !important;
+  color: #817e7e !important;
+  font-weight: 500 !important;
+}
+
+.alice-carousel .animated {
+  animation-fill-mode: both;
+}
+
+.alice-carousel .animated-out {
+  z-index: 1;
+}
+
+.alice-carousel .fadeOut {
+  animation-name: fadeOut;
+}
+
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}

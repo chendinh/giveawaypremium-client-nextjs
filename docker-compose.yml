@@ -1,0 +1,13 @@
+version: '3.8'
+services:
+  app:
+    # build: .
+    image: tc-page-pk:latest
+    # build: .
+    ports:
+      - '${HOST_PORT:-3005}:${CONTAINER_PORT:-3000}'
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${CONTAINER_PORT:-3000}
+      NEXT_PUBLIC_API_URL: '${NEXT_PUBLIC_API_URL:-http://something.com/api}'
+    command: node server.js

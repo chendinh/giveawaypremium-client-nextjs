@@ -1,0 +1,287 @@
+.bookingform-home-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+
+  @media screen and (max-width: 768px) {
+    height: calc(90vh - 90px);
+  }
+
+  @media screen and (min-width: 768px) {
+    height: calc(90vh - 140px);
+  }
+  .bookingform {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    @media screen and (max-width: 700px) {
+      zoom: 0.9;
+      align-items: flex-start;
+    }
+    .dayBooking-box {
+      display: flex;
+      height: 90%;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+
+      flex-basis: 20%;
+      transform: translate(-50vw, 0px);
+      transition: 0.5s all;
+      opacity: 0;
+
+      @media screen and (max-width: 700px) {
+        height: 85%;
+        flex-basis: 40%;
+        transform: translate(-50vw, 0px);
+      }
+
+      &.show {
+          opacity: 1;
+          transform: translate(0);
+      }
+
+      .day-box {
+        cursor: pointer;
+        height: 100%;
+        margin-bottom: 1vh;
+        width: 60%;
+        background: #f5f5f5;
+        opacity: 1;
+        border: 1px solid rgba(0, 0, 0, 0.28);
+        padding: 1vh;
+        border-radius: 4px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+
+        @media screen and (max-width: 700px) {
+          width: 80%;
+        }
+
+        .day-name {
+          @media screen and (max-width: 700px) {
+            font-size: 10px;
+          }
+        }
+        .day-txt {
+          font-size: 10px;
+          @media screen and (max-width: 700px) {
+            font-size: 10px;
+          }
+        }
+      }
+    }
+
+    .timeBooking-box {
+      flex-basis: auto;
+      width: 85%;
+      height: 90%;
+      display: flex;
+      justify-content: center;
+      flex-direction: column;
+      align-items: center;
+
+      @media screen and (max-width: 700px) {
+        height: 90%;
+      }
+
+
+      .timeBooking-grid {
+        opacity: 0;
+        pointer-events: none;
+        transition: 0.5s all;
+        transform: translate(-150px, 0px);
+        height: 100%;
+        display: grid;
+        grid-template-columns: auto auto auto;
+        grid-gap: 10px;
+        width: 80%;
+
+        @media screen and (max-width: 700px) {
+          font-size: 2px;
+        }
+  
+
+        &.show {
+          transform: translate(0);
+          opacity: 1;
+          pointer-events: unset;
+        }
+  
+        .time-box {
+          cursor: pointer;
+          height: 100%;
+          width: 90%;
+          background: #f5f5f5;
+          opacity: 1;
+          border-bottom: 1px solid rgba(0, 0, 0, 0.28);
+          padding: 1vh;
+          border-radius: 4px;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          @media screen and (max-width: 700px) {
+            width: 100%;
+          }
+
+          &.ready {
+            background: #d2e8c9 !important;
+          }
+
+          &.busy {
+            background: #dfbe6b !important;
+          }
+        }
+      }
+
+      .explain-box {
+        margin-top: 10px;
+        opacity: 0;
+        pointer-events: none;
+        transition: 0.5s all;
+        transform: translate(-150px, 0px);
+        height: 10%;
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        width: 80%;
+
+        &.show {
+          transform: translate(0);
+          opacity: 1;
+          pointer-events: unset;
+        }
+
+        .explain-box-left {
+          display: flex;
+          margin-right: 5vw;
+          justify-content: center;
+          align-items: center;
+          .box-full {
+            margin-right: 10px;
+            width: 21px;
+            height: 21px;
+            background-color: #dfbe6b;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.28);
+            border-radius: 4px;
+          }
+        }
+
+        .explain-box-right {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          .box-empty {
+            margin-right: 10px;
+            width: 20px;
+            height: 20px;
+            background-color: #f5f5f5;
+            border: 1px solid rgba(0, 0, 0, 0.28);
+            border-radius: 4px;
+          }
+        }
+
+        .box-text {
+          margin-top: 3px;
+          font-size: 14px;
+
+          @media screen and (max-width: 700px) {
+            margin-top: 0;
+            font-size: 12px;
+          }
+        }
+      }
+      
+      .timeBooking-form {
+        border-top: 1px solid #eceaea;
+        padding-top: 2vh !important;
+        transition: 0.5s all;
+        transform: translate(-150px, 0px);
+        opacity: 0;
+        pointer-events: none;
+        position: absolute;
+        &.show {
+          transform: translate(0);
+          opacity: 1;
+          pointer-events: unset;
+        }
+
+        .bookingErrorSlot {
+          width: 80%;
+          color: rgb(209, 36, 36);
+          margin: 1em 0;
+        }
+      }
+
+      .timeBooking-confirm {
+        transition: 0.5s all;
+        transform: translate(-150px, 0px);
+        opacity: 0;
+        pointer-events: none;
+        position: absolute;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        left: 0%;
+        max-width: 500px;
+        text-align: center;
+
+        &.show {
+          transform: translate(0);
+          opacity: 1;
+          pointer-events: unset;
+        }
+      }
+
+      .timeBooking-footer {
+        transition: 0.5s all;
+        transform: translate(-150px, 0px);
+        height: 10%;
+        opacity: 0;
+        pointer-events: none;
+        display: flex;
+        justify-content: space-around;
+        align-items: flex-end;
+        width: 100%;
+
+        >span {
+          padding: 10px;
+
+          @media screen and (max-width: 700px) {
+            font-size: 10px;
+          }
+          &:hover {
+            cursor: unset !important;
+          }
+        }
+
+        &.show {
+          transform: translate(0);
+          opacity: 1;
+          pointer-events: unset;
+
+          >span {
+            padding: 10px;
+
+            @media screen and (max-width: 700px) {
+              font-size: 10px;
+            }
+            &:hover {
+              cursor: pointer !important;
+              text-decoration: underline;
+            }
+          }
+        }
+  
+      }
+    }
+  }
+}
