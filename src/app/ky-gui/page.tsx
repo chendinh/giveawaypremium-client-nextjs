@@ -169,7 +169,7 @@ export default function ConsignmentPage() {
 
   return (
     <div className="min-h-screen w-screen py-12 px-4 sm:px-6 lg:px-8">
-      <div className="mx-auto h-full flex justify-center items-center relative">
+      <div className="mx-auto h-full flex justify-center items-center relative w-full">
         {/* Menu chính - các text clickable */}
         {!isShowForm && (
           <div className="flex flex-col items-center justify-center space-y-10 md:space-y-10 text-center">
@@ -226,6 +226,7 @@ export default function ConsignmentPage() {
         {/* Các form content */}
         <div
           className={`
+            w-full
             transition-all duration-700 ease-in-out transform
             ${isShowForm && isShowBookingForm ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-full pointer-events-none absolute'}
           `}
@@ -237,6 +238,7 @@ export default function ConsignmentPage() {
 
         <div
           className={`
+            w-full
             transition-all duration-700 ease-in-out transform
             ${isShowForm && isShowSearchForm ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-full pointer-events-none absolute'}
           `}
@@ -246,6 +248,7 @@ export default function ConsignmentPage() {
 
         <div
           className={`
+            w-full
             transition-all duration-700 ease-in-out transform
             ${isShowForm && isShowInstrumentForm ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-full pointer-events-none absolute'}
           `}
