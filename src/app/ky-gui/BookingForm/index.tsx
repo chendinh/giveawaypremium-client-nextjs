@@ -112,6 +112,8 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
     useState<BookingOptionEachDay>({});
   const [workingDayCount, setWorkingDayCount] = useState<number>(14);
   const [isConsigning, setIsConsigning] = useState<boolean>(false);
+  const [bookingCustomOptionString, setBookingCustomOptionString] =
+    useState<string>('default');
 
   // Form
   const form = useForm<z.infer<typeof formSchema>>({
@@ -201,14 +203,27 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
         });
       }
 
+      const choosenDayCodeTemp =
+        dayBookingTemp && dayBookingTemp[0] ? dayBookingTemp[0].dayCode : '';
       const { option, timeBooking: timeBookingData } =
         checkDayCodeToBookingOption(
           dayBookingTemp[0],
           bookingOptionEachDayData
         );
 
+      // Check for custom booking option for this day
+      let bookingCustomOptionStringTemp = 'default';
+      if (
+        newSettingRedux.BOOKING_OPTION_CUSTOM_EACH_DAY &&
+        newSettingRedux.BOOKING_OPTION_CUSTOM_EACH_DAY[choosenDayCodeTemp]
+      ) {
+        bookingCustomOptionStringTemp =
+          newSettingRedux.BOOKING_OPTION_CUSTOM_EACH_DAY[choosenDayCodeTemp];
+      }
+
       console.log('timeBookingData', timeBookingData);
 
+      setBookingCustomOptionString(bookingCustomOptionStringTemp);
       setBookingOptionValue(option);
       setTimeBooking(timeBookingData);
       setBookingOptionEachDay(bookingOptionEachDayData);
@@ -242,10 +257,23 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
     }
   };
 
-  const onChooseDay = (choosenDay: DayBooking) => {
+  const onChooseDay = async (choosenDay: DayBooking) => {
+    const newSettingRedux = await StoreServices.getSetting();
+
     const { option, timeBooking: timeBookingData } =
       checkDayCodeToBookingOption(choosenDay, bookingOptionEachDay);
 
+    // Check for custom booking option for this day
+    let bookingCustomOptionStringTemp = 'default';
+    if (
+      newSettingRedux.BOOKING_OPTION_CUSTOM_EACH_DAY &&
+      newSettingRedux.BOOKING_OPTION_CUSTOM_EACH_DAY[choosenDay.dayCode]
+    ) {
+      bookingCustomOptionStringTemp =
+        newSettingRedux.BOOKING_OPTION_CUSTOM_EACH_DAY[choosenDay.dayCode];
+    }
+
+    setBookingCustomOptionString(bookingCustomOptionStringTemp);
     setBookingOptionValue(option);
     setTimeBooking(timeBookingData);
     setStep(1);
@@ -454,7 +482,9 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
                     ? 'Hôm nay'
                     : translationDate(dayItem.dayName)}
                 </span>
-                <span className="text day-txt">{dayItem.date}</span>
+                <span className="text text-base sm:text-sm day-txt">
+                  {dayItem.date}
+                </span>
               </div>
             ))}
 
@@ -552,6 +582,16 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
                       itemTime.timeCode + choosenDayCode
                     );
 
+                    // Check if this time slot should be shown based on custom option
+                    const isShow =
+                      bookingCustomOptionString === 'default'
+                        ? true
+                        : bookingCustomOptionString.includes(itemTime.timeCode);
+
+                    if (!isShow) {
+                      return null;
+                    }
+
                     return (
                       <div
                         style={
@@ -566,7 +606,9 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
                           (isReady ? ' ready' : isBusy ? ' busy' : '')
                         }
                       >
-                        <span className="text">{itemTime.timeName}</span>
+                        <span className="text text-base sm:text-sm ">
+                          {itemTime.timeName}
+                        </span>
                       </div>
                     );
                   })}
@@ -620,19 +662,19 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
             <Form {...form}>
               <form
                 className={
-                  'w-[80%] timeBooking-form' +
+                  'w-[95%] sm:w-[80%] px-2 sm:px-0 timeBooking-form' +
                   (!isHideUserForm && step === 2 ? ' show' : '')
                 }
                 onSubmit={form.handleSubmit(onConsign)}
               >
-                <div className="flex flex-col gap-4 sell-card-form justify-center">
-                  <div className="flex items-center gap-2">
-                    <Label className="w-32">Thời gian</Label>
+                <div className="flex flex-col gap-3 sm:gap-4 sell-card-form justify-center">
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-sm font-medium">Thời gian</Label>
                     <Input
                       value={convertCodeToTime()}
                       readOnly
                       placeholder="..."
-                      className="flex-1"
+                      className="w-full"
                     />
                   </div>
 
@@ -640,16 +682,18 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
                     control={form.control}
                     name="customerName"
                     render={({ field }) => (
-                      <FormItem className="flex items-center gap-2">
-                        <FormLabel className="w-32">Họ và Tên</FormLabel>
+                      <FormItem className="flex flex-col gap-1 space-y-0">
+                        <FormLabel className="text-sm font-medium">
+                          Họ và Tên
+                        </FormLabel>
                         <FormControl>
                           <Input
                             {...field}
-                            placeholder="..."
-                            className="flex-1"
+                            placeholder="Nhập họ và tên..."
+                            className="w-full"
                           />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-xs" />
                       </FormItem>
                     )}
                   />
@@ -658,17 +702,19 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
                     control={form.control}
                     name="phoneNumber"
                     render={({ field }) => (
-                      <FormItem className="flex items-center gap-2">
-                        <FormLabel className="w-32">Số điện thoại</FormLabel>
+                      <FormItem className="flex flex-col gap-1 space-y-0">
+                        <FormLabel className="text-sm font-medium">
+                          Số điện thoại
+                        </FormLabel>
                         <FormControl>
                           <Input
                             {...field}
                             type="tel"
-                            placeholder="..."
-                            className="flex-1"
+                            placeholder="Nhập số điện thoại..."
+                            className="w-full"
                           />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-xs" />
                       </FormItem>
                     )}
                   />
@@ -677,16 +723,16 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
                     control={form.control}
                     name="numberOfProduct"
                     render={({ field }) => (
-                      <FormItem className="flex items-center gap-2">
-                        <FormLabel className="w-32">
+                      <FormItem className="flex flex-col gap-1 space-y-0">
+                        <FormLabel className="text-sm font-medium">
                           Số lượng Hàng Hoá
                         </FormLabel>
                         <FormControl>
                           <Input
                             {...field}
                             type="number"
-                            placeholder="..."
-                            className="w-24"
+                            placeholder="Số lượng..."
+                            className="w-full sm:w-32"
                             onChange={e => {
                               const value = parseInt(e.target.value) || 0;
                               field.onChange(value);
@@ -694,7 +740,7 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
                             }}
                           />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-xs" />
                       </FormItem>
                     )}
                   />
@@ -714,6 +760,13 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
                       hotline 0703334443 để được hỗ trợ tốt nhất.
                     </p>
                   )}
+
+                  <div className="bookingNoteString">
+                    <span>
+                      *Chúng tôi sẽ giữ lịch tối đa 15 phút nếu đến trễ Anh/Chị
+                      vui lòng đợi theo số thứ tự tại cửa hàng
+                    </span>
+                  </div>
 
                   {errorSlotInfo && (
                     <div className="bookingErrorSlot">
