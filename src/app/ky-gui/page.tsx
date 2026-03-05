@@ -7,6 +7,7 @@ import Image from 'next/image';
 // import { cn } from '@/lib/utils';
 import BookingForm from './BookingForm'; // giả định path đúng
 import InstrumentForm from './InstrumentForm';
+import SearchForm from './SearchForm';
 // import SearchForm from './components/SearchForm';
 // import InstrumentForm from './components/InstrumentForm';
 
@@ -244,7 +245,9 @@ export default function ConsignmentPage() {
             ${isShowForm && isShowSearchForm ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-full pointer-events-none absolute'}
           `}
         >
-          {/* {isShowForm && isShowSearchForm && <SearchForm backConsignment={handleBackConsignment} />} */}
+          {isShowForm && isShowSearchForm && (
+            <SearchForm backConsignment={handleBackConsignment} />
+          )}
         </div>
 
         <div

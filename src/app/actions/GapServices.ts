@@ -439,6 +439,43 @@ export class GapService {
     }
   }
 
+  // Consignment Search
+  static async getConsignmentWithPhone(
+    page: number = 1,
+    phoneNumber: string,
+    limit: number = 20
+  ): Promise<any> {
+    const skip = limit * page - limit;
+    const customQuery = `include=group&order=-createdAt&skip=${skip}&limit=${limit}&count=1&where={"deletedAt":${null},"phoneNumber":"${phoneNumber}"}`;
+    return this.fetchData(
+      '/classes/Consignment',
+      REQUEST_TYPE.GET,
+      null,
+      null,
+      null,
+      null,
+      customQuery
+    );
+  }
+
+  static async getConsignmentWithID(
+    page: number = 1,
+    consignerIdCard: string,
+    limit: number = 20
+  ): Promise<any> {
+    const skip = limit * page - limit;
+    const customQuery = `include=group&order=-createdAt&skip=${skip}&limit=${limit}&count=1&where={"deletedAt":${null},"consignerIdCard":"${consignerIdCard}"}`;
+    return this.fetchData(
+      '/classes/Consignment',
+      REQUEST_TYPE.GET,
+      null,
+      null,
+      null,
+      null,
+      customQuery
+    );
+  }
+
   // Consignment Group
   static async getConsignmentID(): Promise<any> {
     const customQuery = `where={"deletedAt":${null}}`;

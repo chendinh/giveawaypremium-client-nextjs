@@ -1,0 +1,244 @@
+.searchform-home-container {
+  width: 100%;
+  min-height: calc(100vh - 125.5px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+
+  @media screen and (min-width: 640px) {
+    padding: 2rem;
+  }
+
+  .searching-form {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    width: 100%;
+
+    .text-searching-title {
+      font-size: 16px;
+      color: rgba(0, 0, 0, 0.694);
+      margin-bottom: 20px;
+      text-align: center;
+      width: 100%;
+      max-width: 400px;
+
+      @media screen and (min-width: 640px) {
+        font-size: 20px;
+        margin-bottom: 30px;
+      }
+    }
+
+    .searching-box {
+      max-width: 500px;
+      width: 100%;
+      padding: 0 1rem;
+      position: absolute;
+      opacity: 0;
+      transition: 0.5s all;
+      transform: translate(-10vw, 0px);
+      pointer-events: none;
+
+      @media screen and (min-width: 640px) {
+        padding: 0;
+      }
+
+      &.show {
+        opacity: 1;
+        position: relative;
+        z-index: 1000;
+        transform: translate(0);
+        pointer-events: auto;
+      }
+
+      .sell-card-form {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+
+        @media screen and (min-width: 640px) {
+          gap: 1.5rem;
+        }
+      }
+
+      .form-field {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+
+        .form-label {
+          font-size: 14px;
+          font-weight: 500;
+        }
+
+        .form-input {
+          width: 100%;
+          font-size: 16px;
+        }
+      }
+
+      .form-buttons {
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        width: 100%;
+        gap: 1rem;
+        margin-top: 1rem;
+
+        button {
+          flex: 1;
+          max-width: 150px;
+        }
+      }
+    }
+
+    .searching-table {
+      transform: translate(-10vw, 0px);
+      transition: 0.5s all;
+      opacity: 0;
+      position: absolute;
+      pointer-events: none;
+      width: 100%;
+      max-width: 1500px;
+
+      &.show {
+        position: relative;
+        opacity: 1;
+        transform: translate(0);
+        pointer-events: auto;
+      }
+
+      .searching-table-content {
+        padding: 1rem 0.5rem;
+        min-height: 50vh;
+
+        @media screen and (min-width: 640px) {
+          padding: 2rem 1rem;
+        }
+      }
+
+      .result-count {
+        text-align: center;
+        color: #666;
+        font-size: 14px;
+        margin-bottom: 1rem;
+
+        @media screen and (min-width: 640px) {
+          font-size: 16px;
+          margin-bottom: 1.5rem;
+        }
+      }
+
+      .consignment-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+
+        @media screen and (min-width: 640px) {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 1rem;
+        }
+
+        @media screen and (min-width: 1024px) {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+
+      .note-box {
+        background-color: whitesmoke;
+        padding: 1rem;
+        border: 1px solid gainsboro;
+        border-radius: 8px;
+
+        @media screen and (min-width: 640px) {
+          padding: 1.25rem;
+        }
+
+        .note-box-content {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
+        .note-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 0.5rem;
+          font-size: 13px;
+
+          @media screen and (min-width: 640px) {
+            font-size: 14px;
+          }
+
+          .note-label {
+            color: #666;
+            flex-shrink: 0;
+          }
+
+          .note-value {
+            text-align: right;
+            word-break: break-word;
+
+            &.note-value-money {
+              font-weight: 600;
+              color: #16a34a;
+            }
+
+            &.note-value-pending {
+              color: #ea580c;
+              font-weight: 500;
+            }
+
+            &.note-value-done {
+              color: #16a34a;
+              font-weight: 500;
+            }
+          }
+        }
+      }
+
+      .no-result {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #666;
+
+        p {
+          font-size: 14px;
+
+          @media screen and (min-width: 640px) {
+            font-size: 16px;
+          }
+        }
+
+        .no-result-hint {
+          font-size: 12px;
+          color: #999;
+          margin-top: 0.5rem;
+
+          @media screen and (min-width: 640px) {
+            font-size: 14px;
+          }
+        }
+      }
+
+      .back-button {
+        display: flex;
+        justify-content: center;
+        padding: 1.5rem 0 2rem;
+
+        @media screen and (min-width: 640px) {
+          padding: 2rem 0 3rem;
+        }
+
+        button {
+          min-width: 120px;
+        }
+      }
+    }
+  }
+}
