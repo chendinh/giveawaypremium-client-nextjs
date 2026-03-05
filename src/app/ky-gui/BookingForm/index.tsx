@@ -128,6 +128,7 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
       choosenDay: DayBooking | null,
       bookingOptionData: BookingOptionEachDay = BOOKING_OPTION_EACH_DAY_DATA_DEFAULT
     ): { option: number; timeBooking: TimeBooking[] } => {
+      console.log('checkDayCodeToBookingOption', choosenDay, bookingOptionData);
       if (choosenDay && choosenDay.dayCode && bookingOptionData) {
         if (bookingOptionData.OPTION_1?.includes(choosenDay.dayCode))
           return { option: 1, timeBooking: TIME_BOOKING.OPTION_1 };
@@ -205,6 +206,8 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
           dayBookingTemp[0],
           bookingOptionEachDayData
         );
+
+      console.log('timeBookingData', timeBookingData);
 
       setBookingOptionValue(option);
       setTimeBooking(timeBookingData);
