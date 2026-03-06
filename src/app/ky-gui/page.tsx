@@ -11,10 +11,7 @@ import SearchForm from './SearchForm';
 // import SearchForm from './components/SearchForm';
 // import InstrumentForm from './components/InstrumentForm';
 
-// Giả định images là object import hoặc public path
-const images = {
-  kyguiZalo: '/assets/images/kygui-zalo.png', // thay bằng path thực tế
-};
+import kyguiZalo from '@images/kyguiquantam.jpg';
 
 export default function ConsignmentPage() {
   // const searchParams = useSearchParams();
@@ -141,12 +138,12 @@ export default function ConsignmentPage() {
         Sau khi truy cập Zalo, vui lòng nhấn **Quan tâm/Follow** để GAP có thể
         ghi nhận thông tin ký gửi từ anh/chị nhé!
       </p>
-      <div className="my-6">
+      <div className="my-10">
         <Image
-          src={images.kyguiZalo}
+          src={kyguiZalo}
           alt="QR Zalo Ký gửi"
-          width={400}
-          height={600}
+          width={500}
+          height={660}
           className="w-full max-w-xs mx-auto object-contain rounded-lg shadow-md"
         />
       </div>
@@ -162,7 +159,7 @@ export default function ConsignmentPage() {
             openModal(renderBookingAlert());
           }
         }}
-        className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition font-medium"
+        className="w-full bg-black text-white py-3 rounded-lg hover:bg-gray-700 transition font-medium"
       >
         Tiếp tục
       </button>
