@@ -27,7 +27,7 @@ import GapService from '@/app/actions/GapServices';
 import { useAppStore } from '@/store/useAppStore';
 
 import Consignment from './components/Consignment';
-// import ManageScreen from './components/ManageScreen';
+import ManageScreen from './components/ManageScreen';
 import SettingScreen from './components/SettingScreen';
 // import SaleScreen from './components/SaleScreen';
 // import SummaryScreen from './components/SummaryScreen';
@@ -196,10 +196,10 @@ const DashBoard: React.FC = () => {
       case 1:
       // case 2:
       //   return <SummaryScreen />;
-      // case 3:
-      //   return <ManageScreen />;
-      // case 4:
-      //   return <Consignment />;
+      case 3:
+        return <ManageScreen />;
+      case 4:
+        return <Consignment />;
       // case 5:
       //   return <SaleScreen />;
       case 6:
