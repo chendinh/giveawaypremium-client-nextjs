@@ -1,0 +1,15 @@
+.bookingSetting-container {
+  margin: 10px 0 5% 0;
+  display: flex;
+  flex-direction: column;
+  .switch-container {
+    width: 60px;
+    margin: 0 20px;
+    background-color: #b2dd4d;
+  }
+
+  .online-booking-input-box {
+    width: 90%;
+    min-height: 250px;
+  }
+}
