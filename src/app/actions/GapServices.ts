@@ -1013,6 +1013,860 @@ export class GapService {
     );
   }
 
+  // ── Customer ──
+  static async getCustomer(
+    phoneNumber: string,
+    limit: number = 100
+  ): Promise<any> {
+    const limited = limit;
+    const skip = limited * 1 - limited;
+    const customQuery = `skip=${skip}&limit=${limited}&count=1&where={"$or":[{"phoneNumber":"${phoneNumber.toString()}"},{"username":"${phoneNumber.toString()}"}]}`;
+    return this.fetchData(
+      '/classes/_User',
+      REQUEST_TYPE.GET,
+      null,
+      null,
+      null,
+      null,
+      customQuery
+    );
+  }
+
+  static async getCustomerTable(
+    page: number = 1,
+    keyword: string | null = null
+  ): Promise<any> {
+    const limited = 100;
+    const skip = limited * page - limited;
+    if (keyword) {
+      const customQuery = `skip=${skip}&limit=${limited}&count=1&where={"role":"customer","phoneNumber":"${keyword.toString()}"}`;
+      return this.fetchData(
+        '/classes/_User',
+        REQUEST_TYPE.GET,
+        null,
+        null,
+        null,
+        null,
+        customQuery
+      );
+    } else {
+      const customQuery = `skip=${skip}&limit=${limited}&count=1&where={"role":"customer"}`;
+      return this.fetchData(
+        '/classes/_User',
+        REQUEST_TYPE.GET,
+        null,
+        null,
+        null,
+        null,
+        customQuery
+      );
+    }
+  }
+
+  static async setCustomer(formData: any): Promise<any> {
+    const body = {
+      role: 'customer',
+      fullName: formData.consignerName,
+      phoneNumber: formData.phoneNumber,
+      identityNumber: formData.consignerIdCard,
+      mail: formData.mail,
+      birthday: formData.birthday,
+      username: formData.username || formData.phoneNumber,
+      password: formData.password,
+      banks: [
+        {
+          type: formData.bankName,
+          accNumber: formData.bankId,
+        },
+      ],
+    };
+    return this.fetchData('/classes/_User', REQUEST_TYPE.POST, null, body);
+  }
+
+  static async updateCustomerTable(formData: any): Promise<any> {
+    const body = {
+      fullName: formData.fullName,
+      phoneNumber: formData.phoneNumber,
+      identityNumber: formData.identityNumber,
+      mail: formData.mail,
+      birthday: formData.birthday,
+      banks: [
+        {
+          type: formData.bankName,
+          accNumber: formData.bankId,
+        },
+      ],
+    };
+    return this.fetchData(
+      `/classes/_User/${formData.objectId}`,
+      REQUEST_TYPE.PUT,
+      null,
+      body,
+      null,
+      null,
+      null,
+      true
+    );
+  }
+
+  static async updateCustomer(formData: any, objectId: string): Promise<any> {
+    const body: Record<string, any> = {
+      fullName: formData.consignerName,
+      phoneNumber: formData.phoneNumber,
+      identityNumber: formData.consignerIdCard,
+      mail: formData.mail,
+      birthday: formData.birthday,
+      banks: [
+        {
+          type: formData.bankName,
+          accNumber: formData.bankId,
+        },
+      ],
+    };
+
+    if (formData.totalMoneyForSale) {
+      body.totalMoneyForSale = `${formData.totalMoneyForSale}`;
+    }
+    if (formData.numberOfSale) {
+      body.numberOfSale = `${formData.numberOfSale}`;
+    }
+    if (formData.totalProductForSale) {
+      body.totalProductForSale = `${formData.totalProductForSale}`;
+    }
+
+    return this.fetchData(
+      `/classes/_User/${objectId}`,
+      REQUEST_TYPE.PUT,
+      null,
+      body,
+      null,
+      null,
+      null,
+      true
+    );
+  }
+
+  // ── Consignment ──
+  static async getConsignment(
+    page: number = 1,
+    keyword?: string | null,
+    limit?: number | null,
+    groupId?: string | null
+  ): Promise<any> {
+    const lim = limit || 20;
+    const skip = lim * page - lim;
+    let whereObj: any = { deletedAt: null };
+    if (groupId) {
+      whereObj.group = {
+        __type: 'Pointer',
+        className: 'ConsignmentGroup',
+        objectId: groupId,
+      };
+    }
+    const customQuery = `order=-createdAt&skip=${skip}&limit=${lim}&count=1&where=${JSON.stringify(whereObj)}`;
+    return this.fetchData(
+      '/classes/Consignment',
+      REQUEST_TYPE.GET,
+      null,
+      null,
+      null,
+      null,
+      customQuery
+    );
+  }
+
+  static async setConsignment(
+    formData: any,
+    consigneeData: string | undefined,
+    consignerData: string,
+    timeGroupId: string,
+    timeGroupCode: string,
+    productList: any[],
+    moneyBackForFullSold: number,
+    totalMoney: number,
+    isTransferMoneyWithBank: string = 'false',
+    note: string = ''
+  ): Promise<any> {
+    const body = {
+      consignmentId: formData.consignmentId + '-' + timeGroupCode,
+      consignerName: formData.consignerName,
+      consignerIdCard: formData.consignerIdCard,
+      mail: formData.mail,
+      consignee: consigneeData
+        ? { __type: 'Pointer', className: '_User', objectId: consigneeData }
+        : undefined,
+      consigner: {
+        __type: 'Pointer',
+        className: '_User',
+        objectId: consignerData,
+      },
+      group: {
+        __type: 'Pointer',
+        className: 'ConsignmentGroup',
+        objectId: timeGroupId,
+      },
+      consigneeName: formData.consigneeName,
+      phoneNumber: formData.phoneNumber,
+      numberOfProducts: Number(formData.numberOfProducts),
+      timeGetMoney: formData.timeGetMoney || '',
+      moneyBackForFullSold: Math.round(Number(moneyBackForFullSold)) || 0,
+      totalMoney,
+      banks: [
+        {
+          type: formData.bankName,
+          accNumber: formData.bankId,
+        },
+      ],
+      note,
+      isTransferMoneyWithBank: isTransferMoneyWithBank === 'true',
+      productList: productList || [],
+    };
+    return this.fetchData(
+      '/classes/Consignment',
+      REQUEST_TYPE.POST,
+      null,
+      body,
+      null,
+      null,
+      null,
+      true
+    );
+  }
+
+  // ── Channel ──
+  static async updateChannel(dataBody: any, objectId: string): Promise<any> {
+    const body = { ...dataBody };
+    return this.fetchData(
+      `/classes/Channel/${objectId}`,
+      REQUEST_TYPE.PUT,
+      null,
+      body,
+      null,
+      null,
+      null,
+      true
+    );
+  }
+
+  static async getChannel(): Promise<any> {
+    const customQuery = `where={"deletedAt":${null}}`;
+    return this.fetchData(
+      '/classes/Channel',
+      REQUEST_TYPE.GET,
+      null,
+      null,
+      null,
+      null,
+      customQuery
+    );
+  }
+
+  static async setChannel(dataBody: any): Promise<any> {
+    const body = {
+      name: dataBody.name,
+      data: dataBody.data || {},
+      type: dataBody.type,
+    };
+    return this.fetchData(
+      '/classes/Channel',
+      REQUEST_TYPE.POST,
+      null,
+      body,
+      null,
+      null,
+      null,
+      true
+    );
+  }
+
+  static async deleteChannel(objectId: string): Promise<any> {
+    try {
+      const body = {
+        deletedAt: { __type: 'Date', iso: moment().toISOString() },
+      };
+      return this.fetchData(
+        `/classes/Channel/${objectId}`,
+        REQUEST_TYPE.PUT,
+        null,
+        body
+      );
+    } catch (e) {
+      console.log(e);
+      return false;
+    }
+  }
+
+  // ── IP Hash ──
+  static async setIPHASH(formData: any): Promise<any> {
+    const body = {
+      HashIP: formData.HashIP,
+    };
+    return this.fetchData('/classes/IP', REQUEST_TYPE.POST, null, body);
+  }
+
+  static async updateIPHASH(formData: any = {}): Promise<any> {
+    const ipHash = getIpHash();
+    const ud = getUserData();
+
+    const body = {
+      userData: { ...ud, ...formData.userData },
+    };
+
+    if (ipHash && ipHash.objectId) {
+      return this.fetchData(
+        `/classes/IP/${ipHash.objectId}`,
+        REQUEST_TYPE.PUT,
+        null,
+        body
+      );
+    } else {
+      return false;
+    }
+  }
+
+  // ── Order ──
+  static async setOrder(
+    dataOrder: OrderData,
+    consigneeData: string,
+    consignerData: string
+  ): Promise<any> {
+    const body: Record<string, any> = {
+      phoneNumber: dataOrder.clientInfo.phoneNumber,
+      fullName: dataOrder.clientInfo.fullName,
+      consignerIdCard: dataOrder.clientInfo.consignerIdCard,
+      clientInfo: dataOrder.clientInfo,
+      consignee: {
+        __type: 'Pointer',
+        className: '_User',
+        objectId: consigneeData,
+      },
+      client: {
+        __type: 'Pointer',
+        className: '_User',
+        objectId: consignerData,
+      },
+      isTransferMoneyWithBank: dataOrder.isTransferWithBank === 'true',
+      isTransferMoneyWithBankAndOffline:
+        !(dataOrder.isTransferWithBank === 'true') &&
+        dataOrder.isTransferMoneyWithBankAndOffline === 'true',
+      transferBankMoneyAmount: dataOrder.transferBankMoneyAmount || 0,
+      transferOfflineMoneyAmount: dataOrder.transferOfflineMoneyAmount || 0,
+      productList: dataOrder.productList || [],
+      totalNumberOfProductForSale: `${dataOrder.totalNumberOfProductForSale}`,
+      totalMoneyForSale: `${dataOrder.totalMoneyForSale}`,
+      totalMoneyForSaleAfterFee: `${dataOrder.totalMoneyForSaleAfterFee}`,
+      note: dataOrder.note,
+      isOnlineSale: dataOrder.isOnlineSale === 'true',
+      shippingInfo: dataOrder.shippingInfo,
+      isGetMoney: dataOrder.isGetMoney || false,
+    };
+
+    if (dataOrder.timeConfirmGetMoney) {
+      body.timeConfirmGetMoney = dataOrder.timeConfirmGetMoney;
+    }
+
+    return this.fetchData('/classes/Order', REQUEST_TYPE.POST, null, body);
+  }
+
+  static async updateOrder(item: {
+    objectId: string;
+    isGetMoney?: boolean;
+    timeConfirmGetMoney?: string;
+  }): Promise<any> {
+    try {
+      const body: Record<string, any> = {
+        isGetMoney: item.isGetMoney || false,
+      };
+      if (item.timeConfirmGetMoney) {
+        body.timeConfirmGetMoney = item.timeConfirmGetMoney;
+      }
+      return this.fetchData(
+        `/classes/Order/${item.objectId}`,
+        REQUEST_TYPE.PUT,
+        null,
+        body,
+        null,
+        null,
+        null,
+        true
+      );
+    } catch (e) {
+      console.log(e);
+      return false;
+    }
+  }
+
+  static async deleteOrder(objectId: string): Promise<any> {
+    try {
+      const body = {
+        deletedAt: { __type: 'Date', iso: moment().toISOString() },
+      };
+      return this.fetchData(
+        `/classes/Order/${objectId}`,
+        REQUEST_TYPE.PUT,
+        null,
+        body
+      );
+    } catch (e) {
+      console.log(e);
+      return false;
+    }
+  }
+
+  static async getOrder(
+    page: number = 1,
+    selectedKeys: SelectedKeys | null = null,
+    limit: number = 100,
+    fromDateMoment?: string,
+    toDateMoment?: string
+  ): Promise<any> {
+    const limited = limit || 100;
+    const skip = limited * page - limited;
+
+    if (selectedKeys) {
+      const fromDateFormated = moment(fromDateMoment, 'YYYY-MM-DD');
+      const toDateFormated = moment(toDateMoment, 'YYYY-MM-DD');
+      let allSearchRegex = `"deletedAt":${null}, "createdAt": {"$gte": {"__type": "Date","iso": "${fromDateFormated}"},"$lte": {"__type": "Date","iso": "${toDateFormated}"}}`;
+
+      if (selectedKeys.phoneNumber) {
+        allSearchRegex += `,"phoneNumber":{"$regex":"${selectedKeys.phoneNumber.trim()}"}`;
+      }
+      if (selectedKeys.fullName) {
+        allSearchRegex += `,"fullName":{"$text":{"$search":{"$term":"${selectedKeys.fullName}"}}}`;
+      }
+      if (selectedKeys.isTransferMoneyWithBank) {
+        allSearchRegex += `,"isTransferMoneyWithBank":${selectedKeys.isTransferMoneyWithBank}`;
+      }
+      if (selectedKeys.totalNumberOfProductForSale) {
+        allSearchRegex += `,"totalNumberOfProductForSale":${selectedKeys.totalNumberOfProductForSale.trim()}`;
+      }
+      if (selectedKeys.isOnlineSale) {
+        allSearchRegex += `,"isOnlineSale":${selectedKeys.isOnlineSale}`;
+      }
+
+      const customQuery = `skip=${skip}&limit=${limited}&count=1&include=client,transporter&where={${allSearchRegex}}`;
+      const customQueryWithoutCondition = `include=client,transporter,productList.consignment`;
+
+      if (selectedKeys.objectId) {
+        return this.fetchData(
+          `/classes/Order/${selectedKeys.objectId.trim()}`,
+          REQUEST_TYPE.GET,
+          null,
+          null,
+          null,
+          null,
+          customQueryWithoutCondition
+        );
+      } else {
+        return this.fetchData(
+          '/classes/Order',
+          REQUEST_TYPE.GET,
+          null,
+          null,
+          null,
+          null,
+          customQuery
+        );
+      }
+    } else {
+      const fromDateFormated = moment(fromDateMoment, 'YYYY-MM-DD');
+      const toDateFormated = moment(toDateMoment, 'YYYY-MM-DD');
+      const customQuery = `skip=${skip}&limit=${limited}&count=1&include=client,transporter,productList.consignment&where={"deletedAt":${null}, "createdAt": {"$gte": {"__type": "Date","iso": "${fromDateFormated}"},"$lte": {"__type": "Date","iso": "${toDateFormated}"}}}`;
+      return this.fetchData(
+        '/classes/Order',
+        REQUEST_TYPE.GET,
+        null,
+        null,
+        null,
+        null,
+        customQuery
+      );
+    }
+  }
+
+  // ── Order Request Search ──
+  static async getOrderRequestWithSearchKey(
+    page: number = 1,
+    selectedKeys: SelectedKeys | null = null,
+    limit: number = 100,
+    fromDateMoment?: string,
+    toDateMoment?: string
+  ): Promise<any> {
+    const limited = limit || 100;
+    const skip = limited * page - limited;
+
+    if (selectedKeys) {
+      const fromDateFormated = moment(fromDateMoment, 'YYYY-MM-DD');
+      const toDateFormated = moment(toDateMoment, 'YYYY-MM-DD');
+      let allSearchRegex = `"deletedAt":${null}, "createdAt": {"$gte": {"__type": "Date","iso": "${fromDateFormated}"},"$lte": {"__type": "Date","iso": "${toDateFormated}"}}`;
+
+      if (selectedKeys.phoneNumber) {
+        allSearchRegex += `,"phoneNumber":{"$regex":"${selectedKeys.phoneNumber.trim()}"}`;
+      }
+      if (selectedKeys.fullName) {
+        allSearchRegex += `,"fullName":{"$text":{"$search":{"$term":"${selectedKeys.fullName}"}}}`;
+      }
+      if (selectedKeys.isTransferMoneyWithBank) {
+        allSearchRegex += `,"isTransferMoneyWithBank":${selectedKeys.isTransferMoneyWithBank}`;
+      }
+      if (selectedKeys.totalNumberOfProductForSale) {
+        allSearchRegex += `,"totalNumberOfProductForSale":${selectedKeys.totalNumberOfProductForSale.trim()}`;
+      }
+      if (selectedKeys.waitingCode) {
+        allSearchRegex += `,"waitingCode":{"$text":{"$search":{"$term":"${selectedKeys.waitingCode.trim()}"}}}`;
+      }
+      if (selectedKeys.isOnlineSale) {
+        allSearchRegex += `,"isOnlineSale":${selectedKeys.isOnlineSale}`;
+      }
+
+      let customQuery = `skip=${skip}&limit=${limited}&count=1&include=product,orderData,orderData.transporter&where={${allSearchRegex}}`;
+      const customQueryWithoutCondition = `include=product,orderData,orderData.transporter`;
+
+      if (selectedKeys.productId) {
+        allSearchRegex += `,"product":{"__type":"Pointer","className":"Product","objectId":"${selectedKeys.productId.trim()}"}`;
+        customQuery = `skip=${skip}&limit=${limited}&count=1&include=product,orderData,orderData.transporter&where={${allSearchRegex}}`;
+      }
+
+      if (selectedKeys.objectId) {
+        return this.fetchData(
+          `/classes/OrderRequest/${selectedKeys.objectId.trim()}`,
+          REQUEST_TYPE.GET,
+          null,
+          null,
+          null,
+          null,
+          customQueryWithoutCondition
+        );
+      } else {
+        return this.fetchData(
+          '/classes/OrderRequest',
+          REQUEST_TYPE.GET,
+          null,
+          null,
+          null,
+          null,
+          customQuery
+        );
+      }
+    } else {
+      const fromDateFormated = moment(fromDateMoment, 'YYYY-MM-DD');
+      const toDateFormated = moment(toDateMoment, 'YYYY-MM-DD');
+      const customQuery = `skip=${skip}&limit=${limited}&count=1&include=product,orderData,orderData.transporter&where={"deletedAt":${null}, "createdAt": {"$gte": {"__type": "Date","iso": "${fromDateFormated}"},"$lte": {"__type": "Date","iso": "${toDateFormated}"}}}`;
+      return this.fetchData(
+        '/classes/OrderRequest',
+        REQUEST_TYPE.GET,
+        null,
+        null,
+        null,
+        null,
+        customQuery
+      );
+    }
+  }
+
+  static async getOrderRequestWithID(
+    page: number = 1,
+    productId: string | null = null,
+    limit: number = 20
+  ): Promise<any> {
+    const limited = limit || 100;
+    const skip = limited * page - limited;
+
+    const fromDateFormated = moment().startOf('day');
+    const toDateFormated = moment(fromDateFormated).add(1, 'day');
+
+    const customQuery = `include=product&skip=${skip}&limit=${limited}&count=1&where={"$or":[{"status":"IN_QUEUE"}, {"status":"VALID"}],"deletedAt":${null}, "createdAt": {"$gte": {"__type": "Date","iso": "${fromDateFormated}"}} ,"product": { "__type": "Pointer", "className": "Product", "objectId": "${productId}" }}`;
+    return this.fetchData(
+      '/classes/OrderRequest',
+      REQUEST_TYPE.GET,
+      null,
+      null,
+      null,
+      null,
+      customQuery
+    );
+  }
+
+  // ── Consignment extra ──
+  static async getConsignmentWithPhoneIncludeText(
+    page: number = 1,
+    keyword: string | null = null,
+    limit: number = 20
+  ): Promise<any> {
+    const limited = limit || 100;
+    const skip = limited * page - limited;
+    const customQuery = `order=-createdAt&include=group&skip=${skip}&limit=${limited}&count=1&where={"deletedAt":${null},"phoneNumber":{"$regex":"${keyword}"}}`;
+    return this.fetchData(
+      '/classes/Consignment',
+      REQUEST_TYPE.GET,
+      null,
+      null,
+      null,
+      null,
+      customQuery
+    );
+  }
+
+  static async deleteConsignment(objectId: string): Promise<any> {
+    try {
+      const body = {
+        deletedAt: { __type: 'Date', iso: moment().toISOString() },
+      };
+      return this.fetchData(
+        `/classes/Consignment/${objectId}`,
+        REQUEST_TYPE.PUT,
+        null,
+        body
+      );
+    } catch (e) {
+      console.log(e);
+      return false;
+    }
+  }
+
+  static async updateConsignment(item: any): Promise<any> {
+    try {
+      const productListTemp = [...item.productList];
+      productListTemp.forEach((_: any, itemIndex: number) => {
+        if (!productListTemp[itemIndex].note) {
+          productListTemp[itemIndex].note = '---';
+        }
+      });
+      const body = {
+        consignmentId: item.consignmentId,
+        numberOfProducts: Number(item.numberOfProducts),
+        numSoldConsignment: Number(item.numSoldConsignment || 0),
+        remainNumConsignment:
+          Number(item.numberOfProducts) - Number(item.numSoldConsignment || 0),
+        moneyBack: Number(item.moneyBack) || 0,
+        moneyBackForFullSold: Number(item.moneyBackForFullSold) || 0,
+        isGetMoney: item.isGetMoney || false,
+        productList: productListTemp,
+        timeConfirmGetMoney: item.timeConfirmGetMoney,
+        note: item.note || '',
+      };
+      return this.fetchData(
+        `/classes/Consignment/${item.objectId}`,
+        REQUEST_TYPE.PUT,
+        null,
+        body,
+        null,
+        null,
+        null,
+        true
+      );
+    } catch (e) {
+      console.log(e);
+      return false;
+    }
+  }
+
+  static async sendEmailTongketWithObjectId(id: string): Promise<any> {
+    const body = { objectId: id };
+    return this.fetchData(
+      '/functions/emailRemiderIndividualConsignment',
+      REQUEST_TYPE.POST,
+      null,
+      body,
+      null,
+      null,
+      null,
+      true
+    );
+  }
+
+  static async sendEmailTongketALLWithObjectIdConsigment(
+    idConsignment: string
+  ): Promise<any> {
+    const body = { groupId: idConsignment };
+    return this.fetchData(
+      '/functions/emailReminderConsignmentGroup',
+      REQUEST_TYPE.POST,
+      null,
+      body,
+      null,
+      null,
+      null,
+      true
+    );
+  }
+
+  // ── Email ──
+  static async getEmailTable(page: number = 1): Promise<any> {
+    const limited = 100;
+    const skip = limited * page - limited;
+    const customQuery = `skip=${skip}&limit=${limited}&count=1`;
+    return this.fetchData(
+      '/classes/Email',
+      REQUEST_TYPE.GET,
+      null,
+      null,
+      null,
+      null,
+      customQuery
+    );
+  }
+
+  static async updateEmailTable(objectId: string, content: any): Promise<any> {
+    const body = { content };
+    return this.fetchData(
+      `/classes/Email/${objectId}`,
+      REQUEST_TYPE.PUT,
+      null,
+      body,
+      null,
+      null,
+      null,
+      true
+    );
+  }
+
+  // ── Setting extra ──
+  static async updateSettingWithKeyAndValue(
+    keyString: string = '',
+    valueString: string = ''
+  ): Promise<any> {
+    const settingAPI = getSettings();
+    const newSettingAPI = { ...settingAPI, [keyString]: valueString };
+    const body = { Setting: newSettingAPI };
+    return this.fetchData(
+      '/classes/Setting/meu8SzyuLd',
+      REQUEST_TYPE.PUT,
+      null,
+      body,
+      null,
+      null,
+      null,
+      true
+    );
+  }
+
+  static async deleteSettingWithKey(keyString: string = ''): Promise<any> {
+    const settingAPI = getSettings();
+    const newSettingAPI = { ...settingAPI };
+    delete newSettingAPI[keyString];
+    const body = { Setting: newSettingAPI };
+    return this.fetchData(
+      '/classes/Setting/meu8SzyuLd',
+      REQUEST_TYPE.PUT,
+      null,
+      body,
+      null,
+      null,
+      null,
+      true
+    );
+  }
+
+  // ── Custom API ──
+  static async getUnitAddress(): Promise<any> {
+    return this.fetchData(
+      '/functions/administativeUnits',
+      REQUEST_TYPE.POST,
+      null,
+      null
+    );
+  }
+
+  static async pushOrderToGHTK(
+    formData: OrderData,
+    orderId: string
+  ): Promise<any> {
+    const formDataFee = {
+      orderAdressProvince:
+        formData.shippingInfo?.orderAdressProvince ||
+        formData.shippingInfo?.province ||
+        '',
+      orderAdressDistrict:
+        formData.shippingInfo?.orderAdressDistrict ||
+        formData.shippingInfo?.district ||
+        '',
+      orderAdressWard:
+        formData.shippingInfo?.orderAdressWard ||
+        formData.shippingInfo?.ward ||
+        '',
+    };
+    const resFee = await this.getFeeForTransport(formDataFee);
+
+    let shippingFee: number;
+    if (resFee?.result) {
+      shippingFee = resFee.result;
+    } else {
+      showNotification('Không thể ước tính phí ship');
+      return false;
+    }
+
+    const body: Record<string, any> = {
+      service: 'giaohangtietkiem',
+      action: 'CREATE_ORDER',
+      data: {
+        from: {
+          province: ADDRESS_GET_ORDER_ARRAY[0],
+          district: ADDRESS_GET_ORDER_ARRAY[1],
+          address: '1 Phó Đức Chính',
+          ward: ADDRESS_GET_ORDER_ARRAY[2],
+          name: 'Giveaway Premium store',
+          phone: '0703334443',
+        },
+        to: {
+          email: formData.clientInfo.mail || formData.shippingInfo?.mail,
+          province:
+            formData.shippingInfo?.orderAdressProvince ||
+            formData.shippingInfo?.province,
+          district:
+            formData.shippingInfo?.orderAdressDistrict ||
+            formData.shippingInfo?.district,
+          address:
+            formData.shippingInfo?.orderAdressStreet ||
+            formData.shippingInfo?.address,
+          ward:
+            formData.shippingInfo?.orderAdressWard ||
+            formData.shippingInfo?.ward,
+          name: formData.clientInfo.fullName || formData.shippingInfo?.name,
+          phone:
+            formData.clientInfo.phoneNumber || formData.shippingInfo?.phone,
+        },
+        orderId: orderId || formData.objectId,
+        codMoney: 0,
+        pick_option: 'cod',
+        serviceLevel: 'road',
+        value:
+          Number(formData.totalMoneyForSale) * 1000 >= 2000000
+            ? 2000000
+            : Number(formData.totalMoneyForSale || 0) * 1000,
+        items: [] as any[],
+        orderRequest: {
+          email: formData.clientInfo.mail || formData.shippingInfo?.mail,
+          pick_money: Number(shippingFee),
+          is_freeship: 1,
+        },
+      },
+    };
+
+    if (formData.productList && formData.productList.length > 0) {
+      formData.productList.forEach((item: any) => {
+        body.data.items.push({
+          name: item.name,
+          weight: 0.2,
+          quantity: Number(item.numberOfProductForSale),
+        });
+      });
+    }
+
+    if (formData.shippingInfo?.optionTransfer === 'ht') {
+      body.data.pick_option = 'cod';
+      body.data.deliver_option = 'xteam';
+      body.data.pick_session = 2;
+    }
+
+    return this.fetchData(
+      '/functions/transporter',
+      REQUEST_TYPE.POST,
+      null,
+      body
+    );
+  }
+
   // Core Fetch Function
   static async fetchData(
     apiUrl: string,
