@@ -99,7 +99,7 @@ const checkDayCodeToBookingOption = (
   return { option: 8, timeBooking: TIME_BOOKING.OPTION_8 };
 };
 
-const TOTAL_DAY_SLOTS = 35;
+const MAX_BOOKING_DAYS = 35;
 
 // ─── Booking option labels ──────────────────────────────
 const BOOKING_OPTION_LABELS: Record<number, string> = {
@@ -221,7 +221,7 @@ const TableAppointmentScreen: React.FC = () => {
   // ── Init ──
   useEffect(() => {
     const dayBookingTemp: DayBookingItem[] = [];
-    for (let i = 0; i < TOTAL_DAY_SLOTS; i++) {
+    for (let i = 0; i < MAX_BOOKING_DAYS; i++) {
       dayBookingTemp.push({
         dayName: moment().add(i, 'day').format('dddd'),
         date: moment().add(i, 'day').format('DD-MM-YYYY'),
@@ -264,6 +264,7 @@ const TableAppointmentScreen: React.FC = () => {
     setWorkingDayCount(wdCount);
 
     fetchAppointment(dayBookingTemp);
+    // Settings are read once at mount; fetchAppointment has no deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -611,7 +612,7 @@ const TableAppointmentScreen: React.FC = () => {
                       <div
                         style={
                           !isBusy
-                            ? { pointerEvents: 'none', cursor: 'default' }
+                            ? { pointerEvents: 'none' }
                             : {}
                         }
                         onClick={() =>
