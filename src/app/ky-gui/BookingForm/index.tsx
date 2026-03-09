@@ -10,6 +10,7 @@ import GapService from '@/app/actions/GapServices';
 import Lottie from 'react-lottie';
 import successJson from '@images/Lottie/success.json';
 import rightArrowJson from '@images/Lottie/rightArrow.json';
+import logoHeaderWhite from '@images/Icon/logoHeaderWhite.svg';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +36,7 @@ import {
   TimeBookingItem,
 } from '@/lib/constants';
 import { useAppStore, StoreServices } from '@/store/useAppStore';
+import Image from 'next/image';
 
 // Types
 interface DayBooking {
@@ -517,9 +519,9 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
                     alignItems: 'center',
                   }}
                 >
-                  <img
+                  <Image
                     width={70}
-                    src={'@images/Icon/logoHeaderWhite.svg'}
+                    src={logoHeaderWhite}
                     style={{ objectFit: 'contain' }}
                     alt="logo"
                   />
@@ -548,6 +550,7 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
                       width: '100%',
                       justifyContent: 'center',
                       alignItems: 'center',
+                      marginTop: '20px',
                     }}
                   >
                     <Button
