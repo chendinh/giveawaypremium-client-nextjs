@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import TableConsignmentScreen from './components/TableConsignemntScreen';
 // import TableProductScreen from './components/TableProduct';
 // import TableOrder from './components/TableOrder';
-// import TableCustomer from './components/TableCustomer';
+import TableCustomerScreen from './components/TableCustomer';
 // import TableAppointment from './components/TableAppointment';
 // import TableEmailScreen from './components/TableEmailScreen';
 // import TableRequestOrder from './components/TableRequestOrder';
@@ -55,10 +55,7 @@ const ManageScreen: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="5">
-          {/* <TableCustomer /> */}
-          <div className="text-muted-foreground text-center py-10">
-            Khách hàng (chưa convert)
-          </div>
+          <TableCustomerScreen />
         </TabsContent>
 
         <TabsContent value="6">
