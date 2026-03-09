@@ -60,6 +60,19 @@ interface CustomerItem {
   numberOfSale?: number | string;
 }
 
+interface CustomerApiItem {
+  objectId: string;
+  fullName?: string;
+  identityNumber?: string;
+  phoneNumber?: string;
+  mail?: string;
+  birthday?: string;
+  banks?: Array<{ type: string; accNumber: string }>;
+  totalMoneyForSale?: number;
+  totalProductForSale?: number;
+  numberOfSale?: number;
+}
+
 interface SearchFilters {
   phoneNumber: string;
 }
@@ -99,13 +112,13 @@ const TableCustomerScreen: React.FC = () => {
 
         if (res?.results) {
           const customers: CustomerItem[] = res.results.map(
-            (item: any, index: number) => ({
+            (item: CustomerApiItem) => ({
               objectId: item.objectId,
               fullName: item.fullName,
               identityNumber: item.identityNumber,
               phoneNumber: item.phoneNumber,
-              bankName: item.banks?.[0]?.type || '',
-              bankId: item.banks?.[0]?.accNumber || '',
+              bankName: Array.isArray(item.banks) && item.banks.length > 0 ? item.banks[0].type : '',
+              bankId: Array.isArray(item.banks) && item.banks.length > 0 ? item.banks[0].accNumber : '',
               email: item.mail,
               birthday: item.birthday,
               totalMoneyForSale: item.totalMoneyForSale || 0,
@@ -293,6 +306,7 @@ const TableCustomerScreen: React.FC = () => {
                     {item.bankId || '---'}
                   </TableCell>
                   <TableCell className="text-right text-sm font-medium">
+                    {/* API stores prices in thousands (e.g. 50 = 50,000vnđ) */}
                     {item.totalMoneyForSale
                       ? `${numberWithCommas(item.totalMoneyForSale)},000vnđ`
                       : '0'}
