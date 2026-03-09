@@ -1,0 +1,164 @@
+.TableAppointment-home-container {
+  width: 100%;
+  height: 75vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  .anticon-spin {
+      width: 20px !important;
+      height: 20px !important;
+  }
+  .bookingform {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    @media screen and (max-width: 700px) {
+      align-items: flex-start;
+    }
+    .dayBooking-box {
+      display: flex;
+      height: 70vh;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+
+      flex-basis: 20%;
+      transition: 0.5s all;
+      opacity: 1;
+
+      @media screen and (max-width: 700px) {
+        height: 90%;
+        flex-basis: 40%;
+      }
+
+      .day-box {
+        cursor: pointer;
+        height: 100%;
+        margin-bottom: 1vh;
+        width: 60%;
+        background: #f5f5f5;
+        opacity: 1;
+        border: 1px solid rgba(0, 0, 0, 0.28);
+        padding: 1vh;
+        border-radius: 4px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+
+        @media screen and (max-width: 700px) {
+          width: 80%;
+        }
+
+        .day-name {
+          @media screen and (max-width: 700px) {
+            font-size: 10px;
+          }
+        }
+        .day-txt {
+          font-size: 10px;
+          @media screen and (max-width: 700px) {
+            font-size: 10px;
+          }
+        }
+      }
+    }
+
+    .timeBooking-box {
+      flex-basis: auto;
+      width: 80%;
+      height: 70vh;
+      display: flex;
+      justify-content: center;
+      flex-direction: column;
+      align-items: center;
+
+      @media screen and (max-width: 700px) {
+        height: 90%;
+      }
+
+
+      .timeBooking-grid {
+        opacity: 1;
+        transition: 0.5s all;
+        height: 90%;
+        display: grid;
+        grid-template-columns: auto auto auto;
+        grid-gap: 10px;
+        width: 80%;
+
+        @media screen and (max-width: 700px) {
+          font-size: 2px;
+        }
+  
+        .time-box {
+          cursor: pointer;
+          height: 100%;
+          width: 90%;
+          background: #f5f5f5;
+          opacity: 1;
+          border-bottom: 1px solid rgba(0, 0, 0, 0.28);
+          padding: 1vh;
+          border-radius: 4px;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+
+          &.ready {
+            background: #d2e8c9 !important;
+          }
+
+          &.busy {
+            background: #dfbe6b !important;
+          }
+        }
+      }
+      
+      .timeBooking-form {
+        border-top: 1px solid #eceaea;
+        padding-top: 2vh !important;
+        transition: 0.5s all;
+        opacity: 1;
+      }
+    }
+  }
+}
+
+.search-info-user-booking-box {
+  margin-left: 2%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.select-booking-option-box {
+  margin: 50px 0 50px 2%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+
+  .ant-select-selector {
+    min-width: 300px !important;
+  }
+
+  .status-on {
+    width: 10px;
+    height: 10px;
+    border-radius: 100%;
+    background-color: green;
+  }
+  
+  .status-off {
+    width: 10px;
+    height: 10px;
+    border-radius: 100%;
+    background-color: orange;
+  }
+}
