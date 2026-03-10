@@ -136,8 +136,6 @@ const DEFAULT_SHIPPING_INFO: ShippingInfo = {
   optionTransfer: 'tk',
 };
 
-let numPaneTemp = 0;
-
 // ─── Component ────────────────────────────────────────
 const SaleScreen: React.FC = () => {
   const { userData, unitAddressRedux } = useAppStore();
@@ -151,6 +149,7 @@ const SaleScreen: React.FC = () => {
   const [provinces, setProvinces] = useState<AddressProvince[]>([]);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const numPaneTempRef = useRef<number>(0);
 
   // ── Init ──
   useEffect(() => {
@@ -159,7 +158,7 @@ const SaleScreen: React.FC = () => {
     }
     addPane();
     return () => {
-      numPaneTemp = 0;
+      numPaneTempRef.current = 0;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -172,8 +171,8 @@ const SaleScreen: React.FC = () => {
   // ─── Tab management ─────────────────────────────────
 
   const addPane = useCallback(() => {
-    const newKey = numPaneTemp;
-    numPaneTemp += 1;
+    const newKey = numPaneTempRef.current;
+    numPaneTempRef.current += 1;
 
     const newPane: OrderPane = {
       isOnlineSale: 'false',
