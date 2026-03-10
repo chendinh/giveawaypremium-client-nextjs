@@ -1,0 +1,9 @@
+.CodeBoxPinter {
+    display: flex;
+    flex-direction: column;
+
+    .createNewButton {
+        align-self: flex-start;
+        cursor: pointer;
+    }    
+}

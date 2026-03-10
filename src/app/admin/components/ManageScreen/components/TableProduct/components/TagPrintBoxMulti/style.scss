@@ -1,0 +1,19 @@
+@media print {
+    html, body {
+      width: 270px;
+    }
+}
+
+.CodeBoxPinterMulti {
+    display: flex;
+    flex-direction: column;
+
+    .boxTwoTag {
+        width: 270px;
+    }
+
+    .createNewButton {
+        align-self: flex-start;
+        cursor: pointer;
+    }    
+}
