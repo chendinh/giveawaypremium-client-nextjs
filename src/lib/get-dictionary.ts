@@ -2,6 +2,8 @@ import 'server-only';
 
 export type Locale = 'en' | 'vi';
 
+export const DEFAULT_LOCALE: Locale = 'en';
+
 const dictionaries = {
   en: () => import('../dictionaries/en.json').then(m => m.default),
   vi: () => import('../dictionaries/vi.json').then(m => m.default),
