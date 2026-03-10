@@ -1,0 +1,386 @@
+@font-face {
+  font-family: myriadpro-boldcond;
+  src: url("/static/Assets/Fonts/myriadpro-boldcond.otf");
+  }
+
+  @font-face {
+    font-family: myriadpro-cond;
+    src: url("/static/Assets/Fonts/myriadpro-cond.otf");
+    }
+
+@media print {
+    html, body {
+      // display: block;
+      // background-color: red;
+      width: 34mm;
+      height: 20mm; 
+    }
+
+    // .BoxContainer {
+    //     display: flex;
+    //     justify-content: center;
+      
+    //     /* align-items: center;
+    //     flex-direction: column; */
+    //     font-size: 14px;
+    //     font-family: "courier";
+    //     /* background: #e6e6e6; */
+    //     width: 100%;
+    //     height: auto;
+    //     box-sizing: border-box;
+    // }
+    
+    // .BoxTicket {
+    //     width: 300px;
+    //     padding: 10px 20px;
+    //     cursor: default;
+    //     position: relative;
+    // }
+    
+    // .BoxHeader {
+    //     font-size: 140px;
+    //     text-align: center;
+    //     padding: 0px 17px;
+    //     line-height: 0.5rem;
+    //     p:nth-child(1) {
+    //       font-size: 17px;
+    //       font-weight: 900;
+    //     }
+    //     p {
+    //         margin: 0;
+    //         font-size: 12px;
+    //         font-weight: 500;
+    //         line-height: 1rem;
+    //     }
+    //     > h3 {
+    //       padding: 12px;
+    //       border-top: dashed #333333;
+    //       border-bottom: dashed #333333;
+    //     }
+    // }
+    
+    // .BoxContent {
+    //     padding: 0px 17px;
+    //     margin: 20px 0;
+    // }
+    
+    // .BoxCol {
+    //     display: flex;
+    //     width: 100%;
+    //     justify-content: space-between;
+    //     line-height: 0.1em;
+    // }
+    
+    // .MainTable {
+    //     width: 100%;
+    //     border-collapse: collapse;
+    //     margin: 15px 0;
+    //     border-bottom: dashed #333333;
+    //     tbody {
+    //       .header {
+    //         text-align: center;
+    //         border-top: dashed #333333;
+    //         border-bottom: dashed #333333;
+    //         font-size: 10px;
+    //         td:nth-child(1) {
+    //           width: 5mm;
+    //           text-align: left;
+    //         }
+    //         td:nth-child(2) {
+    //             width: 25mm;
+    //             text-align: left;
+    //             line-height: 0.75rem;
+    //         }
+    //         td:nth-child(3) {
+    //             width: 5mm;
+    //             text-align: center;
+    //         }
+    //         td:nth-child(4) {
+    //             width: 25mm;
+    //             text-align: right;
+    //         }
+    //       }
+    
+    //       tr {
+    //         line-height: 1rem;
+    //         td:not(:first-child) {
+    //           text-align: left;
+    //         }
+    //       }
+    
+    //       .headerItem {
+    
+    //       }
+    //     }
+    // }
+    
+    // .SubTable {
+    //     width: 100%;
+    //     border-collapse: collapse;
+    //     margin: 15px 0;
+    //     border-bottom: solid #333333;
+    //     tr {
+    //       display: flex;
+    //       justify-content: space-between;
+    //       td {
+    //       }
+    //     }
+    // }
+    
+    // .LegalCopy {
+    //     margin: 15px 0;
+    // }
+}
+
+.BoxContainerTag {
+  width: 34mm !important;
+  height: 20mm; 
+  display: flex;
+  justify-content: center;
+  color: black;
+  letter-spacing: 0.3px;
+  font-weight: 500;
+
+  /* align-items: center;
+  flex-direction: column; */
+  font-size: 12px;
+  font-family: 'myriadpro-cond' !important;
+  /* background: #e6e6e6; */
+  // width: 100%;
+  // height: auto;
+  box-sizing: border-box;
+
+  .walletconnect-qrcode__image {
+    width: 13mm;
+    height: 13mm;
+  }
+}
+
+.qrcode {
+  padding-top: 1px;
+  // background-color: red;
+  // background-color: red;
+  display: flex;
+  // width: 34mm;
+  height: 20mm; 
+  flex-direction: row;
+}
+
+.qrcodeImgBox {
+  display: flex;
+}
+
+.leftBox {
+  padding-bottom: 8px;
+  font-family: 'myriadpro-cond' !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  width: 15mm;
+  height: 20mm;
+  // background-color: red;
+
+  p {
+    font-family: 'myriadpro-cond' !important;
+    text-align: left;
+    margin: 0 !important;
+    font-weight: 400;
+    word-break: normal;
+    font-size: 12px;
+    line-height: 14px;
+  }
+
+  .leftBoxCode {
+    padding-top: 4px;
+    font-family: 'myriadpro-cond' !important;
+    text-align: left;
+    margin: 0 !important;
+    font-weight: 400;
+    word-break: normal;
+    font-size: 12px;
+    line-height: 14px;
+  }
+}
+
+.rightBox {
+  padding-bottom: 6px;
+  // margin-left: 5px;
+  
+  font-family: 'myriadpro-cond' !important;
+  text-align: right;
+  width: calc(15mm + 5px);
+  height: 20mm;
+
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  p {
+    line-height: 12px;
+    font-family: 'myriadpro-cond' !important;
+    margin: 0 !important;
+    text-align: right;
+    word-break: normal;
+    font-size: 12px;
+    font-weight: 400;
+  }
+
+  .rightBoxName {
+    zoom: 0.9;
+    padding-top: 7.5px;
+    line-height: 12px;
+    font-family: 'myriadpro-cond' !important;
+    margin: 0 !important;
+    text-align: right;
+    word-break: normal;
+    font-size: 12px;
+    font-weight: 400;
+    height: 16mm;
+    overflow: hidden;
+  }
+
+  .rightBoxNewUsed { 
+    position: absolute;
+    right: 0;
+    padding-top: 1px;
+    zoom: 0.8;
+    font-style: italic;
+    line-height: 10px;
+    font-family: 'myriadpro-cond' !important;
+    margin: 0 !important;
+    text-align: right;
+    word-break: normal;
+    font-size: 10px;
+    font-weight: 300;
+  }
+
+  .price {
+    padding-top: 7px;
+    line-height: 14px;
+    font-family: 'myriadpro-boldcond' !important;
+    margin: 0 !important;
+    text-align: right;
+    word-break: normal;
+    font-size: 14px;
+    font-weight: 400;
+  }
+}
+
+.BoxTicket {
+  width: 100%;
+  cursor: default;
+  position: relative;
+}
+
+.BoxHeader {
+  font-weight: 400;
+  color: black;
+
+
+  // font-size: 5px;
+  text-align: center;
+  padding: 0px 5px;
+  line-height: 0.75rem;
+  p:nth-child(1) {
+    // font-size: 5px;
+    font-size: 14px;
+
+    font-weight: 700;
+  }
+  p {
+     font-size: 12px;
+      margin: 0;
+      margin-bottom: 5px;
+      // font-size: 5px;
+      font-weight: 500;
+      line-height: 0.75rem;
+  }
+  > h3 {
+    padding: 2px;
+    border-top: 0.5px dashed #333333;
+    border-bottom: 0.5px dashed #333333;
+  }
+}
+
+.BoxContent {
+  padding: 5px 0;
+  margin: 20px 0;
+}
+
+.BoxCol {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  line-height: 0.1em;
+
+  p {
+    line-height: 0.5em;
+  }
+}
+
+.MainTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 15px 0;
+  border-bottom: 0.1px dashed #333333;
+  tbody {
+    .header {
+      text-align: center;
+      border-top: 0.1px dashed #333333;
+      border-bottom: 0.1px dashed #333333;
+      // font-size: 5px;
+      td:nth-child(1) {
+        width: 5mm;
+        text-align: left;
+      }
+      td:nth-child(2) {
+          width: 25mm;
+          text-align: left;
+          line-height: 0.75rem;
+      }
+      td:nth-child(3) {
+          width: 5mm;
+          text-align: center;
+      }
+      td:nth-child(4) {
+          width: 25mm;
+          text-align: right;
+      }
+    }
+
+    tr {
+      line-height: 1rem;
+      td:not(:first-child) {
+        text-align: left;
+      }
+    }
+
+    .headerItem {
+
+    }
+  }
+}
+
+.SubTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 15px 0;
+  border-bottom: 0.1px solid #333333;
+  tr {
+    display: flex;
+    justify-content: space-between;
+    td {
+    }
+  }
+}
+
+.LegalCopy {
+  display: flex;
+  flex-direction: column;
+  margin: 15px 0;
+
+  .camon {
+    align-self: center;
+  }
+}

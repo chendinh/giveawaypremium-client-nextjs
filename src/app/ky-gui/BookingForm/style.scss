@@ -40,8 +40,8 @@
       }
 
       &.show {
-          opacity: 1;
-          transform: translate(0);
+        opacity: 1;
+        transform: translate(0);
       }
 
       .day-box {
@@ -78,6 +78,7 @@
     }
 
     .timeBooking-box {
+      position: relative;
       flex-basis: auto;
       width: 85%;
       height: 90%;
@@ -89,7 +90,6 @@
       @media screen and (max-width: 700px) {
         height: 90%;
       }
-
 
       .timeBooking-grid {
         opacity: 0;
@@ -105,14 +105,13 @@
         @media screen and (max-width: 700px) {
           font-size: 2px;
         }
-  
 
         &.show {
           transform: translate(0);
           opacity: 1;
           pointer-events: unset;
         }
-  
+
         .time-box {
           cursor: pointer;
           height: 100%;
@@ -197,7 +196,7 @@
           }
         }
       }
-      
+
       .timeBooking-form {
         border-top: 1px solid #eceaea;
         padding-top: 2vh !important;
@@ -216,6 +215,14 @@
           width: 80%;
           color: rgb(209, 36, 36);
           margin: 1em 0;
+        }
+
+        .bookingNoteString {
+          width: 80%;
+          color: rgb(100, 100, 100);
+          margin: 0.5em 0;
+          font-size: 12px;
+          font-style: italic;
         }
       }
 
@@ -252,7 +259,7 @@
         align-items: flex-end;
         width: 100%;
 
-        >span {
+        > span {
           padding: 10px;
 
           @media screen and (max-width: 700px) {
@@ -268,7 +275,7 @@
           opacity: 1;
           pointer-events: unset;
 
-          >span {
+          > span {
             padding: 10px;
 
             @media screen and (max-width: 700px) {
@@ -280,7 +287,6 @@
             }
           }
         }
-  
       }
     }
   }

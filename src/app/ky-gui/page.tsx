@@ -6,13 +6,12 @@ import { useState, useEffect, use } from 'react';
 import Image from 'next/image';
 // import { cn } from '@/lib/utils';
 import BookingForm from './BookingForm'; // giả định path đúng
+import InstrumentForm from './InstrumentForm';
+import SearchForm from './SearchForm';
 // import SearchForm from './components/SearchForm';
 // import InstrumentForm from './components/InstrumentForm';
 
-// Giả định images là object import hoặc public path
-const images = {
-  kyguiZalo: '/assets/images/kygui-zalo.png', // thay bằng path thực tế
-};
+import kyguiZalo from '@images/kyguiquantam.jpg';
 
 export default function ConsignmentPage() {
   // const searchParams = useSearchParams();
@@ -139,12 +138,12 @@ export default function ConsignmentPage() {
         Sau khi truy cập Zalo, vui lòng nhấn **Quan tâm/Follow** để GAP có thể
         ghi nhận thông tin ký gửi từ anh/chị nhé!
       </p>
-      <div className="my-6">
+      <div className="my-10">
         <Image
-          src={images.kyguiZalo}
+          src={kyguiZalo}
           alt="QR Zalo Ký gửi"
-          width={400}
-          height={600}
+          width={500}
+          height={660}
           className="w-full max-w-xs mx-auto object-contain rounded-lg shadow-md"
         />
       </div>
@@ -160,7 +159,7 @@ export default function ConsignmentPage() {
             openModal(renderBookingAlert());
           }
         }}
-        className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition font-medium"
+        className="w-full bg-black text-white py-3 rounded-lg hover:bg-gray-700 transition font-medium"
       >
         Tiếp tục
       </button>
@@ -169,7 +168,7 @@ export default function ConsignmentPage() {
 
   return (
     <div className="min-h-screen w-screen py-12 px-4 sm:px-6 lg:px-8">
-      <div className="mx-auto h-full flex justify-center items-center relative">
+      <div className="mx-auto h-full flex justify-center items-center relative w-full">
         {/* Menu chính - các text clickable */}
         {!isShowForm && (
           <div className="flex flex-col items-center justify-center space-y-10 md:space-y-10 text-center">
@@ -226,6 +225,7 @@ export default function ConsignmentPage() {
         {/* Các form content */}
         <div
           className={`
+            w-full
             transition-all duration-700 ease-in-out transform
             ${isShowForm && isShowBookingForm ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-full pointer-events-none absolute'}
           `}
@@ -237,20 +237,26 @@ export default function ConsignmentPage() {
 
         <div
           className={`
+            w-full
             transition-all duration-700 ease-in-out transform
             ${isShowForm && isShowSearchForm ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-full pointer-events-none absolute'}
           `}
         >
-          {/* {isShowForm && isShowSearchForm && <SearchForm backConsignment={handleBackConsignment} />} */}
+          {isShowForm && isShowSearchForm && (
+            <SearchForm backConsignment={handleBackConsignment} />
+          )}
         </div>
 
         <div
           className={`
+            w-full
             transition-all duration-700 ease-in-out transform
             ${isShowForm && isShowInstrumentForm ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-full pointer-events-none absolute'}
           `}
         >
-          {/* {isShowForm && isShowInstrumentForm && <InstrumentForm backConsignment={handleBackConsignment} />} */}
+          {isShowForm && isShowInstrumentForm && (
+            <InstrumentForm backConsignment={handleBackConsignment} />
+          )}
         </div>
       </div>
 

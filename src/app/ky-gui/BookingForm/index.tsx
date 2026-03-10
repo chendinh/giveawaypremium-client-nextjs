@@ -1,383 +1,858 @@
-// app/consignment/components/BookingForm.tsx
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { format, addDays, isSameDay } from 'date-fns';
-import { vi } from 'date-fns/locale';
-import { Calendar } from '@/components/ui/calendar';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+// import ReduxServices from 'common/redux';
+// import { images } from 'config/images';
+// import MyModal from 'pages/Components/MyModal';
+import moment from 'moment';
+import GapService from '@/app/actions/GapServices';
+import Lottie from 'react-lottie';
+import successJson from '@images/Lottie/success.json';
+import rightArrowJson from '@images/Lottie/rightArrow.json';
+import logoHeaderWhite from '@images/Icon/logoHeaderWhite.svg';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { CalendarIcon, ArrowRight, CheckCircle2, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+
+import './style.scss';
 import { toast } from 'sonner';
+import {
+  BOOKING_OPTION_EACH_DAY_DATA_DEFAULT,
+  TIME_BOOKING,
+  BookingOptionEachDayType,
+  TimeBookingItem,
+} from '@/lib/constants';
+import { useAppStore, StoreServices } from '@/store/useAppStore';
+import Image from 'next/image';
 
-// Giả lập constants (thay bằng import thực tế)
-const TIME_BOOKING = {
-  OPTION_8: [
-    { timeName: '10:00', timeCode: '1000' },
-    { timeName: '11:00', timeCode: '1100' },
-    { timeName: '13:30', timeCode: '1330' },
-    { timeName: '14:30', timeCode: '1430' },
-    { timeName: '15:30', timeCode: '1530' },
-    { timeName: '16:30', timeCode: '1630' },
-    { timeName: '17:30', timeCode: '1730' },
-    { timeName: '18:30', timeCode: '1830' },
-  ],
-  // Thêm các OPTION khác nếu cần
-};
+// Types
+interface DayBooking {
+  dayName: string;
+  date: string;
+  dayCode: string;
+}
 
-// Schema validation
+interface TimeBooking {
+  timeName: string;
+  timeCode: string;
+}
+
+interface FormData {
+  customerName: string;
+  phoneNumber: string;
+  numberOfProduct: number;
+}
+
+interface ErrorSlotInfo {
+  customerName: string;
+  date: string;
+  dateTime: string;
+  phoneNumber: string;
+}
+
+interface BookingOptionEachDay {
+  OPTION_1?: string;
+  OPTION_2?: string;
+  OPTION_3?: string;
+  OPTION_4?: string;
+  OPTION_5?: string;
+  OPTION_6?: string;
+  OPTION_7?: string;
+  OPTION_8?: string;
+  OPTION_9?: string;
+  [key: string]: string | undefined;
+}
+
+interface ConsignmentScreenProps {
+  backConsignment: () => void;
+}
+
+// Form schema
 const formSchema = z.object({
-  customerName: z.string().min(2, 'Tên phải có ít nhất 2 ký tự'),
-  phoneNumber: z
-    .string()
-    .regex(/^0\d{9}$/, 'Số điện thoại không hợp lệ (10 số bắt đầu bằng 0)'),
+  customerName: z.string().min(1, 'Vui lòng nhập tên quý khách'),
+  phoneNumber: z.string().min(1, 'Vui lòng nhập số điện thoại'),
   numberOfProduct: z
     .number()
-    .min(5, 'Tối thiểu 5 món')
-    .max(50, 'Tối đa 50 món - liên hệ hotline nếu >50'),
-  dayTime: z.string().optional(),
+    .min(5, 'Số lượng ký gửi tối thiểu là 5 món')
+    .max(100, 'Số lượng tối đa là 100'),
 });
 
-type FormData = z.infer<typeof formSchema>;
+const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
+  backConsignment,
+}) => {
+  const router = useRouter();
+  //   const myModal = useRef<any>(null);
 
-export default function BookingForm({ backConsignment }) {
-  const [workingDayCount] = useState(14);
-  const [dayBooking, setDayBooking] = useState<
-    { dayName: string; date: string; dayCode: string }[]
-  >([]);
-  const [timeBooking, setTimeBooking] = useState<
-    { timeName: string; timeCode: string }[]
-  >(TIME_BOOKING.OPTION_8);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    addDays(new Date(), 0)
+  // States
+  const [dayBooking, setDayBooking] = useState<DayBooking[]>([]);
+  const [timeBooking, setTimeBooking] = useState<TimeBooking[]>([]);
+  const [step, setStep] = useState<number>(0);
+  const [errorSlotInfo, setErrorSlotInfo] = useState<ErrorSlotInfo | null>(
+    null
   );
-  const [selectedTimeCode, setSelectedTimeCode] = useState<string | null>(null);
-  const [busySlots, setBusySlots] = useState<string[]>([]); // e.g. "1000DDMMYYYY"
-  const [step, setStep] = useState(0); // 0: chọn ngày/giờ, 1: form info, 2: success
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorSlotInfo, setErrorSlotInfo] = useState<{
-    customerName: string;
-    dateTime: string;
-    date: string;
-  } | null>(null);
+  const [isHideUserForm, setIsHideUserForm] = useState<boolean>(true);
+  const [isHideDayColumn, setIsHideDayColumn] = useState<boolean>(false);
+  const [choosenDayCode, setChoosenDayCode] = useState<string | null>(null);
+  const [choosenTimeCode, setChoosenTimeCode] = useState<string | null>(null);
+  const [bookingDataCode, setBookingDataCode] = useState<string>('');
+  const [isErrorMax, setIsErrorMax] = useState<boolean>(false);
+  const [bookingOptionValue, setBookingOptionValue] = useState<number>(8);
+  const [bookingOptionEachDay, setBookingOptionEachDay] =
+    useState<BookingOptionEachDay>({});
+  const [workingDayCount, setWorkingDayCount] = useState<number>(14);
+  const [isConsigning, setIsConsigning] = useState<boolean>(false);
+  const [bookingCustomOptionString, setBookingCustomOptionString] =
+    useState<string>('default');
 
-  const form = useForm<FormData>({
+  // Form
+  const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       customerName: '',
       phoneNumber: '',
       numberOfProduct: 5,
-      dayTime: '',
     },
   });
 
-  // Generate days
-  useEffect(() => {
-    const days = Array.from({ length: workingDayCount }, (_, i) => {
-      const date = addDays(new Date(), i);
-      return {
-        dayName: format(date, 'EEEE', { locale: vi }),
-        date: format(date, 'dd-MM-yyyy'),
-        dayCode: format(date, 'ddMMyyyy'),
-      };
+  const checkDayCodeToBookingOption = useCallback(
+    (
+      choosenDay: DayBooking | null,
+      bookingOptionData: BookingOptionEachDay = BOOKING_OPTION_EACH_DAY_DATA_DEFAULT
+    ): { option: number; timeBooking: TimeBooking[] } => {
+      console.log('checkDayCodeToBookingOption', choosenDay, bookingOptionData);
+      if (choosenDay && choosenDay.dayCode && bookingOptionData) {
+        if (bookingOptionData.OPTION_1?.includes(choosenDay.dayCode))
+          return { option: 1, timeBooking: TIME_BOOKING.OPTION_1 };
+        else if (bookingOptionData.OPTION_2?.includes(choosenDay.dayCode))
+          return { option: 2, timeBooking: TIME_BOOKING.OPTION_2 };
+        else if (bookingOptionData.OPTION_3?.includes(choosenDay.dayCode))
+          return { option: 3, timeBooking: TIME_BOOKING.OPTION_3 };
+        else if (bookingOptionData.OPTION_4?.includes(choosenDay.dayCode))
+          return { option: 4, timeBooking: TIME_BOOKING.OPTION_4 };
+        else if (bookingOptionData.OPTION_5?.includes(choosenDay.dayCode))
+          return { option: 5, timeBooking: TIME_BOOKING.OPTION_5 };
+        else if (bookingOptionData.OPTION_6?.includes(choosenDay.dayCode))
+          return { option: 6, timeBooking: TIME_BOOKING.OPTION_6 };
+        else if (bookingOptionData.OPTION_7?.includes(choosenDay.dayCode))
+          return { option: 7, timeBooking: TIME_BOOKING.OPTION_7 };
+        else if (bookingOptionData.OPTION_8?.includes(choosenDay.dayCode))
+          return { option: 8, timeBooking: TIME_BOOKING.OPTION_8 };
+        else if (bookingOptionData.OPTION_9?.includes(choosenDay.dayCode))
+          return { option: 9, timeBooking: TIME_BOOKING.OPTION_9 };
+        else return { option: 8, timeBooking: TIME_BOOKING.OPTION_8 };
+      }
+      return { option: 8, timeBooking: TIME_BOOKING.OPTION_8 };
+    },
+    []
+  );
+
+  const fetchAppointment = useCallback(async (dayBookingData: DayBooking[]) => {
+    const arrayDate: string[] = [];
+    let bookingCode = '';
+
+    dayBookingData.forEach(itemDate => {
+      arrayDate.push(`"${itemDate.date}"`);
     });
-    setDayBooking(days);
-  }, [workingDayCount]);
 
-  // Fetch busy slots (giả lập API call)
-  const fetchAppointment = async () => {
-    // Thay bằng real API: GapService.getAppointmentWithDate(...)
-    // Ví dụ mock:
-    const mockBusy = ['100008012025', '133008012025']; // 10:00 & 13:30 ngày 08/01/2025
-    setBusySlots(mockBusy);
-  };
+    const res = await GapService.getAppointmentWithDate(arrayDate);
 
-  useEffect(() => {
-    fetchAppointment();
+    if (res && res.results) {
+      res.results.forEach((itemData: any) => {
+        if (itemData && itemData.slot) {
+          bookingCode += '-' + itemData.slot + '-';
+        }
+      });
+    }
+
+    setBookingDataCode(bookingCode);
   }, []);
 
-  // Update time slots dựa trên ngày (nếu có option khác nhau)
-  const availableTimes = useMemo(() => {
-    return timeBooking.map(slot => {
-      const slotId =
-        slot.timeCode + (selectedDate ? format(selectedDate, 'ddMMyyyy') : '');
-      const isBusy = busySlots.includes(slotId);
-      return { ...slot, isBusy };
-    });
-  }, [timeBooking, selectedDate, busySlots]);
+  useEffect(() => {
+    const initData = async () => {
+      const newSettingRedux = await StoreServices.getSetting();
+      let workingDayCountTemp = 14;
 
-  const handleSelectDate = (date: Date | undefined) => {
-    setSelectedDate(date);
-    setSelectedTimeCode(null);
-    setStep(0);
-  };
+      if (newSettingRedux.WORKING_DAY_COUNT) {
+        workingDayCountTemp = newSettingRedux.WORKING_DAY_COUNT;
+      }
 
-  const handleSelectTime = (timeCode: string) => {
-    setSelectedTimeCode(timeCode);
-    setStep(1);
-  };
+      const dayBookingTemp: DayBooking[] = [];
+      const bookingOptionEachDayData =
+        newSettingRedux.BOOKING_OPTION_EACH_DAY ||
+        BOOKING_OPTION_EACH_DAY_DATA_DEFAULT;
 
-  const handleSubmit = async (values: FormData) => {
-    if (!selectedDate || !selectedTimeCode) return;
+      for (let i = 0; i < workingDayCountTemp; i++) {
+        dayBookingTemp.push({
+          dayName: moment().add(i, 'day').format('dddd'),
+          date: moment().add(i, 'day').format('DD-MM-YYYY'),
+          dayCode: moment()
+            .add(i, 'day')
+            .format('DD-MM-YYYY')
+            .replaceAll('-', ''),
+        });
+      }
 
-    setIsSubmitting(true);
-    setErrorSlotInfo(null);
+      const choosenDayCodeTemp =
+        dayBookingTemp && dayBookingTemp[0] ? dayBookingTemp[0].dayCode : '';
+      const { option, timeBooking: timeBookingData } =
+        checkDayCodeToBookingOption(
+          dayBookingTemp[0],
+          bookingOptionEachDayData
+        );
 
-    const dateStr = format(selectedDate, 'dd-MM-yyyy');
-    const timeStr =
-      selectedTimeCode.slice(0, 2) + ':' + selectedTimeCode.slice(2);
-    const slotID = selectedTimeCode + format(selectedDate, 'ddMMyyyy');
+      // Check for custom booking option for this day
+      let bookingCustomOptionStringTemp = 'default';
+      if (
+        newSettingRedux.BOOKING_OPTION_CUSTOM_EACH_DAY &&
+        newSettingRedux.BOOKING_OPTION_CUSTOM_EACH_DAY[choosenDayCodeTemp]
+      ) {
+        bookingCustomOptionStringTemp =
+          newSettingRedux.BOOKING_OPTION_CUSTOM_EACH_DAY[choosenDayCodeTemp];
+      }
 
-    try {
-      // Thay bằng real API: GapService.setAppointment(...)
-      // Kiểm tra phone duplicate trước nếu cần
-      // const resPhone = await GapService.getAppointmentWithPhone(values.phoneNumber);
-      // ... logic check exist
+      console.log('timeBookingData', timeBookingData);
 
-      // Giả lập success
-      toast.success('Đặt lịch thành công!');
-      setStep(2);
-    } catch (err) {
-      toast.error('Đặt lịch thất bại. Vui lòng thử lại.');
-      await fetchAppointment(); // refresh busy slots
-    } finally {
-      setIsSubmitting(false);
+      setBookingCustomOptionString(bookingCustomOptionStringTemp);
+      setBookingOptionValue(option);
+      setTimeBooking(timeBookingData);
+      setBookingOptionEachDay(bookingOptionEachDayData);
+      setDayBooking(dayBookingTemp);
+      setWorkingDayCount(workingDayCountTemp);
+
+      await fetchAppointment(dayBookingTemp);
+    };
+
+    initData();
+  }, [checkDayCodeToBookingOption, fetchAppointment]);
+
+  const translationDate = (key: string): string => {
+    switch (key) {
+      case 'Sunday':
+        return 'Chủ Nhật';
+      case 'Monday':
+        return 'Thứ hai';
+      case 'Tuesday':
+        return 'Thứ ba';
+      case 'Wednesday':
+        return 'Thứ tư';
+      case 'Thursday':
+        return 'Thứ năm';
+      case 'Friday':
+        return 'Thứ sáu';
+      case 'Saturday':
+        return 'Thứ bảy';
+      default:
+        return key;
     }
   };
 
-  const convertToDisplayTime = () => {
-    if (!selectedDate || !selectedTimeCode) return '---';
-    return `${format(selectedDate, 'dd-MM-yyyy')} ${selectedTimeCode.slice(0, 2)}:${selectedTimeCode.slice(2)}`;
+  const onChooseDay = async (choosenDay: DayBooking) => {
+    const newSettingRedux = await StoreServices.getSetting();
+
+    const { option, timeBooking: timeBookingData } =
+      checkDayCodeToBookingOption(choosenDay, bookingOptionEachDay);
+
+    // Check for custom booking option for this day
+    let bookingCustomOptionStringTemp = 'default';
+    if (
+      newSettingRedux.BOOKING_OPTION_CUSTOM_EACH_DAY &&
+      newSettingRedux.BOOKING_OPTION_CUSTOM_EACH_DAY[choosenDay.dayCode]
+    ) {
+      bookingCustomOptionStringTemp =
+        newSettingRedux.BOOKING_OPTION_CUSTOM_EACH_DAY[choosenDay.dayCode];
+    }
+
+    setBookingCustomOptionString(bookingCustomOptionStringTemp);
+    setBookingOptionValue(option);
+    setTimeBooking(timeBookingData);
+    setStep(1);
+    setIsHideUserForm(true);
+    setChoosenTimeCode(null);
+    setChoosenDayCode(choosenDay?.dayCode || '');
   };
 
-  const translationDay = (day: string) => {
-    const map: Record<string, string> = {
-      Sunday: 'Chủ Nhật',
-      Monday: 'Thứ Hai',
-      Tuesday: 'Thứ Ba',
-      Wednesday: 'Thứ Tư',
-      Thursday: 'Thứ Năm',
-      Friday: 'Thứ Sáu',
-      Saturday: 'Thứ Bảy',
-    };
-    return map[day] || day;
+  const onChooseTime = (choosenTime: TimeBooking) => {
+    setStep(1);
+    setChoosenTimeCode(choosenTime?.timeCode || '');
   };
 
-  if (step === 2) {
-    return (
-      <Card className="max-w-2xl mx-auto text-center p-8">
-        <CheckCircle2 className="w-20 h-20 text-green-500 mx-auto mb-6" />
-        <h2 className="text-2xl font-bold mb-6">Đặt lịch ký gửi thành công!</h2>
-        <div className="text-left space-y-4 mb-8">
-          <p>
-            <strong>Thời gian:</strong> {convertToDisplayTime()}
-          </p>
-          <p>
-            <strong>Tên:</strong> {form.getValues('customerName')}
-          </p>
-          <p>
-            <strong>SĐT:</strong> {form.getValues('phoneNumber')}
-          </p>
-          <p>
-            <strong>Số lượng:</strong> {form.getValues('numberOfProduct')} món
-          </p>
-        </div>
-        <Button onClick={backConsignment} variant="outline" className="mt-4">
-          Quay lại trang chính
-        </Button>
-      </Card>
-    );
-  }
+  const convertCodeToTime = (): string => {
+    if (choosenTimeCode && choosenDayCode) {
+      const formatedTime =
+        choosenTimeCode.substring(0, 2) + ':' + choosenTimeCode.substring(2, 4);
+      const formatedDay =
+        choosenDayCode.substring(0, 2) +
+        '-' +
+        choosenDayCode.substring(2, 4) +
+        '-' +
+        choosenDayCode.substring(4, 8);
+      return formatedDay + ' ' + formatedTime;
+    }
+    return '---';
+  };
+
+  const onConsign = async (values: z.infer<typeof formSchema>) => {
+    if (choosenTimeCode && choosenDayCode) {
+      setIsConsigning(true);
+
+      const formatedTime =
+        choosenTimeCode.substring(0, 2) + ':' + choosenTimeCode.substring(2, 4);
+      const formatedDay =
+        choosenDayCode.substring(0, 2) +
+        '-' +
+        choosenDayCode.substring(2, 4) +
+        '-' +
+        choosenDayCode.substring(4, 8);
+      const slotID = choosenTimeCode + choosenDayCode;
+      const newBookingDataCode = bookingDataCode + '-' + slotID + '-';
+
+      const resWithPhone = await GapService.getAppointmentWithPhone(
+        values.phoneNumber
+      );
+
+      let isExistPhoneNumber = false;
+      let errorInfo: ErrorSlotInfo | null = null;
+
+      if (
+        resWithPhone &&
+        resWithPhone.results &&
+        resWithPhone.results.length > 0
+      ) {
+        resWithPhone.results.forEach((item: any) => {
+          if (item.date === formatedDay) {
+            isExistPhoneNumber = true;
+            errorInfo = {
+              customerName: item.customerName,
+              date: item.date,
+              dateTime: item.dateTime,
+              phoneNumber: item.phoneNumber,
+            };
+          }
+        });
+
+        if (isExistPhoneNumber) {
+          setIsConsigning(false);
+          setErrorSlotInfo(errorInfo);
+          return;
+        } else {
+          setErrorSlotInfo(null);
+        }
+      } else {
+        setErrorSlotInfo(null);
+      }
+
+      const res = await GapService.setAppointment(
+        values,
+        slotID,
+        formatedTime,
+        formatedDay
+      );
+
+      if (res && res.objectId) {
+        setBookingDataCode(newBookingDataCode);
+        setIsHideUserForm(true);
+        setIsConsigning(false);
+        setStep(3);
+        setIsHideDayColumn(true);
+      } else {
+        setIsConsigning(false);
+        await fetchAppointment(dayBooking);
+        toast.error('Đặt lịch thất bại!');
+      }
+    }
+  };
+
+  const onHandleStepTwo = () => {
+    setIsHideUserForm(false);
+    setTimeout(() => {
+      setStep(2);
+    }, 200);
+  };
+
+  const backStepOne = () => {
+    setIsHideUserForm(true);
+    fetchAppointment(dayBooking);
+    setTimeout(() => {
+      setStep(1);
+    }, 200);
+  };
+
+  const resetAndBackProps = (isOpenInstrucmentPage: boolean = false) => {
+    form.reset({
+      customerName: '',
+      phoneNumber: '',
+      numberOfProduct: 5,
+    });
+    setStep(0);
+    setIsHideDayColumn(false);
+    setChoosenDayCode(null);
+    setChoosenTimeCode(null);
+
+    fetchAppointment(dayBooking);
+    backConsignment();
+
+    if (isOpenInstrucmentPage) {
+      window.open(
+        'https://giveawaypremium.com.vn/kygui?tab=phuongthuc',
+        '_blank'
+      );
+    }
+  };
+
+  const isShowBookingForm = StoreServices.getSettingWithKey(
+    'IS_SHOW_BOOKING_FORM',
+    'true'
+  );
+  const formValues = form.watch();
+
+  const defaultOptionsSuccess = {
+    loop: false,
+    autoplay: true,
+    animationData: successJson,
+  };
+
+  const defaultOptionsRightArrow = {
+    loop: true,
+    autoplay: true,
+    animationData: rightArrowJson,
+  };
 
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-6">
-      <div className="grid md:grid-cols-2 gap-8">
-        {/* Calendar chọn ngày */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Chọn ngày ký gửi</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={handleSelectDate}
-              disabled={date =>
-                date < new Date() ||
-                date > addDays(new Date(), workingDayCount - 1)
-              }
-              locale={vi}
-              className="rounded-md border"
+    <div className="bookingform-home-container">
+      {!isShowBookingForm ? (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            width: '60%',
+            marginTop: '40px',
+          }}
+        >
+          <p className="text day-txt">
+            Hiện tại tính năng đặt lịch ký gửi trên website đang tạm khoá.
+          </p>
+          <p className="text day-txt">
+            Quý khách vui lòng gọi hotline 0703 334 443 để biết thêm thông tin.
+          </p>
+          <p className="text day-txt">Xin lỗi vì sự bất tiện này.</p>
+          <Button
+            style={{ maxWidth: '150px' }}
+            className="MT20"
+            onClick={() => resetAndBackProps()}
+          >
+            Quay lại
+          </Button>
+        </div>
+      ) : (
+        <div className="bookingform">
+          <div
+            style={{
+              maxHeight: '80vh',
+              overflowX: 'hidden',
+              overflowY: 'scroll',
+            }}
+            className={'dayBooking-box' + (!isHideDayColumn ? ' show' : '')}
+          >
+            {dayBooking.map((dayItem, dayIndex) => (
+              <div
+                key={dayIndex}
+                className="day-box"
+                onClick={() => onChooseDay(dayItem)}
+                style={
+                  choosenDayCode && choosenDayCode === dayItem.dayCode
+                    ? { borderColor: 'black', opacity: 1 }
+                    : choosenDayCode && choosenDayCode !== dayItem.dayCode
+                      ? { opacity: 0.4 }
+                      : {}
+                }
+              >
+                <span className="text day-name">
+                  {dayIndex === 0
+                    ? 'Hôm nay'
+                    : translationDate(dayItem.dayName)}
+                </span>
+                <span className="text text-base sm:text-sm day-txt">
+                  {dayItem.date}
+                </span>
+              </div>
+            ))}
+
+            <Lottie
+              style={{
+                transform: 'rotate(90deg)',
+                position: 'absolute',
+                bottom: 0,
+                right: '-30px',
+                zoom: 0.8,
+              }}
+              options={defaultOptionsRightArrow}
+              height={100}
+              width={100}
+              speed={1}
+              isStopped={false}
+              isPaused={false}
             />
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Time slots */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Chọn khung giờ</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {availableTimes.map(slot => (
-                <Button
-                  key={slot.timeCode}
-                  variant={
-                    selectedTimeCode === slot.timeCode ? 'default' : 'outline'
-                  }
-                  disabled={slot.isBusy}
-                  onClick={() =>
-                    !slot.isBusy && handleSelectTime(slot.timeCode)
-                  }
-                  className={cn(
-                    slot.isBusy && 'opacity-50 cursor-not-allowed bg-red-50',
-                    selectedTimeCode === slot.timeCode &&
-                      'bg-indigo-600 text-white'
-                  )}
+          <div className="timeBooking-box">
+            {bookingOptionValue === 7 ? (
+              <div className="justity-center align-center">
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    width: '90%',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
                 >
-                  {slot.timeName}
-                </Button>
-              ))}
-            </div>
-
-            <div className="flex justify-between text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-red-100 border border-red-300 rounded" />
-                Đã đặt chỗ
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-white border border-gray-300 rounded" />
-                Còn trống
-              </div>
-            </div>
-
-            {selectedTimeCode && (
-              <Button onClick={() => setStep(1)} className="w-full">
-                Tiếp tục điền thông tin <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Form thông tin */}
-      {step === 1 && (
-        <Card className="mt-8 max-w-2xl mx-auto">
-          <CardHeader>
-            <CardTitle>Thông tin đặt lịch</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form
-              onSubmit={form.handleSubmit(handleSubmit)}
-              className="space-y-6"
-            >
-              <div>
-                <Label>Thời gian đã chọn</Label>
-                <Input
-                  value={convertToDisplayTime()}
-                  disabled
-                  className="mt-1 bg-gray-50"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="customerName">Họ và Tên</Label>
-                <Input
-                  id="customerName"
-                  {...form.register('customerName')}
-                  className="mt-1"
-                />
-                {form.formState.errors.customerName && (
-                  <p className="text-sm text-red-500 mt-1">
-                    {form.formState.errors.customerName.message}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="phoneNumber">Số điện thoại</Label>
-                <Input
-                  id="phoneNumber"
-                  type="tel"
-                  {...form.register('phoneNumber')}
-                  className="mt-1"
-                />
-                {form.formState.errors.phoneNumber && (
-                  <p className="text-sm text-red-500 mt-1">
-                    {form.formState.errors.phoneNumber.message}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="numberOfProduct">Số lượng hàng hoá</Label>
-                <Input
-                  id="numberOfProduct"
-                  type="number"
-                  {...form.register('numberOfProduct', { valueAsNumber: true })}
-                  className="mt-1"
-                />
-                {form.formState.errors.numberOfProduct && (
-                  <p className="text-sm text-red-500 mt-1">
-                    {form.formState.errors.numberOfProduct.message}
-                  </p>
-                )}
-                {form.watch('numberOfProduct') > 50 && (
-                  <p className="text-sm text-amber-600 mt-1">
-                    {`Số lượng >50 vui lòng liên hệ hotline 0703 334 443`}
-                  </p>
-                )}
-              </div>
-
-              {errorSlotInfo && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-md text-red-700">
-                  Khách hàng {errorSlotInfo.customerName} đã đặt lịch{' '}
-                  {errorSlotInfo.dateTime} ngày {errorSlotInfo.date}. Vui lòng
-                  chọn khung khác hoặc gọi hotline.
+                  <Image
+                    width={70}
+                    src={logoHeaderWhite}
+                    style={{ objectFit: 'contain' }}
+                    alt="logo"
+                  />
                 </div>
-              )}
-
-              <div className="flex justify-between">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setStep(0)}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    width: '85%',
+                    margin: '30px 5% 0 5%',
+                  }}
                 >
-                  Quay lại chọn giờ
-                </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Đang đặt
-                      lịch...
-                    </>
-                  ) : (
-                    'Xác nhận đặt lịch'
-                  )}
-                </Button>
+                  <p className="text day-txt">
+                    Hiện tại tính năng đặt lịch ký gửi trên website đang tạm
+                    khoá.
+                  </p>
+                  <p className="text day-txt">
+                    Quý khách vui lòng gọi hotline 0703 334 443 để biết thêm
+                    thông tin.
+                  </p>
+                  <p className="text day-txt">Xin lỗi vì sự bất tiện này.</p>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      width: '100%',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginTop: '20px',
+                    }}
+                  >
+                    <Button
+                      style={{ maxWidth: '150px' }}
+                      className="MT20"
+                      onClick={() => resetAndBackProps()}
+                    >
+                      Quay lại
+                    </Button>
+                  </div>
+                </div>
               </div>
-            </form>
-          </CardContent>
-        </Card>
+            ) : (
+              <>
+                <div
+                  style={
+                    bookingOptionValue === 9
+                      ? { gridTemplateColumns: 'auto auto auto' }
+                      : { gridTemplateColumns: 'auto auto' }
+                  }
+                  className={
+                    'timeBooking-grid' +
+                    (step === 1 && isHideUserForm ? ' show' : '')
+                  }
+                >
+                  {timeBooking.map((itemTime, indexTime) => {
+                    const isReady =
+                      !bookingDataCode.includes(
+                        choosenTimeCode + choosenDayCode
+                      ) && itemTime.timeCode === choosenTimeCode;
+                    const isBusy = bookingDataCode.includes(
+                      itemTime.timeCode + choosenDayCode
+                    );
+
+                    // Check if this time slot should be shown based on custom option
+                    const isShow =
+                      bookingCustomOptionString === 'default'
+                        ? true
+                        : bookingCustomOptionString.includes(itemTime.timeCode);
+
+                    if (!isShow) {
+                      return null;
+                    }
+
+                    return (
+                      <div
+                        style={
+                          isBusy
+                            ? { pointerEvents: 'none', cursor: 'none' }
+                            : {}
+                        }
+                        onClick={() => !isBusy && onChooseTime(itemTime)}
+                        key={indexTime}
+                        className={
+                          'time-box' +
+                          (isReady ? ' ready' : isBusy ? ' busy' : '')
+                        }
+                      >
+                        <span className="text text-base sm:text-sm ">
+                          {itemTime.timeName}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div
+                  className={
+                    'explain-box' +
+                    (step === 1 && isHideUserForm ? ' show' : '')
+                  }
+                >
+                  <div className="explain-box-left">
+                    <div className="box-full" />
+                    <span className="box-text">Đã Đặt Chỗ</span>
+                  </div>
+                  <div className="explain-box-right">
+                    <div className="box-empty" />
+                    <span className="box-text">Còn Trống</span>
+                  </div>
+                </div>
+
+                <div
+                  className={
+                    'timeBooking-footer' +
+                    ((step === 1 || step === 0) && isHideUserForm
+                      ? ' show'
+                      : '')
+                  }
+                >
+                  <span
+                    onClick={() => resetAndBackProps(false)}
+                    className="text"
+                  >{`< Quay lại`}</span>
+                  {step === 1 && (
+                    <span
+                      onClick={onHandleStepTwo}
+                      className="text"
+                      style={
+                        choosenTimeCode
+                          ? { color: 'black' }
+                          : { opacity: 0.5, pointerEvents: 'none' }
+                      }
+                    >
+                      {`Tiếp tục >`}
+                    </span>
+                  )}
+                </div>
+              </>
+            )}
+
+            <Form {...form}>
+              <form
+                className={
+                  'w-[95%] sm:w-[80%] px-2 sm:px-0 timeBooking-form' +
+                  (!isHideUserForm && step === 2 ? ' show' : '')
+                }
+                onSubmit={form.handleSubmit(onConsign)}
+              >
+                <div className="flex flex-col gap-3 sm:gap-4 sell-card-form justify-center">
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-sm font-medium">Thời gian</Label>
+                    <Input
+                      value={convertCodeToTime()}
+                      readOnly
+                      placeholder="..."
+                      className="w-full"
+                    />
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="customerName"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col gap-1 space-y-0">
+                        <FormLabel className="text-sm font-medium">
+                          Họ và Tên
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="Nhập họ và tên..."
+                            className="w-full"
+                          />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="phoneNumber"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col gap-1 space-y-0">
+                        <FormLabel className="text-sm font-medium">
+                          Số điện thoại
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            type="tel"
+                            placeholder="Nhập số điện thoại..."
+                            className="w-full"
+                          />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="numberOfProduct"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col gap-1 space-y-0">
+                        <FormLabel className="text-sm font-medium">
+                          Số lượng Hàng Hoá
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            type="number"
+                            placeholder="Số lượng..."
+                            className="w-full sm:w-32"
+                            onChange={e => {
+                              const value = parseInt(e.target.value) || 0;
+                              field.onChange(value);
+                              setIsErrorMax(value > 50);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+
+                  {formValues.numberOfProduct < 5 && (
+                    <p className="text-red-500 text-sm">
+                      Số lượng ký gửi tối thiểu là 5 món. Tuy nhiên, nếu anh/chị
+                      ký gửi sản phẩm luxury (giá trị ký gửi trên 5.000.000đ).
+                      Vui lòng liên hệ hotline 0703334443 để được hỗ trợ tốt
+                      nhất.
+                    </p>
+                  )}
+
+                  {isErrorMax && (
+                    <p className="text-red-500 text-sm">
+                      Với số lượng hàng hoá trên 50, Xin vui lòng liên hệ
+                      hotline 0703334443 để được hỗ trợ tốt nhất.
+                    </p>
+                  )}
+
+                  <div className="bookingNoteString">
+                    <span>
+                      *Chúng tôi sẽ giữ lịch tối đa 15 phút nếu đến trễ Anh/Chị
+                      vui lòng đợi theo số thứ tự tại cửa hàng
+                    </span>
+                  </div>
+
+                  {errorSlotInfo && (
+                    <div className="bookingErrorSlot">
+                      <span>
+                        Khách hàng {errorSlotInfo.customerName} đã đặt lịch cho
+                        khung thời gian {errorSlotInfo.dateTime} ngày{' '}
+                        {errorSlotInfo.date}. Vui lòng đặt lịch lại cho vào ngày
+                        khác hoặc liên hệ hotline 0703334443 để được thay đổi
+                        lịch hẹn cùng ngày.
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-around items-center w-full mt-4">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={backStepOne}
+                    >
+                      Quay lại
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="secondary"
+                      disabled={
+                        isErrorMax ||
+                        formValues.numberOfProduct < 5 ||
+                        formValues.numberOfProduct > 100 ||
+                        isConsigning
+                      }
+                    >
+                      {isConsigning ? 'Đang xử lý...' : 'Xác nhận'}
+                    </Button>
+                  </div>
+                </div>
+              </form>
+            </Form>
+
+            <div
+              className={
+                'timeBooking-confirm' +
+                (isHideUserForm && step === 3 ? ' show' : '')
+              }
+            >
+              <Lottie
+                options={defaultOptionsSuccess}
+                height={150}
+                width={150}
+                isStopped={false}
+                isPaused={false}
+              />
+              <div className="flex justify-center">
+                <div className="w-4/5">
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <span className="font-medium">Thời gian ký gửi:</span>
+                      <span>{convertCodeToTime()}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <span className="font-medium">Tên Khách Hàng:</span>
+                      <span>{formValues.customerName}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <span className="font-medium">Số điện thoại:</span>
+                      <span>{formValues.phoneNumber}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <span className="font-medium">Số lượng hàng hoá:</span>
+                      <span>{formValues.numberOfProduct}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <Button className="MT20" onClick={() => resetAndBackProps(true)}>
+                Quay lại
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
+      {/* <MyModal ref={myModal} /> */}
     </div>
   );
-}
+};
+
+export default ConsignmentScreen;

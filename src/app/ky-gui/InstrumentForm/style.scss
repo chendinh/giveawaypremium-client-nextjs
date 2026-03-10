@@ -1,0 +1,208 @@
+.instrument-container {
+  .home-page-wrapper {
+    .box-video {
+      text-align: center;
+      margin: 75px 0 0px 0;
+      @media screen and (max-width: 768px) {
+        margin: 35px 0 0 0;
+        padding: 0 16px;
+      }
+    }
+    .text-custom {
+      text-align: center;
+      align-self: center;
+    }
+    .announce-wrapper {
+      background-color: #f2c94c;
+      padding: 20px 0;
+      margin: 0 auto;
+      text-align: center;
+      .text-pre-line {
+        @media screen and (max-width: 768px) {
+          padding: 20px 20px;
+          white-space: normal;
+        }
+      }
+    }
+    .main-content-instrument {
+      //   height: 100vh;
+      padding: 25px 20px;
+
+      @media screen and (max-width: 767px) {
+        padding: 70px 5px 35px 5px;
+      }
+
+      &.full-height {
+        min-height: 100vh;
+
+        @media screen and (max-width: 767px) {
+          min-height: unset;
+        }
+      }
+
+      &.radius-bottom {
+        border-bottom-left-radius: 30px;
+        border-bottom-right-radius: 30px;
+      }
+    }
+    .intro {
+      margin: 0 auto;
+      text-align: center;
+      display: block;
+      max-width: 100%;
+    }
+    .wrapper {
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 1rem;
+
+      @media (min-width: 640px) {
+        padding: 2rem;
+      }
+
+      .founder-avatar {
+        width: 50%;
+        height: auto;
+        object-fit: contain;
+        margin: 20px 0;
+      }
+
+      .time-line {
+        width: 60%;
+        height: 100%;
+
+        @media screen and (max-width: 768px) {
+          width: 100%;
+        }
+      }
+      .text-year {
+        font-size: 32px;
+        line-height: 50px;
+        font-weight: 600;
+        white-space: pre-line;
+        @media screen and (max-width: 768px) {
+          font-size: 19px;
+          line-height: 28px;
+          font-weight: 700;
+        }
+      }
+
+      .text-timeline {
+        font-size: 18px;
+        white-space: pre-line;
+        @media screen and (max-width: 768px) {
+          font-size: 16px;
+          font-weight: 500;
+        }
+      }
+      @media screen and (max-width: 768px) {
+        padding: 0;
+      }
+    }
+    .bg-yellow {
+      background-color: #fffe;
+    }
+    .bg-gray {
+      background-color: #f2f2f2;
+    }
+    .bg-white {
+      background-color: #fff;
+    }
+    .bg-black {
+      background-color: #fff;
+
+      transition: 1s all;
+
+      &.show {
+        pointer-events: unset;
+        background-color: #000;
+        opacity: 1;
+      }
+    }
+    .cardIntroBox {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      padding: 3vh 0;
+      .cardHomeIntro1 {
+        width: 15vw;
+      }
+
+      .cardHomeIntro2 {
+        width: 15vw;
+      }
+
+      .cardHomeIntro4 {
+        width: 15vw;
+      }
+
+      .cardHomeIntro5 {
+        width: 15vw;
+      }
+
+      .cardHomeIntroPhone {
+        width: 20vw;
+        margin: 0 10px;
+      }
+    }
+    .txt-big-intro {
+      font-size: 1.25rem; // 20px on mobile
+      font-weight: bold;
+
+      @media (min-width: 640px) {
+        font-size: 1.5rem; // 24px on tablet
+      }
+
+      @media (min-width: 768px) {
+        font-size: 1.875rem; // 30px on desktop
+      }
+    }
+    .txt-small-intro {
+      font-size: 0.875rem; // 14px on mobile
+      line-height: 1.6;
+
+      @media (min-width: 640px) {
+        font-size: 1rem; // 16px on tablet+
+      }
+    }
+    //
+    .box-content-introduce {
+      margin: 20px 0;
+      opacity: 0;
+      transform: translate(-100px, 0px);
+      transition: 1.5s all !important;
+
+      &.show {
+        pointer-events: unset;
+        opacity: 1;
+        cursor: pointer;
+        transform: translate(0);
+      }
+
+      @media screen and (max-width: 768px) {
+        margin: 0;
+      }
+
+      .info-fee-box {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        gap: 1rem;
+        padding: 0 0.5rem;
+
+        @media (min-width: 640px) {
+          gap: 2rem;
+          padding: 0;
+        }
+
+        .info-fee-box-left,
+        .info-fee-box-right {
+          display: flex;
+          flex-direction: column;
+        }
+      }
+    }
+  }
+}

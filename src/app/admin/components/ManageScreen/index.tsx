@@ -1,0 +1,74 @@
+'use client';
+
+import React, { useState } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+import TableConsignmentScreen from './components/TableConsignemntScreen';
+import TableProductScreen from './components/TableProduct';
+import TableOrderScreen from './components/TableOrder';
+import TableCustomerScreen from './components/TableCustomer';
+import TableAppointmentScreen from './components/TableAppointment';
+import TableEmailScreen from './components/TableEmailScreen';
+// import TableRequestOrder from './components/TableRequestOrder';
+
+import './style.scss';
+
+const ManageScreen: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<string>('1');
+
+  return (
+    <div className="managescreen-container p-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="flex flex-wrap gap-1 mb-6">
+          <TabsTrigger value="1">Ký gửi</TabsTrigger>
+          <TabsTrigger value="2">Sản phẩm</TabsTrigger>
+          <TabsTrigger value="3">Chiến dịch</TabsTrigger>
+          <TabsTrigger value="4">Đơn hàng</TabsTrigger>
+          <TabsTrigger value="5">Khách hàng</TabsTrigger>
+          <TabsTrigger value="6">Lịch hẹn</TabsTrigger>
+          <TabsTrigger value="7">Email</TabsTrigger>
+          <TabsTrigger value="8">Hàng Chờ</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="1">
+          <TableConsignmentScreen />
+        </TabsContent>
+
+        <TabsContent value="2">
+          <TableProductScreen />
+        </TabsContent>
+
+        <TabsContent value="3">
+          <div className="text-muted-foreground text-center py-10">
+            Chiến dịch (chưa convert)
+          </div>
+        </TabsContent>
+
+        <TabsContent value="4">
+          <TableOrderScreen />
+        </TabsContent>
+
+        <TabsContent value="5">
+          <TableCustomerScreen />
+        </TabsContent>
+
+        <TabsContent value="6">
+          <TableAppointmentScreen />
+        </TabsContent>
+
+        <TabsContent value="7">
+          <TableEmailScreen />
+        </TabsContent>
+
+        <TabsContent value="8">
+          {/* <TableRequestOrder /> */}
+          <div className="text-muted-foreground text-center py-10">
+            Hàng Chờ (chưa convert)
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+export default ManageScreen;

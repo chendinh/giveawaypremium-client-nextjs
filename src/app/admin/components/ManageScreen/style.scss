@@ -1,0 +1,16 @@
+
+.managescreen-container {
+    display: flex;
+    // position: absolute;
+    flex-direction: column;
+    // width: 100%;
+    width: 100%;
+    // max-width: 1250px;
+    justify-content: flex-start;
+    // padding: 15px 10px 15px 10px
+    padding: 10px;
+
+    .ant-tabs-bar {
+        margin: 0 !important;
+    }
+}

@@ -1,4 +1,4 @@
-@import "pages/Style/variable.scss";
+@import 'pages/Style/variable.scss';
 
 .banner-container {
   .text-banner {
@@ -19,11 +19,9 @@
 }
 
 .arrow-left {
-
 }
 
 .arrow-right {
-
 }
 
 .arrow-banner {
@@ -59,7 +57,7 @@
         transform: rotate(-90deg) translate(0);
       }
     }
-  
+
     &.right-side {
       font-size: 16px;
       bottom: 16vh;
@@ -152,7 +150,7 @@
       flex-basis: 30%;
     }
 
-    .left-bottom-box { 
+    .left-bottom-box {
       flex-basis: 100%;
       display: flex;
       justify-content: flex-start;
@@ -168,12 +166,11 @@
       }
     }
 
-    .right-bottom-box { 
+    .right-bottom-box {
       flex-basis: 50%;
       display: flex;
       justify-content: center;
       align-items: center;
-
     }
   }
 }
@@ -205,7 +202,7 @@
         transform: rotate(-90deg) translate(0);
       }
     }
-  
+
     &.right-side {
       top: 5vh;
       right: 0;
@@ -276,15 +273,14 @@
       flex-basis: 35%;
     }
 
-    .right-bottom-box { 
+    .right-bottom-box {
       flex-basis: 25%;
       display: flex;
       justify-content: center;
       align-items: center;
-
     }
 
-    .left-bottom-box { 
+    .left-bottom-box {
       flex-basis: 30%;
       display: flex;
       justify-content: center;
@@ -298,7 +294,7 @@
           text-decoration: underline;
           cursor: pointer;
         }
-      }    
+      }
     }
   }
 }

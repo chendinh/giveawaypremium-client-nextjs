@@ -9,6 +9,8 @@ import { Timeline } from 'antd';
 import ImageGallery from 'react-image-gallery';
 import './gioi-thieu.scss';
 
+const Items = Timeline.Item;
+
 const photoItems = [
   { src: '../../images/Icon/aLogoBlack.svg', alt: 'Logo' },
   { src: '../../images/Store/store1.jpg', alt: 'Store 1' },
@@ -235,7 +237,7 @@ export default function AboutUsPage() {
         <div className="main-content full-height">
           <div className="wrapper flex align-center direction-column justify-between">
             <Timeline className="" mode="alternate">
-              <Timeline.Item color={'black'} style={{ minHeight: '100px' }}>
+              <Items color={'black'} style={{ minHeight: '100px' }}>
                 <span className="ext text-center text-2xl text-semibold text-black">
                   2013
                 </span>
@@ -245,8 +247,8 @@ export default function AboutUsPage() {
                   nghĩa cá nhân. Với mong muốn tái sử dụng thời trang cùng các
                   bạn nữ trẻ, truyền tải xu hướng sống và tiết kiệm
                 </span>
-              </Timeline.Item>
-              <Timeline.Item color={'black'} style={{ minHeight: '100px' }}>
+              </Items>
+              <Items color={'black'} style={{ minHeight: '100px' }}>
                 <span className="ext text-center text-2xl text-semibold text-black">
                   2014
                 </span>
@@ -254,8 +256,8 @@ export default function AboutUsPage() {
                 <span className="text text-center text-gray-700 text-timeline ">
                   Cửa hàng Give Away đầu tiên ra đời
                 </span>
-              </Timeline.Item>
-              <Timeline.Item color={'black'} style={{ minHeight: '100px' }}>
+              </Items>
+              <Items color={'black'} style={{ minHeight: '100px' }}>
                 <span className="ext text-center text-2xl text-semibold text-black">
                   2015
                 </span>
@@ -264,8 +266,8 @@ export default function AboutUsPage() {
                   Give Away mở rộng chuỗi cửa hàng. Phân khúc chính học sinh
                   sinh viên
                 </span>
-              </Timeline.Item>
-              <Timeline.Item color={'black'} style={{ minHeight: '100px' }}>
+              </Items>
+              <Items color={'black'} style={{ minHeight: '100px' }}>
                 <span className="ext text-center text-2xl text-semibold text-black">
                   2016
                 </span>
@@ -276,8 +278,8 @@ export default function AboutUsPage() {
                   hàng lỗi từ các trung tâm thương mại, nhà sản xuất, nhà thiết
                   kế thời trang...
                 </span>
-              </Timeline.Item>
-              <Timeline.Item color={'black'} style={{ minHeight: '100px' }}>
+              </Items>
+              <Items color={'black'} style={{ minHeight: '100px' }}>
                 <span className="ext text-center text-2xl text-semibold text-black">
                   2017
                 </span>
@@ -285,8 +287,8 @@ export default function AboutUsPage() {
                 <span className="text text-center text-gray-700 text-timeline ">
                   Give Away mở rộng phân khúc tái sử dụng thời trang trẻ em
                 </span>
-              </Timeline.Item>
-              <Timeline.Item color={'black'} style={{ minHeight: '100px' }}>
+              </Items>
+              <Items color={'black'} style={{ minHeight: '100px' }}>
                 <span className="ext text-center text-2xl text-semibold text-black">
                   2018
                 </span>
@@ -295,8 +297,8 @@ export default function AboutUsPage() {
                   Cập nhật công nghệ chiếu tia UV tiệt trùng cho các áo quần đã
                   qua sử dụng
                 </span>
-              </Timeline.Item>
-              <Timeline.Item color={'black'} style={{ minHeight: '100px' }}>
+              </Items>
+              <Items color={'black'} style={{ minHeight: '100px' }}>
                 <span className="text text-center text-2xl text-semibold text-black">
                   2019
                 </span>
@@ -306,7 +308,7 @@ export default function AboutUsPage() {
                   nghệ Entrupy - ứng dụng trí tuệ nhân tạo phân biệt hàng giả.
                   Đồng thời cập nhật dịch vụ vệ sinh túi xách
                 </span>
-              </Timeline.Item>
+              </Items>
             </Timeline>
             {/* <img src={images.timeLine} className='time-line' /> */}
           </div>
