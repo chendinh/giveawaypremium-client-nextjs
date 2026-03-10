@@ -4,11 +4,11 @@ import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import TableConsignmentScreen from './components/TableConsignemntScreen';
-// import TableProductScreen from './components/TableProduct';
-// import TableOrder from './components/TableOrder';
+import TableProductScreen from './components/TableProduct';
+import TableOrderScreen from './components/TableOrder';
 import TableCustomerScreen from './components/TableCustomer';
 import TableAppointmentScreen from './components/TableAppointment';
-// import TableEmailScreen from './components/TableEmailScreen';
+import TableEmailScreen from './components/TableEmailScreen';
 // import TableRequestOrder from './components/TableRequestOrder';
 
 import './style.scss';
@@ -35,10 +35,7 @@ const ManageScreen: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="2">
-          {/* <TableProductScreen /> */}
-          <div className="text-muted-foreground text-center py-10">
-            Sản phẩm (chưa convert)
-          </div>
+          <TableProductScreen />
         </TabsContent>
 
         <TabsContent value="3">
@@ -48,10 +45,7 @@ const ManageScreen: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="4">
-          {/* <TableOrder /> */}
-          <div className="text-muted-foreground text-center py-10">
-            Đơn hàng (chưa convert)
-          </div>
+          <TableOrderScreen />
         </TabsContent>
 
         <TabsContent value="5">
@@ -63,10 +57,7 @@ const ManageScreen: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="7">
-          {/* <TableEmailScreen /> */}
-          <div className="text-muted-foreground text-center py-10">
-            Email (chưa convert)
-          </div>
+          <TableEmailScreen />
         </TabsContent>
 
         <TabsContent value="8">
