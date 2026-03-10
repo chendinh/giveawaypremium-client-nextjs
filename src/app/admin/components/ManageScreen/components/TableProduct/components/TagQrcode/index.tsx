@@ -32,7 +32,7 @@ const TagQrcode = forwardRef<HTMLDivElement, TagQrcodeProps>(
         const dataString = await QRCode.toString(data.code, {
           margin: 0,
           type: 'svg',
-          width: 10,
+          width: 100,
         });
         if (typeof dataString === 'string') {
           const formatted = dataString.replace(
