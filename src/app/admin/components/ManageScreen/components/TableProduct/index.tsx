@@ -40,6 +40,9 @@ import {
 import GapService from '@/app/actions/GapServices';
 import { useAppStore } from '@/store/useAppStore';
 
+import TagPrintBox from './components/TagPrintBox';
+import TagPrintBoxMulti from './components/TagPrintBoxMulti';
+
 import './style.scss';
 
 // ─── Helpers ──────────────────────────────────────────
@@ -83,6 +86,7 @@ interface ProductItem {
   status?: string;
   medias?: MediaItem[];
   sizeInfo?: string;
+  isNew?: string;
   rateNew?: number;
   detailInfo?: string;
   note?: string;
@@ -583,13 +587,16 @@ const TableProductScreen: React.FC = () => {
               </div>
             </div>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => openEditModal(record)}
-            >
-              Chỉnh sửa chi tiết
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openEditModal(record)}
+              >
+                Chỉnh sửa chi tiết
+              </Button>
+              <TagPrintBox data={record} />
+            </div>
           </div>
         </TableCell>
       </TableRow>
@@ -635,6 +642,10 @@ const TableProductScreen: React.FC = () => {
           />
           Làm mới
         </Button>
+
+        {productData.length > 0 && (
+          <TagPrintBoxMulti productData={productData} />
+        )}
 
         <span className="text-sm text-muted-foreground ml-auto">
           Tổng: {totalCount} sản phẩm
