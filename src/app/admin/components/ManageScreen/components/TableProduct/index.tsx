@@ -153,7 +153,8 @@ const TableProductScreen: React.FC = () => {
     note: '',
   });
   const [isSaving, setIsSaving] = useState<boolean>(false);
-
+  const [isShowMultiPrintView, setIsShowMultiPrintView] =
+    useState<boolean>(false);
   // File input ref
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadTargetKey, setUploadTargetKey] = useState<string>('');
@@ -209,10 +210,7 @@ const TableProductScreen: React.FC = () => {
           const mapped: ProductItem[] = res.results.map(
             (item: Record<string, any>) => {
               let categoryType = '';
-              if (
-                item.category?.name &&
-                item.subCategory?.name
-              ) {
+              if (item.category?.name && item.subCategory?.name) {
                 categoryType = `${item.category.name} → ${item.subCategory.name}`;
               } else if (item.category?.name) {
                 categoryType = item.category.name;
@@ -354,9 +352,7 @@ const TableProductScreen: React.FC = () => {
     setIsSaving(true);
 
     const newData = [...productData];
-    const index = newData.findIndex(
-      item => item.key === editingProduct.key
-    );
+    const index = newData.findIndex(item => item.key === editingProduct.key);
     if (index === -1) {
       setIsSaving(false);
       return;
@@ -510,7 +506,11 @@ const TableProductScreen: React.FC = () => {
                 {medias.length < 5 && (
                   <div className="relative">
                     <input
-                      ref={uploadTargetKey === record.key ? fileInputRef : undefined}
+                      ref={
+                        uploadTargetKey === record.key
+                          ? fileInputRef
+                          : undefined
+                      }
                       type="file"
                       accept=".png,.jpg,.jpeg,.gif"
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
@@ -642,9 +642,32 @@ const TableProductScreen: React.FC = () => {
           />
           Làm mới
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsShowMultiPrintView(prev => !prev)}
+        >
+          <RefreshCw
+            className={`h-4 w-4 mr-1 ${isLoadingData ? 'animate-spin' : ''}`}
+          />
+          {!isShowMultiPrintView ? `In Tất Cả` : 'Đóng In Tất Cả'}
+        </Button>
 
-        {productData.length > 0 && (
-          <TagPrintBoxMulti productData={productData} />
+        {productData.length > 0 && isShowMultiPrintView && (
+          <div className="flex flex-col">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsShowMultiPrintView(prev => !prev)}
+              className="mb-5"
+            >
+              <RefreshCw
+                className={`h-4 w-4 mr-1 ${isLoadingData ? 'animate-spin' : ''}`}
+              />
+              Đóng In Tất Cả
+            </Button>
+            <TagPrintBoxMulti productData={productData} />
+          </div>
         )}
 
         <span className="text-sm text-muted-foreground ml-auto">
