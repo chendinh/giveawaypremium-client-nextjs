@@ -29,7 +29,7 @@ import { useAppStore } from '@/store/useAppStore';
 import Consignment from './components/Consignment';
 import ManageScreen from './components/ManageScreen';
 import SettingScreen from './components/SettingScreen';
-// import SaleScreen from './components/SaleScreen';
+import SaleScreen from './components/SaleScreen';
 // import SummaryScreen from './components/SummaryScreen';
 
 import './style.scss';
@@ -200,8 +200,8 @@ const DashBoard: React.FC = () => {
         return <ManageScreen />;
       case 4:
         return <Consignment />;
-      // case 5:
-      //   return <SaleScreen />;
+      case 5:
+        return <SaleScreen />;
       case 6:
         return <SettingScreen />;
       default:
