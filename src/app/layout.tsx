@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { DictionaryProvider } from '@/context/DictionaryProvider';
-import { getDictionary } from '@/lib/get-dictionary';
+import { getDictionary, DEFAULT_LOCALE } from '@/lib/get-dictionary';
 import { LocaleProvider } from '@/context/LocaleProvider';
 import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/context/ThemeProvider';
@@ -37,19 +37,18 @@ export const metadata: Metadata = {
 };
 export default async function RootLayout({
   children,
-  params: { locale },
 }: {
   children: React.ReactNode;
-  params: { locale: string };
 }) {
-  const dict = await getDictionary(locale as 'en' | 'vi');
+  const locale = DEFAULT_LOCALE;
+  const dict = await getDictionary(locale);
   //
 
   return (
     <html lang={locale} suppressHydrationWarning>
       <ReactFlowProvider>
         <DictionaryProvider dict={dict}>
-          <LocaleProvider locale={locale as 'en' | 'vi'}>
+          <LocaleProvider locale={locale}>
             <body suppressHydrationWarning className={inter.className}>
               <TooltipProvider delayDuration={100}>
                 <ThemeProvider
