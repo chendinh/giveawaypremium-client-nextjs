@@ -7,7 +7,7 @@ import TableConsignmentScreen from './components/TableConsignemntScreen';
 // import TableProductScreen from './components/TableProduct';
 // import TableOrder from './components/TableOrder';
 import TableCustomerScreen from './components/TableCustomer';
-// import TableAppointment from './components/TableAppointment';
+import TableAppointmentScreen from './components/TableAppointment';
 // import TableEmailScreen from './components/TableEmailScreen';
 // import TableRequestOrder from './components/TableRequestOrder';
 
@@ -59,10 +59,7 @@ const ManageScreen: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="6">
-          {/* <TableAppointment /> */}
-          <div className="text-muted-foreground text-center py-10">
-            Lịch hẹn (chưa convert)
-          </div>
+          <TableAppointmentScreen />
         </TabsContent>
 
         <TabsContent value="7">
