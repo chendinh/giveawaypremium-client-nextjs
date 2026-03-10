@@ -190,33 +190,30 @@ const TableAppointmentScreen: React.FC = () => {
     useState<AppointmentItem | null>(null);
 
   // ── Fetch appointments ──
-  const fetchAppointment = useCallback(
-    async (days: DayBookingItem[]) => {
-      setIsLoadingBooking(true);
-      try {
-        const arrayDate = days.map(item => `"${item.date}"`);
-        const res = await GapService.getAppointmentWithDate(arrayDate);
+  const fetchAppointment = useCallback(async (days: DayBookingItem[]) => {
+    setIsLoadingBooking(true);
+    try {
+      const arrayDate = days.map(item => `"${item.date}"`);
+      const res = await GapService.getAppointmentWithDate(arrayDate);
 
-        if (res && res.results) {
-          let codeStr = '';
-          res.results.forEach((item: AppointmentItem) => {
-            if (item && item.slot) {
-              codeStr += '-' + item.slot + '-';
-            }
-          });
-          setBookingUserInfo(res.results as AppointmentItem[]);
-          setBookingDataCode(codeStr);
-        } else {
-          toast.error('Không thể tải dữ liệu!');
-        }
-      } catch (err) {
-        console.error('Error fetching appointments:', err);
+      if (res && res.results) {
+        let codeStr = '';
+        res.results.forEach((item: AppointmentItem) => {
+          if (item && item.slot) {
+            codeStr += '-' + item.slot + '-';
+          }
+        });
+        setBookingUserInfo(res.results as AppointmentItem[]);
+        setBookingDataCode(codeStr);
+      } else {
         toast.error('Không thể tải dữ liệu!');
       }
-      setIsLoadingBooking(false);
-    },
-    []
-  );
+    } catch (err) {
+      console.error('Error fetching appointments:', err);
+      toast.error('Không thể tải dữ liệu!');
+    }
+    setIsLoadingBooking(false);
+  }, []);
 
   // ── Init ──
   useEffect(() => {
@@ -281,8 +278,7 @@ const TableAppointmentScreen: React.FC = () => {
         settings.BOOKING_OPTION_CUSTOM_EACH_DAY &&
         settings.BOOKING_OPTION_CUSTOM_EACH_DAY[choosenDay.dayCode]
       ) {
-        customStr =
-          settings.BOOKING_OPTION_CUSTOM_EACH_DAY[choosenDay.dayCode];
+        customStr = settings.BOOKING_OPTION_CUSTOM_EACH_DAY[choosenDay.dayCode];
       }
 
       setBookingCustomOptionString(customStr);
@@ -323,8 +319,7 @@ const TableAppointmentScreen: React.FC = () => {
         toast.error('Xoá không thành công');
       } else {
         toast.success('Xoá thành công');
-        const slotCode =
-          (choosenTimeCode || '') + (choosenDayCode || '');
+        const slotCode = (choosenTimeCode || '') + (choosenDayCode || '');
         setBookingDataCode(prev => prev.replace(slotCode, ''));
         setChoosenTimeCode(null);
       }
@@ -343,7 +338,8 @@ const TableAppointmentScreen: React.FC = () => {
       try {
         const res = await GapService.updateSettingWithKeyAndValue(
           WORKING_DAY_COUNT,
-          value as unknown as string
+          value as unknown as string,
+          settings
         );
         if (res?.code === 101 || res?.error) {
           toast.error('Thay đổi không thành công');
@@ -386,13 +382,13 @@ const TableAppointmentScreen: React.FC = () => {
       }
       // Add to selected option
       bookingOptionList[`OPTION_${value}`] =
-        (bookingOptionList[`OPTION_${value}`] || '') +
-        `--${choosenDayCode}--`;
+        (bookingOptionList[`OPTION_${value}`] || '') + `--${choosenDayCode}--`;
 
       try {
         const res = await GapService.updateSettingWithKeyAndValue(
           BOOKING_OPTION_EACH_DAY,
-          bookingOptionList as unknown as string
+          bookingOptionList as unknown as string,
+          settings
         );
         if (res?.code === 101 || res?.error) {
           toast.error('Thay đổi không thành công');
@@ -430,8 +426,7 @@ const TableAppointmentScreen: React.FC = () => {
             acceptedCustomTimeCodeString += `-${selectedTimeCode === item.timeCode ? '-' : item.timeCode}-`;
           });
         }
-        bookingCustomOptionList[choosenDayCode] =
-          acceptedCustomTimeCodeString;
+        bookingCustomOptionList[choosenDayCode] = acceptedCustomTimeCodeString;
       } else {
         acceptedCustomTimeCodeString = customEachDay[choosenDayCode];
         if (!isOn) {
@@ -440,14 +435,14 @@ const TableAppointmentScreen: React.FC = () => {
         } else {
           acceptedCustomTimeCodeString += `-${selectedTimeCode}-`;
         }
-        bookingCustomOptionList[choosenDayCode] =
-          acceptedCustomTimeCodeString;
+        bookingCustomOptionList[choosenDayCode] = acceptedCustomTimeCodeString;
       }
 
       try {
         const res = await GapService.updateSettingWithKeyAndValue(
           BOOKING_OPTION_CUSTOM_EACH_DAY,
-          bookingCustomOptionList as unknown as string
+          bookingCustomOptionList as unknown as string,
+          settings
         );
         if (res?.code === 101 || res?.error) {
           toast.error('Thay đổi không thành công');
@@ -572,12 +567,12 @@ const TableAppointmentScreen: React.FC = () => {
                 <div className="flex flex-col items-center justify-center col-span-full">
                   <div className="flex flex-col items-center w-[90%]">
                     <p className="text-sm text-muted-foreground mt-6">
-                      Hiện tại tính năng đặt lịch ký gửi trên website đang
-                      tạm khoá.
+                      Hiện tại tính năng đặt lịch ký gửi trên website đang tạm
+                      khoá.
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Quý khách vui lòng gọi hotline 0703 334 443 để biết
-                      thêm thông tin.
+                      Quý khách vui lòng gọi hotline 0703 334 443 để biết thêm
+                      thông tin.
                     </p>
                     <p className="text-sm text-muted-foreground">
                       Xin lỗi vì sự bất tiện này.
@@ -610,11 +605,7 @@ const TableAppointmentScreen: React.FC = () => {
                         className="mr-2 mt-auto mb-auto"
                       />
                       <div
-                        style={
-                          !isBusy
-                            ? { pointerEvents: 'none' }
-                            : {}
-                        }
+                        style={!isBusy ? { pointerEvents: 'none' } : {}}
                         onClick={() =>
                           isBusy ? onChooseTime(itemTime) : undefined
                         }
@@ -651,9 +642,7 @@ const TableAppointmentScreen: React.FC = () => {
           </Button>
         </div>
         {searchInfo && (
-          <span className="text-sm whitespace-pre-wrap mt-2">
-            {searchInfo}
-          </span>
+          <span className="text-sm whitespace-pre-wrap mt-2">{searchInfo}</span>
         )}
       </div>
 
@@ -664,9 +653,7 @@ const TableAppointmentScreen: React.FC = () => {
             className={`w-2.5 h-2.5 rounded-full ${isLast7Day ? 'bg-green-500' : 'bg-orange-400'}`}
           />
           <Label className="text-sm">
-            {isLast7Day
-              ? 'Khung thời gian hoạt động'
-              : 'Hiện đang hoạt động:'}
+            {isLast7Day ? 'Khung thời gian hoạt động' : 'Hiện đang hoạt động:'}
           </Label>
         </div>
         <Select
@@ -723,9 +710,7 @@ const TableAppointmentScreen: React.FC = () => {
                 <span>{selectedAppointment.customerName || '---'}</span>
 
                 <span className="font-medium">Số lượng Hàng Hoá:</span>
-                <span>
-                  {selectedAppointment.numberOfProduct || '---'}
-                </span>
+                <span>{selectedAppointment.numberOfProduct || '---'}</span>
 
                 <span className="font-medium">Số điện thoại:</span>
                 <span>{selectedAppointment.phoneNumber || '---'}</span>

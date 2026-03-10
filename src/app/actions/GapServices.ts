@@ -197,7 +197,10 @@ const convertMediaArrayToPointerArray = (medias: any[]): any[] => {
 
 export class GapService {
   // Upload Functions
-  static uploadSingleFileWithFormData = async (file: File): Promise<any> => {
+  static uploadSingleFileWithFormData = async (
+    file: File,
+    authKey?: string
+  ): Promise<any> => {
     console.log('file uploading ======', file);
     const key = getAuthToken();
 
@@ -1724,11 +1727,14 @@ export class GapService {
   // ── Setting extra ──
   static async updateSettingWithKeyAndValue(
     keyString: string = '',
-    valueString: string = ''
+    valueString: string = '',
+    settingObject: any
   ): Promise<any> {
-    const settingAPI = getSettings();
+    const settingAPI = settingObject;
     const newSettingAPI = { ...settingAPI, [keyString]: valueString };
-    const body = { Setting: newSettingAPI };
+    const body = {
+      Setting: newSettingAPI,
+    };
     return this.fetchData(
       '/classes/Setting/meu8SzyuLd',
       REQUEST_TYPE.PUT,
@@ -1741,8 +1747,10 @@ export class GapService {
     );
   }
 
-  static async deleteSettingWithKey(keyString: string = ''): Promise<any> {
-    const settingAPI = getSettings();
+  static async deleteSettingWithKey(
+    keyString: string = '',
+    settingAPI: any
+  ): Promise<any> {
     const newSettingAPI = { ...settingAPI };
     delete newSettingAPI[keyString];
     const body = { Setting: newSettingAPI };
