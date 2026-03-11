@@ -1875,6 +1875,69 @@ export class GapService {
     );
   }
 
+  // ============ NOTE CRUD ============
+
+  static async getNotes(
+    page: number = 1,
+    limit: number = 100
+  ): Promise<any> {
+    const limited = limit || 100;
+    const skip = limited * page - limited;
+    const customQuery = `order=-createdAt&skip=${skip}&limit=${limited}&count=1&where={"deletedAt":${null}}`;
+    return this.fetchData(
+      '/classes/Note',
+      REQUEST_TYPE.GET,
+      null,
+      null,
+      null,
+      null,
+      customQuery
+    );
+  }
+
+  static async createNote(data: {
+    title: string;
+    content: string;
+  }): Promise<any> {
+    const body = {
+      title: data.title,
+      content: data.content,
+    };
+    return this.fetchData('/classes/Note', REQUEST_TYPE.POST, null, body);
+  }
+
+  static async updateNote(
+    objectId: string,
+    data: { title?: string; content?: string }
+  ): Promise<any> {
+    const body: Record<string, any> = {};
+    if (data.title !== undefined) body.title = data.title;
+    if (data.content !== undefined) body.content = data.content;
+    return this.fetchData(
+      `/classes/Note/${objectId}`,
+      REQUEST_TYPE.PUT,
+      null,
+      body
+    );
+  }
+
+  static async deleteNote(objectId: string): Promise<any> {
+    try {
+      const body = {
+        deletedAt: { __type: 'Date', iso: moment().toISOString() },
+      };
+      return this.fetchData(
+        `/classes/Note/${objectId}`,
+        REQUEST_TYPE.PUT,
+        null,
+        body
+      );
+    } catch (e) {
+      console.log(e);
+      return false;
+    }
+  }
+
   // Core Fetch Function
   static async fetchData(
     apiUrl: string,

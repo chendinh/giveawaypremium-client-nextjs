@@ -31,6 +31,7 @@ import ManageScreen from './components/ManageScreen';
 import SettingScreen from './components/SettingScreen';
 import SaleScreen from './components/SaleScreen';
 import SummaryScreen from './components/SummaryScreen';
+import NoteScreen from './components/NoteScreen';
 
 import './style.scss';
 
@@ -196,7 +197,7 @@ const DashBoard: React.FC = () => {
       case 1:
         return <SummaryScreen />;
       case 2:
-      // return <NoteScreen />;
+        return <NoteScreen />;
       case 3:
         return <ManageScreen />;
       case 4:
