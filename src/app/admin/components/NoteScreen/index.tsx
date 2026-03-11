@@ -13,6 +13,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import {
   Loader2,
@@ -50,6 +60,7 @@ const NoteScreen: React.FC = () => {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [editingNote, setEditingNote] = useState<NoteItem | null>(null);
   const [formData, setFormData] = useState({ title: '', content: '' });
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const limit = 20;
 
@@ -128,10 +139,12 @@ const NoteScreen: React.FC = () => {
   };
 
   // ─── Delete ─────────────────────────────────────────
-  const handleDelete = async (objectId: string) => {
+  const handleConfirmDelete = async () => {
+    if (!deleteId) return;
     try {
-      await GapService.deleteNote(objectId);
+      await GapService.deleteNote(deleteId);
       toast.success('Đã xoá ghi chú');
+      setDeleteId(null);
       fetchNotes();
     } catch (err) {
       console.error('Error deleting note:', err);
@@ -210,7 +223,7 @@ const NoteScreen: React.FC = () => {
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => handleDelete(note.objectId)}
+                    onClick={() => setDeleteId(note.objectId)}
                   >
                     <Trash2 className="mr-1 h-3 w-3" />
                     Xoá
@@ -303,6 +316,30 @@ const NoteScreen: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        open={!!deleteId}
+        onOpenChange={open => {
+          if (!open) setDeleteId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận xoá</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có chắc chắn muốn xoá ghi chú này? Hành động này không thể
+              hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Huỷ</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete}>
+              Xoá
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
