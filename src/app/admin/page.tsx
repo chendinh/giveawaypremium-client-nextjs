@@ -30,7 +30,7 @@ import Consignment from './components/Consignment';
 import ManageScreen from './components/ManageScreen';
 import SettingScreen from './components/SettingScreen';
 import SaleScreen from './components/SaleScreen';
-// import SummaryScreen from './components/SummaryScreen';
+import SummaryScreen from './components/SummaryScreen';
 
 import './style.scss';
 
@@ -194,8 +194,9 @@ const DashBoard: React.FC = () => {
   const renderContent = () => {
     switch (numberPage) {
       case 1:
-      // case 2:
-      //   return <SummaryScreen />;
+        return <SummaryScreen />;
+      case 2:
+      // return <NoteScreen />;
       case 3:
         return <ManageScreen />;
       case 4:
