@@ -1,0 +1,47 @@
+{
+    "compilerOptions": {
+        "target": "es2020",
+        "lib": [
+            "es2020"
+        ],
+        "module": "commonjs",
+        "allowJs": true,
+        "moduleResolution": "node",
+        "noEmitHelpers": true,
+        "noImplicitReturns": false,
+        "noImplicitThis": true,
+        "noImplicitAny": false,
+        "strictNullChecks": true,
+        "noUnusedLocals": true,
+        "strictFunctionTypes": true,
+        "suppressImplicitAnyIndexErrors": true,
+        "outDir": "./build/",
+        "strict": true,
+        "sourceMap": true,
+        "inlineSources": true,
+        "skipLibCheck": true,
+        "allowSyntheticDefaultImports": true,
+        "experimentalDecorators": true, // chenge form false to true when add sequelize
+        "emitDecoratorMetadata": true, // new when add sequelize,
+        "strictPropertyInitialization": false,
+        "forceConsistentCasingInFileNames": true,
+        "importHelpers": true,
+        "declaration": true,
+        "typeRoots": [
+            "node_modules/@types"
+        ],
+        "resolveJsonModule": true,
+        "jsx": "react"
+    },
+    "files": [
+        "./node_modules/@types/node/index.d.ts"
+    ],
+    "include": [
+        "src/**/**/*.ts",
+        "index.ts"
+    ],
+    "exclude": [
+        "node_modules"
+    ],
+    "assets":["/src/templates/*"]
+}
