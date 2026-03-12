@@ -5,8 +5,8 @@ export interface IMailOptions {
   port: number;
   secure: boolean;
   auth: {
-    user: string;
-    pass: string;
+    user: string | undefined;
+    pass: string | undefined;
   };
   pool?: boolean;
 }

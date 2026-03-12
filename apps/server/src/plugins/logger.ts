@@ -1,6 +1,6 @@
 import * as root from 'app-root-path';
 import * as winston from 'winston';
-import * as DailyRotateFile from 'winston-daily-rotate-file';
+import DailyRotateFile from 'winston-daily-rotate-file';
 
 const { createLogger, format, transports } = winston;
 const { combine, timestamp, label, printf } = format;

@@ -1,6 +1,6 @@
 import fetch from 'node-fetch'; 
-import * as md5 from 'md5';
-import * as FormData from 'form-data';
+import md5 from 'md5';
+import FormData from 'form-data';
 import logger from '../../plugins/logger';
 import { NhanhResponse, NhanhService, NhanhServiceOptions } from './interface';
 

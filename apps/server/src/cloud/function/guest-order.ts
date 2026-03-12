@@ -1,4 +1,4 @@
-import * as moment from 'moment';
+import moment from 'moment';
 import PQueue from 'p-queue';
 import { OrderRequest } from '../../models/order.request';
 import { Product } from '../../models/product';

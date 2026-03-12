@@ -1,4 +1,4 @@
-import * as moment from 'moment';
+import moment from 'moment';
 import { MailFactory } from "../../external-services/email";
 import { MAIL_TYPE } from "../../external-services/email/constants";
 import { mailConfigs } from "../../config/email.config";
