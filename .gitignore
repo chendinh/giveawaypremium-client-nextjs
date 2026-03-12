@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+node_modules
 /.pnp
 .pnp.js
 .yarn/install-state.gz
@@ -10,12 +10,13 @@
 /coverage
 
 # next.js
-/.next/
+.next/
 /out/
-/dist/
 
 # production
-/build
+dist/
+build/
+
 # docker
 .docker
 docker-compose.override.yml
@@ -25,6 +26,7 @@ docker-data/
 docker-volumes/
 *.tar
 *.tgz
+
 # misc
 .DS_Store
 *.pem
@@ -36,6 +38,7 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.env
 
 # vercel
 .vercel
@@ -43,4 +46,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-public/build-info.json
+
+# next.js build info
+apps/web/public/build-info.json
+
+# logs
+logs/
+*.log
