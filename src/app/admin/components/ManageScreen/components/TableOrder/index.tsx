@@ -54,6 +54,9 @@ import GapService from '@/app/actions/GapServices';
 import { useAppStore } from '@/store/useAppStore';
 import moment from 'moment';
 
+import TagPrintBox from './components/TagPrintBox/index';
+import BillOrderGHTK from './components/BillOrderGHTK/index';
+
 import './style.scss';
 
 // ─── Helpers ──────────────────────────────────────────
@@ -836,8 +839,20 @@ const TableOrderScreen: React.FC = () => {
                       <TableCell>
                         {renderGhtkAction(item)}
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        (chưa hỗ trợ)
+                      <TableCell>
+                        <TagPrintBox
+                          data={{
+                            code: item.objectId,
+                            objectIdOrder: item.objectId,
+                            productList: item.productList?.map(p => ({
+                              name: p.name,
+                              price: p.price,
+                              count: typeof p.count === 'string' ? parseInt(p.count, 10) : p.count,
+                            })),
+                            totalNumberOfProductForSale: item.totalNumberOfProductForSale,
+                            totalMoneyForSale: item.totalMoneyForSale,
+                          }}
+                        />
                       </TableCell>
                       <TableCell>
                         {item.isOnlineSale === 'Offline' ? null : (
@@ -1044,6 +1059,10 @@ const TableOrderScreen: React.FC = () => {
                     <ExternalLink className="h-3 w-3 mr-1" />
                     Tra cứu GHTK
                   </Button>
+                </div>
+                <div className="border-t pt-3 mt-3">
+                  <p className="text-sm font-medium mb-2">Nhãn đơn hàng</p>
+                  <BillOrderGHTK orderId={ghtkDetailItem.objectId} />
                 </div>
               </div>
             );
