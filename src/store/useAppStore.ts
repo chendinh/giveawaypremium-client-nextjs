@@ -105,6 +105,7 @@ const initialState: AppState = {
     WORKING_DAY_COUNT: 14,
     BOOKING_OPTION_EACH_DAY: BOOKING_OPTION_EACH_DAY_DATA_DEFAULT,
     IS_SHOW_BOOKING_FORM: 'true',
+    BOOKING_OPTION_CUSTOM_EACH_DAY: '',
   },
   isSettingsLoaded: false,
   ipHash: null,

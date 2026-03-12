@@ -196,7 +196,7 @@ const SaleScreen: React.FC = () => {
     };
 
     setPanes(prev => {
-      const updated = [...prev, newPane];
+      const updated = [newPane];
       const idx = updated.length - 1;
       setCurrentPaneIndex(idx);
       setActiveKey(newKey);
@@ -298,7 +298,11 @@ const SaleScreen: React.FC = () => {
       totalMoneyForSale += qty * item.price;
       totalMoneyForSaleAfterFee += qty * item.priceAfterFee;
     });
-    return { totalNumberOfProductForSale, totalMoneyForSale, totalMoneyForSaleAfterFee };
+    return {
+      totalNumberOfProductForSale,
+      totalMoneyForSale,
+      totalMoneyForSaleAfterFee,
+    };
   };
 
   // ─── Product scanning ──────────────────────────────
@@ -319,7 +323,9 @@ const SaleScreen: React.FC = () => {
         return;
       }
 
-      toast.loading('Đang tìm kiếm thông tin sản phẩm', { id: 'product-search' });
+      toast.loading('Đang tìm kiếm thông tin sản phẩm', {
+        id: 'product-search',
+      });
 
       try {
         const productResArr = await GapService.getProductWithCode(value);
@@ -352,7 +358,9 @@ const SaleScreen: React.FC = () => {
             const existItem = newList[existIdx];
             const currentQty = existItem.numberOfProductForSale || 1;
             if (currentQty + 1 > existItem.remainNumberProduct) {
-              toast.error(`Số lượng tối đa là ${existItem.remainNumberProduct}`);
+              toast.error(
+                `Số lượng tối đa là ${existItem.remainNumberProduct}`
+              );
               return pane;
             }
             toast.info('Sản phẩm tương đồng');
@@ -429,11 +437,23 @@ const SaleScreen: React.FC = () => {
     (value: string) => {
       updateCurrentPane(pane => {
         if (value === 'true') {
-          return { ...pane, isTransferWithBank: 'true', isTransferWithBankAndOffline: 'false' };
+          return {
+            ...pane,
+            isTransferWithBank: 'true',
+            isTransferWithBankAndOffline: 'false',
+          };
         } else if (value === 'both') {
-          return { ...pane, isTransferWithBank: 'false', isTransferWithBankAndOffline: 'true' };
+          return {
+            ...pane,
+            isTransferWithBank: 'false',
+            isTransferWithBankAndOffline: 'true',
+          };
         }
-        return { ...pane, isTransferWithBank: 'false', isTransferWithBankAndOffline: 'false' };
+        return {
+          ...pane,
+          isTransferWithBank: 'false',
+          isTransferWithBankAndOffline: 'false',
+        };
       });
     },
     [updateCurrentPane]
@@ -449,20 +469,35 @@ const SaleScreen: React.FC = () => {
 
   // ─── Split payment amounts ──────────────────────────
   const onChangeSplitAmount = useCallback(
-    (value: string, field: 'transferOfflineMoneyAmount' | 'transferBankMoneyAmount') => {
+    (
+      value: string,
+      field: 'transferOfflineMoneyAmount' | 'transferBankMoneyAmount'
+    ) => {
       updateCurrentPane(pane => {
         const numVal = Number(value);
         if (!(numVal >= 0)) {
-          return { ...pane, transferOfflineMoneyAmount: null, transferBankMoneyAmount: null };
+          return {
+            ...pane,
+            transferOfflineMoneyAmount: null,
+            transferBankMoneyAmount: null,
+          };
         }
         const total = Number(pane.totalMoneyForSale);
         const clamped = Math.min(numVal, total);
         const remainder = total - clamped;
 
         if (field === 'transferOfflineMoneyAmount') {
-          return { ...pane, transferOfflineMoneyAmount: clamped, transferBankMoneyAmount: remainder };
+          return {
+            ...pane,
+            transferOfflineMoneyAmount: clamped,
+            transferBankMoneyAmount: remainder,
+          };
         }
-        return { ...pane, transferBankMoneyAmount: clamped, transferOfflineMoneyAmount: remainder };
+        return {
+          ...pane,
+          transferBankMoneyAmount: clamped,
+          transferOfflineMoneyAmount: remainder,
+        };
       });
     },
     [updateCurrentPane]
@@ -481,7 +516,9 @@ const SaleScreen: React.FC = () => {
       }));
 
       if (phoneValue.length >= 10) {
-        toast.loading('Đang lấy thông tin khách hàng...', { id: 'customer-lookup' });
+        toast.loading('Đang lấy thông tin khách hàng...', {
+          id: 'customer-lookup',
+        });
 
         try {
           const res = await GapService.getCustomer(phoneValue);
@@ -552,7 +589,10 @@ const SaleScreen: React.FC = () => {
     return prov?.districts || [];
   };
 
-  const getWardsForDistrict = (provinceName: string, districtName: string): AddressWard[] => {
+  const getWardsForDistrict = (
+    provinceName: string,
+    districtName: string
+  ): AddressWard[] => {
     const districts = getDistrictsForProvince(provinceName);
     const dist = districts.find(d => d.name === districtName);
     return dist?.wards || [];
@@ -624,7 +664,10 @@ const SaleScreen: React.FC = () => {
         orderAdressDistrict: district,
         orderAdressWard: ward,
       };
-      const resFee = await GapService.getFeeForTransport(formDataFee, optionTransfer === 'ht');
+      const resFee = await GapService.getFeeForTransport(
+        formDataFee,
+        optionTransfer === 'ht'
+      );
       toast.dismiss('shipping-fee');
       if (resFee?.result) {
         updateCurrentPane(pane => ({
@@ -644,7 +687,10 @@ const SaleScreen: React.FC = () => {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       updateCurrentPane(pane => ({
         ...pane,
-        shippingInfo: { ...pane.shippingInfo, orderAdressStreet: e.target.value.trim() },
+        shippingInfo: {
+          ...pane.shippingInfo,
+          orderAdressStreet: e.target.value.trim(),
+        },
       }));
     },
     [updateCurrentPane]
@@ -656,7 +702,10 @@ const SaleScreen: React.FC = () => {
       updateCurrentPane(pane => {
         if (pane.shippingInfo.optionTransfer === value) return pane;
 
-        const newShipping: ShippingInfo = { ...pane.shippingInfo, optionTransfer: value };
+        const newShipping: ShippingInfo = {
+          ...pane.shippingInfo,
+          optionTransfer: value,
+        };
 
         if (value === 'tt') {
           newShipping.shippingFee = 0;
@@ -682,7 +731,10 @@ const SaleScreen: React.FC = () => {
     if (!currentPane) return;
 
     // Validation
-    if (!currentPane.clientInfo.phoneNumber || currentPane.clientInfo.phoneNumber.length <= 9) {
+    if (
+      !currentPane.clientInfo.phoneNumber ||
+      currentPane.clientInfo.phoneNumber.length <= 9
+    ) {
       toast.error('Chưa nhập số điện thoại');
       return;
     }
@@ -690,7 +742,10 @@ const SaleScreen: React.FC = () => {
       toast.error('Chưa có sản phẩm nào');
       return;
     }
-    if (currentPane.isOnlineSale === 'true' && !currentPane.clientInfo.fullName) {
+    if (
+      currentPane.isOnlineSale === 'true' &&
+      !currentPane.clientInfo.fullName
+    ) {
       toast.error('Chưa nhập tên Khách hàng');
       return;
     }
@@ -708,7 +763,9 @@ const SaleScreen: React.FC = () => {
         !currentPane.shippingInfo.orderAdressDistrict ||
         !currentPane.shippingInfo.orderAdressProvince)
     ) {
-      toast.error('Vui nhập thông tin: xã.phường / quận.huyện / tỉnh.thành phố');
+      toast.error(
+        'Vui nhập thông tin: xã.phường / quận.huyện / tỉnh.thành phố'
+      );
       return;
     }
 
@@ -723,7 +780,9 @@ const SaleScreen: React.FC = () => {
         count: item.numberOfProductForSale || 1,
       }));
 
-      const resUser = await GapService.getCustomer(currentPane.clientInfo.phoneNumber);
+      const resUser = await GapService.getCustomer(
+        currentPane.clientInfo.phoneNumber
+      );
 
       if (resUser?.results?.[0]) {
         // Existing customer — update
@@ -742,7 +801,8 @@ const SaleScreen: React.FC = () => {
           bankName: currentPane.clientInfo.bankName,
           bankId: currentPane.clientInfo.bankId,
           totalMoneyForSale:
-            Number(existing.totalMoneyForSale || 0) + Number(dataOrder.totalMoneyForSale || 0),
+            Number(existing.totalMoneyForSale || 0) +
+            Number(dataOrder.totalMoneyForSale || 0),
           numberOfSale: Number(existing.numberOfSale || 0) + 1,
           totalProductForSale:
             Number(existing.totalProductForSale || 0) +
@@ -750,12 +810,21 @@ const SaleScreen: React.FC = () => {
         };
 
         toast.dismiss('create-order');
-        toast.loading('Đang cập nhật thông tin khách hàng', { id: 'create-order' });
-        const resCustomer = await GapService.updateCustomer(customerFormData, existing.objectId);
+        toast.loading('Đang cập nhật thông tin khách hàng', {
+          id: 'create-order',
+        });
+        const resCustomer = await GapService.updateCustomer(
+          customerFormData,
+          existing.objectId
+        );
 
         if (resCustomer?.updatedAt) {
           toast.success('Cập nhật khách hàng thành công');
-          const result = await GapService.setOrder(dataOrder, userData?.objectId, existing.objectId);
+          const result = await GapService.setOrder(
+            dataOrder,
+            userData?.objectId,
+            existing.objectId
+          );
           toast.dismiss('create-order');
 
           if (result?.objectId) {
@@ -797,7 +866,11 @@ const SaleScreen: React.FC = () => {
 
         if (resCus?.objectId) {
           toast.success('Thêm khách hàng thành công');
-          const result = await GapService.setOrder(dataOrder, userData?.objectId, resCus.objectId);
+          const result = await GapService.setOrder(
+            dataOrder,
+            userData?.objectId,
+            resCus.objectId
+          );
           toast.dismiss('create-order');
 
           if (result?.objectId) {
@@ -997,7 +1070,9 @@ const SaleScreen: React.FC = () => {
                         </span>
                         <span className="text-right text-sm font-medium">
                           {numberWithCommas(
-                            item.price * 1000 * (item.numberOfProductForSale || 1)
+                            item.price *
+                              1000 *
+                              (item.numberOfProductForSale || 1)
                           )}{' '}
                           vnđ
                         </span>
@@ -1024,9 +1099,14 @@ const SaleScreen: React.FC = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Tổng tiền:</span>
+                    <span className="text-sm text-muted-foreground">
+                      Tổng tiền:
+                    </span>
                     <span className="text-lg font-bold">
-                      {numberWithCommas((currentPane.totalMoneyForSale || 0) * 1000)} vnđ
+                      {numberWithCommas(
+                        (currentPane.totalMoneyForSale || 0) * 1000
+                      )}{' '}
+                      vnđ
                     </span>
                   </div>
 
@@ -1061,7 +1141,10 @@ const SaleScreen: React.FC = () => {
                         <Input
                           value={currentPane.transferOfflineMoneyAmount ?? ''}
                           onChange={e =>
-                            onChangeSplitAmount(e.target.value, 'transferOfflineMoneyAmount')
+                            onChangeSplitAmount(
+                              e.target.value,
+                              'transferOfflineMoneyAmount'
+                            )
                           }
                           placeholder="0 vnd"
                         />
@@ -1071,7 +1154,10 @@ const SaleScreen: React.FC = () => {
                         <Input
                           value={currentPane.transferBankMoneyAmount ?? ''}
                           onChange={e =>
-                            onChangeSplitAmount(e.target.value, 'transferBankMoneyAmount')
+                            onChangeSplitAmount(
+                              e.target.value,
+                              'transferBankMoneyAmount'
+                            )
                           }
                           placeholder="0 vnd"
                         />
@@ -1124,7 +1210,9 @@ const SaleScreen: React.FC = () => {
                       <Label className="text-xs">Tên khách hàng</Label>
                       <Input
                         value={currentPane.clientInfo.fullName}
-                        onChange={e => onChangeClientField(e.target.value, 'fullName')}
+                        onChange={e =>
+                          onChangeClientField(e.target.value, 'fullName')
+                        }
                         placeholder="..."
                       />
                     </div>
@@ -1132,7 +1220,9 @@ const SaleScreen: React.FC = () => {
                       <Label className="text-xs">CMND</Label>
                       <Input
                         value={currentPane.clientInfo.consignerIdCard}
-                        onChange={e => onChangeClientField(e.target.value, 'consignerIdCard')}
+                        onChange={e =>
+                          onChangeClientField(e.target.value, 'consignerIdCard')
+                        }
                         placeholder="..."
                       />
                     </div>
@@ -1140,7 +1230,9 @@ const SaleScreen: React.FC = () => {
                       <Label className="text-xs">Email</Label>
                       <Input
                         value={currentPane.clientInfo.mail}
-                        onChange={e => onChangeClientField(e.target.value, 'mail')}
+                        onChange={e =>
+                          onChangeClientField(e.target.value, 'mail')
+                        }
                         placeholder="..."
                       />
                     </div>
@@ -1148,7 +1240,9 @@ const SaleScreen: React.FC = () => {
                       <Label className="text-xs">Tên ngân hàng</Label>
                       <Input
                         value={currentPane.clientInfo.bankName}
-                        onChange={e => onChangeClientField(e.target.value, 'bankName')}
+                        onChange={e =>
+                          onChangeClientField(e.target.value, 'bankName')
+                        }
                         placeholder="..."
                       />
                     </div>
@@ -1156,7 +1250,9 @@ const SaleScreen: React.FC = () => {
                       <Label className="text-xs">ID ngân hàng</Label>
                       <Input
                         value={currentPane.clientInfo.bankId}
-                        onChange={e => onChangeClientField(e.target.value, 'bankId')}
+                        onChange={e =>
+                          onChangeClientField(e.target.value, 'bankId')
+                        }
                         placeholder="..."
                       />
                     </div>
@@ -1164,7 +1260,9 @@ const SaleScreen: React.FC = () => {
                       <Label className="text-xs">Sinh nhật</Label>
                       <Input
                         value={currentPane.clientInfo.birthday}
-                        onChange={e => onChangeClientField(e.target.value, 'birthday')}
+                        onChange={e =>
+                          onChangeClientField(e.target.value, 'birthday')
+                        }
                         placeholder="..."
                       />
                     </div>
@@ -1183,9 +1281,13 @@ const SaleScreen: React.FC = () => {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="space-y-1">
-                      <Label className="text-xs">Địa chỉ giao hàng (số nhà - đường)</Label>
+                      <Label className="text-xs">
+                        Địa chỉ giao hàng (số nhà - đường)
+                      </Label>
                       <Input
-                        disabled={currentPane.shippingInfo.optionTransfer === 'tt'}
+                        disabled={
+                          currentPane.shippingInfo.optionTransfer === 'tt'
+                        }
                         value={currentPane.shippingInfo.orderAdressStreet || ''}
                         onChange={onChangeStreetAddress}
                         placeholder="Số nhà - đường"
@@ -1196,9 +1298,13 @@ const SaleScreen: React.FC = () => {
                       <div className="space-y-1">
                         <Label className="text-xs">Tỉnh/Thành phố</Label>
                         <Select
-                          value={currentPane.shippingInfo.orderAdressProvince || ''}
+                          value={
+                            currentPane.shippingInfo.orderAdressProvince || ''
+                          }
                           onValueChange={onChangeProvince}
-                          disabled={currentPane.shippingInfo.optionTransfer === 'tt'}
+                          disabled={
+                            currentPane.shippingInfo.optionTransfer === 'tt'
+                          }
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Chọn tỉnh" />
@@ -1215,7 +1321,9 @@ const SaleScreen: React.FC = () => {
                       <div className="space-y-1">
                         <Label className="text-xs">Quận/Huyện</Label>
                         <Select
-                          value={currentPane.shippingInfo.orderAdressDistrict || ''}
+                          value={
+                            currentPane.shippingInfo.orderAdressDistrict || ''
+                          }
                           onValueChange={onChangeDistrict}
                           disabled={
                             currentPane.shippingInfo.optionTransfer === 'tt' ||
@@ -1251,7 +1359,8 @@ const SaleScreen: React.FC = () => {
                           </SelectTrigger>
                           <SelectContent className="max-h-[200px]">
                             {getWardsForDistrict(
-                              currentPane.shippingInfo.orderAdressProvince || '',
+                              currentPane.shippingInfo.orderAdressProvince ||
+                                '',
                               currentPane.shippingInfo.orderAdressDistrict || ''
                             ).map(ward => (
                               <SelectItem key={ward.name} value={ward.name}>
@@ -1275,7 +1384,9 @@ const SaleScreen: React.FC = () => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="tk">Giao hàng tiết kiệm</SelectItem>
+                          <SelectItem value="tk">
+                            Giao hàng tiết kiệm
+                          </SelectItem>
                           <SelectItem value="ht">Hoả tốc</SelectItem>
                           <SelectItem value="tt">Lấy hàng trực tiếp</SelectItem>
                         </SelectContent>
@@ -1283,7 +1394,9 @@ const SaleScreen: React.FC = () => {
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Phí giao hàng:</span>
+                      <span className="text-sm text-muted-foreground">
+                        Phí giao hàng:
+                      </span>
                       <span className="text-sm font-medium">
                         {currentPane.shippingInfo.shippingFee != null
                           ? `${numberWithCommas(currentPane.shippingInfo.shippingFee)} vnđ`
@@ -1302,7 +1415,9 @@ const SaleScreen: React.FC = () => {
           <CardContent className="pt-6 text-center space-y-6">
             <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto" />
             <div>
-              <h2 className="text-xl font-semibold">Tạo đơn hàng thành công!</h2>
+              <h2 className="text-xl font-semibold">
+                Tạo đơn hàng thành công!
+              </h2>
               <p className="text-sm text-muted-foreground mt-1">
                 {currentPane.isOnlineSale === 'true'
                   ? 'Đơn hàng online đã được tạo. Bước tiếp theo: vận chuyển.'
@@ -1331,7 +1446,10 @@ const SaleScreen: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-center gap-3">
-              <Button variant="outline" onClick={() => toast.info('Chức năng in đang phát triển')}>
+              <Button
+                variant="outline"
+                onClick={() => toast.info('Chức năng in đang phát triển')}
+              >
                 <Printer className="h-4 w-4 mr-2" />
                 In hoá đơn
               </Button>

@@ -1,3 +1,4 @@
+import { StoreServices } from '@/store/useAppStore';
 import moment from 'moment';
 import { toast } from 'sonner';
 
@@ -1138,7 +1139,7 @@ export class GapService {
     }
 
     return this.fetchData(
-      `/classes/_User/${objectId}`,
+      `/users/${objectId}`,
       REQUEST_TYPE.PUT,
       null,
       body,
@@ -1877,10 +1878,7 @@ export class GapService {
 
   // ============ NOTE CRUD ============
 
-  static async getNotes(
-    page: number = 1,
-    limit: number = 100
-  ): Promise<any> {
+  static async getNotes(page: number = 1, limit: number = 100): Promise<any> {
     const limited = limit || 100;
     const skip = limited * page - limited;
     const customQuery = `order=-createdAt&skip=${skip}&limit=${limited}&count=1&where={"deletedAt":${null}}`;
@@ -1950,7 +1948,7 @@ export class GapService {
     isUseAuthKey: boolean = false
   ): Promise<any> {
     try {
-      const key = authKey || getAuthToken();
+      const key = authKey || StoreServices.getUserData()?.sessionToken;
       const HOST = hostLink || process.env.NEXT_PUBLIC_SERVER_URL || '';
 
       let header: Record<string, string> = {
@@ -1961,6 +1959,7 @@ export class GapService {
 
       if (isUseAuthKey && key) {
         header['X-Parse-Session-Token'] = key;
+        header['X-Parse-Master-Key'] = process.env.NEXT_PUBLIC_MASTER_KEY || '';
       }
 
       const params: RequestInit = {
