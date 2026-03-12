@@ -67,7 +67,7 @@ const ReceiptOffline = React.forwardRef<HTMLDivElement, ReceiptOfflineProps>(
                     <td>{itemIndex + 1}</td>
                     <td>{item.name}</td>
                     <td>{item.count}</td>
-                    <td>{numberWithCommas(item.price || '0') || 0},000đ</td>
+                    <td>{numberWithCommas(item.price || '0')},000đ</td>
                   </tr>
                 ))}
               </tbody>
@@ -80,7 +80,7 @@ const ReceiptOffline = React.forwardRef<HTMLDivElement, ReceiptOfflineProps>(
                 </tr>
                 <tr>
                   <th>Tổng tiền:</th>
-                  <td>{numberWithCommas(data.totalMoneyForSale || '0') || 0},000đ</td>
+                  <td>{numberWithCommas(data.totalMoneyForSale || '0')},000đ</td>
                 </tr>
               </tbody>
             </table>

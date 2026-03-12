@@ -89,15 +89,12 @@ const BillOrderGHTK: React.FC<BillOrderGHTKProps> = ({ orderId }) => {
         </div>
       ) : base64 ? (
         <div className="mt-4">
-          <object>
-            <embed
-              id="pdfID"
-              type="text/html"
-              width="100%"
-              height="400"
-              src={`data:application/pdf;base64,${base64}`}
-            />
-          </object>
+          <embed
+            type="application/pdf"
+            width="100%"
+            height="400"
+            src={`data:application/pdf;base64,${base64}`}
+          />
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">Đang tải...</p>
