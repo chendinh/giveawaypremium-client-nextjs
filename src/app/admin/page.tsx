@@ -263,7 +263,7 @@ const DashBoard: React.FC = () => {
       {/* Dashboard */}
       <div className="dashboard-container-wrapper">
         {/* Sidebar */}
-        <div className="sider-container">
+        <div className={cn('sider-container', isFullScreen && 'collapsed')}>
           <nav className="flex flex-col gap-1">
             {menuItems.map(item => (
               <button
@@ -271,16 +271,16 @@ const DashBoard: React.FC = () => {
                 title={item.label}
                 onClick={() => handleChoosePage(item)}
                 className={cn(
-                  'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
-                  'hover:bg-gray-700 hover:text-white',
+                  'flex items-center gap-2 rounded-lg px-3 py-2.5 text-[13px] transition-colors',
+                  'hover:bg-gray-600/60 hover:text-white',
                   numberPage === item.key
-                    ? 'bg-gray-700 text-white'
-                    : 'text-gray-300'
+                    ? 'bg-gray-600/80 text-white'
+                    : 'text-gray-400'
                 )}
               >
                 {item.icon}
-                <span className="sidebar-label hidden md:inline">
-                  {!isFullScreen && item.label}
+                <span className="sidebar-label">
+                  {item.label}
                 </span>
               </button>
             ))}
@@ -289,11 +289,11 @@ const DashBoard: React.FC = () => {
             <button
               title="Đăng xuất"
               onClick={handleSignOut}
-              className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-300 transition-colors hover:bg-gray-700 hover:text-white mt-4"
+              className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-[13px] text-gray-400 transition-colors hover:bg-gray-600/60 hover:text-white mt-4"
             >
               <LogOut className="h-5 w-5" />
-              <span className="sidebar-label hidden md:inline">
-                {!isFullScreen && 'Đăng xuất'}
+              <span className="sidebar-label">
+                Đăng xuất
               </span>
             </button>
           </nav>
@@ -301,8 +301,7 @@ const DashBoard: React.FC = () => {
 
         {/* Content */}
         <div
-          className="dashboard-content"
-          style={isFullScreen ? { maxWidth: 'calc(100vw - 100px)' } : {}}
+          className={cn('dashboard-content', isFullScreen && 'fullscreen')}
         >
           {renderContent()}
         </div>

@@ -167,15 +167,15 @@ export default function ConsignmentPage() {
   );
 
   return (
-    <div className="min-h-screen w-screen py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-[calc(100dvh-97px)] w-full py-8 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto h-full flex justify-center items-center relative w-full">
         {/* Menu chính - các text clickable */}
         {!isShowForm && (
-          <div className="flex flex-col items-center justify-center space-y-10 md:space-y-10 text-center">
+          <div className="flex flex-col items-center justify-center space-y-6 sm:space-y-10 text-center">
             <button
               onClick={() => handleOpenContent('consignment')}
               className={`
-                text-[30px] md:text-[35px] lg:text-[42px] font-medium text-black 
+                text-[24px] sm:text-[30px] md:text-[35px] lg:text-[42px] font-medium text-black 
                 opacity-0 -translate-x-36 transition-all duration-500 ease-out
                 hover:-translate-y-3 hover:scale-105 active:scale-100
                 ${isShowText ? 'opacity-100 translate-x-0' : ''}
@@ -187,7 +187,7 @@ export default function ConsignmentPage() {
             <button
               onClick={() => openModal(renderStringCodeBox())}
               className={`
-                text-[30px] md:text-[35px] lg:text-[42px] font-medium text-black 
+                text-[24px] sm:text-[30px] md:text-[35px] lg:text-[42px] font-medium text-black 
                 opacity-0 -translate-x-80 transition-all duration-500 ease-out
                 hover:-translate-y-3 hover:scale-105 active:scale-100
                 ${isShowText1 ? 'opacity-100 translate-x-0' : ''}
@@ -199,7 +199,7 @@ export default function ConsignmentPage() {
             <button
               onClick={() => handleOpenContent('search')}
               className={`
-                text-[30px] md:text-[35px] lg:text-[42px] font-medium text-black 
+                text-[24px] sm:text-[30px] md:text-[35px] lg:text-[42px] font-medium text-black 
                 opacity-0 -translate-x-80 transition-all duration-500 ease-out
                 hover:-translate-y-3 hover:scale-105 active:scale-100
                 ${isShowText2 ? 'opacity-100 translate-x-0' : ''}
@@ -211,7 +211,7 @@ export default function ConsignmentPage() {
             <button
               onClick={() => handleOpenContent('instrument')}
               className={`
-                text-[30px] md:text-[35px] lg:text-[42px] font-medium text-black 
+                text-[24px] sm:text-[30px] md:text-[35px] lg:text-[42px] font-medium text-black 
                 opacity-0 -translate-x-80 transition-all duration-500 ease-out
                 hover:-translate-y-3 hover:scale-105 active:scale-100
                 ${isShowText3 ? 'opacity-100 translate-x-0' : ''}

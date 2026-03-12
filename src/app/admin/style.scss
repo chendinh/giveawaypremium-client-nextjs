@@ -4,24 +4,48 @@
   .dashboard-container-wrapper {
     display: flex;
     justify-content: space-between;
-    transition: all;
     flex-direction: row;
     height: 98%;
 
     .sider-container {
       margin-top: 20px;
-      max-width: 180px;
-      padding: 20px 10px;
+      width: 160px;
+      min-width: 160px;
+      padding: 16px 8px;
       height: 85vh;
       background-color: #1f2937;
-      border-radius: 8px;
+      border-radius: 10px;
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+
+      &.collapsed {
+        width: 52px;
+        min-width: 52px;
+        padding: 16px 6px;
+      }
+
+      .sidebar-label {
+        display: inline-block;
+        white-space: nowrap;
+        overflow: hidden;
+        max-width: 100px;
+        opacity: 1;
+        transition: opacity 0.25s ease, max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      &.collapsed .sidebar-label {
+        max-width: 0;
+        opacity: 0;
+      }
 
       @media screen and (max-width: 567px) {
         display: flex;
         justify-content: center;
-        flex-basis: 50px;
-        padding: 20px 4px;
-        max-width: 50px;
+        width: 50px;
+        min-width: 50px;
+        padding: 16px 4px;
         margin-right: 0px;
 
         .sidebar-label {
@@ -34,13 +58,18 @@
       width: 100%;
       flex: 1;
       flex-basis: auto;
-      margin: 0px 1em 0 0.5em;
+      margin: 0 0.75em 0 0.5em;
       position: relative;
-      max-width: calc(100vw - 200px);
-      border-radius: 15px;
+      max-width: calc(100vw - 180px);
+      border-radius: 12px;
       background-color: white;
       min-height: 50vh;
-      box-shadow: 0 1px 20px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 1px 16px rgba(0, 0, 0, 0.12);
+      transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+      &.fullscreen {
+        max-width: calc(100vw - 72px);
+      }
 
       @media screen and (max-width: 567px) {
         display: flex;

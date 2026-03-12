@@ -90,7 +90,7 @@ export default function HomeCarousel() {
   return (
     <>
       {/* Desktop + Tablet */}
-      <div className="relative hidden md:flex h-screen w-full flex-row items-center justify-center">
+      <div className="relative hidden md:flex h-[calc(100vh-97px)] w-full flex-row items-center justify-center">
         {/* Left Sidebar - GIVEAWAY */}
         <div
           className={cn(
@@ -146,7 +146,7 @@ export default function HomeCarousel() {
           >
             <CarouselContent onClick={() => api?.scrollNext()}>
               {slides.map(slide => (
-                <CarouselItem key={slide.route} className="h-screen">
+                <CarouselItem key={slide.route} className="h-[calc(100vh-97px)]">
                   <div className="flex h-full w-full items-center pl-[10%]">
                     <h1
                       onClick={e => {
@@ -172,7 +172,7 @@ export default function HomeCarousel() {
         {/* Footer */}
         <div
           className={cn(
-            'absolute bottom-8 left-0 right-0 flex items-center justify-between px-12 transition-transform duration-1000 translate-y-20',
+            'absolute bottom-6 left-0 right-0 flex items-center justify-between px-12 transition-transform duration-1000 translate-y-20',
             showFooter && 'translate-y-0'
           )}
         >
@@ -210,11 +210,11 @@ export default function HomeCarousel() {
       </div>
 
       {/* Mobile Version */}
-      <div className="relative flex md:hidden h-screen w-full flex-col items-center justify-center overflow-hidden">
+      <div className="relative flex md:hidden h-[calc(100dvh-97px)] w-full flex-col items-center justify-center overflow-hidden">
         {/* Left Sidebar */}
         <div
           className={cn(
-            'absolute left-0 top-[170px] -rotate-90 origin-bottom-left translate-x-[-100px] transition-all duration-1000',
+            'absolute left-0 top-[100px] -rotate-90 origin-bottom-left translate-x-[-100px] transition-all duration-1000',
             showSidebar && 'translate-x-[35px] rotate-[-90deg]'
           )}
         >
@@ -226,7 +226,7 @@ export default function HomeCarousel() {
         {/* Right Sidebar */}
         <div
           className={cn(
-            'absolute right-0 bottom-32 rotate-90 origin-top-right translate-x-[100px] transition-all duration-1000',
+            'absolute right-0 bottom-24 rotate-90 origin-top-right translate-x-[100px] transition-all duration-1000',
             showSidebar && 'translate-x-[-15px] rotate-90'
           )}
         >
@@ -237,13 +237,13 @@ export default function HomeCarousel() {
         <div className="relative w-full h-full cursor-pointer">
           <Lottie
             options={defaultOptions}
-            height={80}
-            width={80}
+            height={60}
+            width={60}
             speed={0.5}
             style={{
               position: 'absolute',
               right: 10,
-              bottom: 60,
+              bottom: 50,
               pointerEvents: 'none',
               zoom: 0.5,
             }}
@@ -254,12 +254,12 @@ export default function HomeCarousel() {
               {slides.map(slide => (
                 <CarouselItem
                   key={slide.route}
-                  className="h-screen flex items-center justify-start pl-[10%]"
+                  className="h-[calc(100dvh-97px)] flex items-center justify-start pl-[10%]"
                 >
                   <h1
                     onClick={() => handleNavigate(slide.route)}
                     className={cn(
-                      'uppercase font-bold !text-3xl md:!text-5xl  text-gray-700 transition-opacity duration-800',
+                      'uppercase font-bold !text-3xl md:!text-5xl text-gray-700 transition-opacity duration-800',
                       slide.mobileSize,
                       isHideText && 'opacity-0'
                     )}
@@ -275,7 +275,7 @@ export default function HomeCarousel() {
         {/* Mobile Footer */}
         <div
           className={cn(
-            'absolute bottom-12 left-0 right-0 flex flex-col items-center gap-4 px-6 transition-transform duration-1000 translate-y-20',
+            'absolute bottom-4 left-0 right-0 flex flex-col items-center gap-3 px-6 transition-transform duration-1000 translate-y-20',
             showFooter && 'translate-y-0'
           )}
         >

@@ -8,7 +8,7 @@ const Home = () => {
   // const userData = useSelector((state: RootState) => state.userData);
 
   return (
-    <div className="container w-full min-h-[calc(100vh-97px)] flex flex-col items-center ">
+    <div className="container w-full h-[calc(100vh-97px)] flex flex-col items-center">
       <HomeCarousel />
       {/* <MyModal ref={myModal} /> */}
     </div>
