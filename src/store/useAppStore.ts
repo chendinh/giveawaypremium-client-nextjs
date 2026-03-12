@@ -173,8 +173,8 @@ export const useAppStore = create<AppStore>()(
         try {
           set({ isLoading: true });
 
-          // Fetch settings directly to avoid circular dependency with GapService
-          const HOST = process.env.NEXT_PUBLIC_SERVER_URL || '';
+          // Fetch settings through local Next.js API proxy
+          const HOST = process.env.NEXT_PUBLIC_SERVER_URL || '/api/parse';
           const response = await fetch(`${HOST}/classes/Setting`, {
             method: 'GET',
             headers: {
