@@ -1,10 +1,10 @@
-import { SCHEDULE_SETTINGS } from "../../../settings/schedule";
+import { SCHEDULE_SETTINGS } from "@/server/config/schedule";
 import { 
   Campaign,
   // CampaignStatusEnums 
-} from "../../models/campaign";
-// import { ProductStatusEnums } from "../../models/product";
-import { jobScheduleActiveCampaign } from "../../schedule";
+} from "@/server/models/campaign";
+// import { ProductStatusEnums } from "@/server/models/product";
+import { jobScheduleActiveCampaign } from "@/server/schedule";
 
 // const handleStatusCampaign = async (request: Parse.Cloud.AfterSaveRequest<Campaign>) => {
 //   const campaign = request.object;

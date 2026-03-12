@@ -1,8 +1,8 @@
 // import * as ejs from 'ejs';
-import * as moment from 'moment';
-import { MailFactory } from "../../external-services/email";
-import { MAIL_TYPE } from "../../external-services/email/constants";
-import { MAIL_CONFIGS } from "../../settings/email";
+import moment from 'moment';
+import { MailFactory } from "@/server/external-services/email";
+import { MAIL_TYPE } from "@/server/external-services/email/constants";
+import { MAIL_CONFIGS } from "@/server/config/email";
 import { Consignment } from "../models/consignment";
 import { ConsignmentGroup } from "../models/consignment.group";
 import { Email } from '../models/email';

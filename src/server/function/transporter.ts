@@ -1,5 +1,5 @@
-import { GHTKSTATUS } from "../../constants/order-status";
-import { getPriceEstimate, createOrder, getOrderLabel, cancelOrder } from "../../external-services/transporter";
+import { GHTKSTATUS } from "@/server/constants/order-status";
+import { getPriceEstimate, createOrder, getOrderLabel, cancelOrder } from "@/server/external-services/transporter";
 import { Order } from "../models/order";
 import { Transporter } from "../models/transporter";
 

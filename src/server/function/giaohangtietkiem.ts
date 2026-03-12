@@ -11,7 +11,7 @@ export const giaohangtietkiem = async (
   const url = method === 'GET' ? `${ghtkUrl}${path}?${new URLSearchParams(data)}` : `${ghtkUrl}${path}`;
   const body = method === 'GET' ? undefined : data;
   const result = await fetch(url, { method: 'POST', body, headers: { Token: ghtkToken} });
-  const json = await result.json();
+  const json = await result.json() as Record<string, any>;
 
   return { ...json, tranporter: 'GHTK' };
 };

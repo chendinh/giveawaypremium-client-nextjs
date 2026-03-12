@@ -1,6 +1,6 @@
-import * as express from 'express';
+import express from 'express';
 import { updateProduct } from './product';
-import * as multer from 'multer';
+import multer from 'multer';
 import { listenInventory } from './inventory';
 
 const router: express.Router = express.Router();

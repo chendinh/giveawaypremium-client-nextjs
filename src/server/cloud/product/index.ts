@@ -4,7 +4,7 @@
 import { Consignment } from '@/server/models/consignment';
 import { Media } from '@/server/models/media';
 import { Product, ProductStatusEnums } from '@/server/models/product';
-import sum = require('lodash/sum');
+import sum from 'lodash/sum';
 
 
 // const afterCreate = async (request: Parse.Cloud.AfterSaveRequest<Product>) => {

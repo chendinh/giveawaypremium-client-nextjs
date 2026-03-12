@@ -1,4 +1,4 @@
-import * as schedule from 'node-schedule';
+import schedule from 'node-schedule';
 import { PARSE_SERVER_PROPERTY } from '@/server/config/parse';
 import { SCHEDULE_SETTINGS } from '@/server/config/schedule';
 

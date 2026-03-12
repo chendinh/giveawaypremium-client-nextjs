@@ -1,9 +1,11 @@
-import * as root from 'app-root-path';
-import * as winston from 'winston';
-import * as DailyRotateFile from 'winston-daily-rotate-file';
+import winston from 'winston';
+import DailyRotateFile from 'winston-daily-rotate-file';
+import * as path from 'path';
 
 const { createLogger, format, transports } = winston;
 const { combine, timestamp, label, printf } = format;
+
+const rootDir = process.cwd();
 
 const myFormat = printf(options => {
   return `${options.timestamp} [${options.label}] ${options.level}: ${options.message}`;
@@ -15,14 +17,14 @@ const logger = createLogger({
     new DailyRotateFile({
       datePattern: 'YYYY-MM-DD',
       filename: '%DATE%.log',
-      dirname: `${root}/logs/`,
+      dirname: path.join(rootDir, 'logs'),
       utc: true,
       level: 'info'
     }),
     new DailyRotateFile({
       datePattern: 'YYYY-MM-DD',
       filename: '%DATE%.err.log',
-      dirname: `${root}/logs/`,
+      dirname: path.join(rootDir, 'logs'),
       utc: true,
       level: 'error'
     })

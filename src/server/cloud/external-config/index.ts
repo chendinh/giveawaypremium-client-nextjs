@@ -1,5 +1,5 @@
-import { NhanhHookService } from "../../../external-services/nhanh/nhanh.hooks";
-import { NHANH_CONFIGS } from "../../../settings/nhanh";
+import { NhanhHookService } from "@/server/external-services/nhanh/nhanh.hooks";
+import { NHANH_CONFIGS } from "@/server/config/nhanh";
 
 const beforeSave = async (request: Parse.Cloud.BeforeSaveRequest) => {
   const externalConfig = request.object;

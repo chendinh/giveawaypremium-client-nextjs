@@ -1,4 +1,4 @@
-import * as ejs from 'ejs';
+import ejs from 'ejs';
 import { MailFactory } from '@/server/external-services/email';
 import { MAIL_TYPE } from '@/server/external-services/email/constants';
 import { MAIL_CONFIGS } from '@/server/config/email';

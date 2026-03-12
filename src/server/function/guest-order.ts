@@ -1,8 +1,8 @@
-import * as moment from 'moment';
+import moment from 'moment';
 import PQueue from 'p-queue';
 import { OrderRequest } from '../models/order.request';
 import { Product } from '../models/product';
-import sum = require('lodash/sum');
+import sum from 'lodash/sum';
 import { OrderRequestStatus } from '@/server/constants/order-status';
 
 const queue = new PQueue({ concurrency: 1 });

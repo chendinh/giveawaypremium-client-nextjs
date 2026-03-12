@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
-import { ParseServer } from 'parse-server';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const ParseServerModule = require('parse-server');
+const ParseServer = ParseServerModule.ParseServer || ParseServerModule.default || ParseServerModule;
 import ParseDashboard from 'parse-dashboard';
 import {
   PARSE_SERVER_PROPERTY,
@@ -39,15 +41,15 @@ export async function startParseServer(): Promise<void> {
 
   const api = new ParseServer(PARSE_SERVER_PROPERTY);
   const dashboard = new ParseDashboard(
-    PARSE_DASHBOARD_PROPERTY,
-    PARSE_DASHBOARD_OPTIONS,
+    PARSE_DASHBOARD_PROPERTY as any,
+    PARSE_DASHBOARD_OPTIONS as any,
   );
 
   // Serve the Parse API on the /api URL prefix
   app.use('/api', api);
 
   // Make the Parse Dashboard available at /dashboard
-  app.use('/dashboard', dashboard);
+  app.use('/dashboard', dashboard as any);
 
   // Hooks and media
   app.use('/hooks', hook.router);

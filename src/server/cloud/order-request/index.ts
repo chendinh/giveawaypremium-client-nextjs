@@ -1,6 +1,6 @@
-import * as moment from 'moment';
-import { OrderRequestStatus } from "../../../constants/order-status";
-import { OrderRequest } from "../../models/order.request";
+import moment from 'moment';
+import { OrderRequestStatus } from "@/server/constants/order-status";
+import { OrderRequest } from "@/server/models/order.request";
 
 const cancelOldOrderRequest = async () => {
   const orderRequestQuery = new Parse.Query(OrderRequest);

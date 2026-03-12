@@ -1,6 +1,6 @@
-import * as express from 'express';
-import * as multer from 'multer';
-import * as fs from 'fs';
+import express from 'express';
+import multer from 'multer';
+import fs from 'fs';
 import { cloudinaryV2 } from '@/server/external-services/cloudinary';
 import { Media } from '../models/media';
 import { BaseError } from '../common/error';

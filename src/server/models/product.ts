@@ -1,4 +1,4 @@
-import { NhanhProductDetail } from "../../external-services/nhanh/interface";
+import { NhanhProductDetail } from "@/server/external-services/nhanh/interface";
 
 enum ProductStatusEnums {
   NEW = 'NEW',
@@ -36,4 +36,5 @@ class Product extends Parse.Object {
 
 Parse.Object.registerSubclass('Product', Product);
 
-export { Product, ProductStatusEnums, ProductInventory };
+export { Product, ProductStatusEnums };
+export type { ProductInventory };
