@@ -1,4 +1,0 @@
-export enum MAIL_TYPE {
-  NODEMAILER = 'NODEMAILER',
-  SENDINBLUE = 'SENDINBLUE',
-};

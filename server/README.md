@@ -1,2 +1,0 @@
-# Give away premium api
-
