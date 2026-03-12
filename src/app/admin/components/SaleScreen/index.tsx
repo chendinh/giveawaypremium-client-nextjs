@@ -42,6 +42,8 @@ import {
 
 import GapService from '@/app/actions/GapServices';
 import { useAppStore } from '@/store/useAppStore';
+import { useReactToPrint } from 'react-to-print';
+import ReceiptOffline from './components/ReceiptOffline/index';
 
 import './style.scss';
 
@@ -150,6 +152,11 @@ const SaleScreen: React.FC = () => {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const numPaneTempRef = useRef<number>(0);
+  const receiptRef = useRef<HTMLDivElement>(null);
+
+  const handlePrintBill = useReactToPrint({
+    contentRef: receiptRef,
+  });
 
   // ── Init ──
   useEffect(() => {
@@ -1448,7 +1455,7 @@ const SaleScreen: React.FC = () => {
             <div className="flex items-center justify-center gap-3">
               <Button
                 variant="outline"
-                onClick={() => toast.info('Chức năng in đang phát triển')}
+                onClick={() => handlePrintBill()}
               >
                 <Printer className="h-4 w-4 mr-2" />
                 In hoá đơn
@@ -1457,6 +1464,21 @@ const SaleScreen: React.FC = () => {
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Tạo mới
               </Button>
+            </div>
+            <div style={{ display: 'none' }}>
+              <ReceiptOffline
+                ref={receiptRef}
+                data={{
+                  objectIdOrder: currentPane.objectIdOrder,
+                  productList: currentPane.productList.map(p => ({
+                    name: p.name,
+                    price: p.price,
+                    count: p.count ?? p.numberOfProductForSale,
+                  })),
+                  totalNumberOfProductForSale: currentPane.totalNumberOfProductForSale,
+                  totalMoneyForSale: currentPane.totalMoneyForSale,
+                }}
+              />
             </div>
           </CardContent>
         </Card>
