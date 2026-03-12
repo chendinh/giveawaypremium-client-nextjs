@@ -279,7 +279,7 @@ const DashBoard: React.FC = () => {
                 )}
               >
                 {item.icon}
-                <span className="sidebar-label">
+                <span className="sidebar-label" aria-hidden={isFullScreen}>
                   {item.label}
                 </span>
               </button>
@@ -292,7 +292,7 @@ const DashBoard: React.FC = () => {
               className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-[13px] text-gray-400 transition-colors hover:bg-gray-600/60 hover:text-white mt-4"
             >
               <LogOut className="h-5 w-5" />
-              <span className="sidebar-label">
+              <span className="sidebar-label" aria-hidden={isFullScreen}>
                 Đăng xuất
               </span>
             </button>
