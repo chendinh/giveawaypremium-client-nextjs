@@ -14,6 +14,21 @@ const nextConfig = {
     domains: ['images.unsplash.com'],
   },
   reactStrictMode: true,
+  // Ensure Parse Server and its dependencies are not bundled by webpack
+  serverExternalPackages: [
+    'parse-server',
+    'parse-dashboard',
+    'express',
+    'multer',
+    'cloudinary',
+    'nodemailer',
+    'winston',
+    'winston-daily-rotate-file',
+    'node-schedule',
+    'sib-api-v3-sdk',
+    'ejs',
+    'p-queue',
+  ],
 };
 
 export default nextConfig;

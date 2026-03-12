@@ -1,0 +1,17 @@
+import fetch from 'node-fetch';
+import { URLSearchParams } from 'url';
+import { GHTK_CONFIGS } from '@/server/config/giaohangtietkiem';
+const { ghtkToken, ghtkUrl } = GHTK_CONFIGS;
+export const giaohangtietkiem = async (
+  request: Parse.Cloud.FunctionRequest
+): Promise<any> => {
+  const { params } = request;
+  const { method, path, data } = params;
+
+  const url = method === 'GET' ? `${ghtkUrl}${path}?${new URLSearchParams(data)}` : `${ghtkUrl}${path}`;
+  const body = method === 'GET' ? undefined : data;
+  const result = await fetch(url, { method: 'POST', body, headers: { Token: ghtkToken} });
+  const json = await result.json() as Record<string, any>;
+
+  return { ...json, tranporter: 'GHTK' };
+};

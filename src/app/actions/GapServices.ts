@@ -209,7 +209,7 @@ export class GapService {
       const data = new FormData();
       data.append('media', file);
 
-      fetch('https://giveaway-premium-api-sbows.ondigitalocean.app/media', {
+      fetch('/api/media', {
         body: data,
         method: 'POST',
         headers: {
@@ -1949,7 +1949,8 @@ export class GapService {
   ): Promise<any> {
     try {
       const key = authKey || StoreServices.getUserData()?.sessionToken;
-      const HOST = hostLink || process.env.NEXT_PUBLIC_SERVER_URL || '';
+      // Use local Next.js API proxy route for Parse Server
+      const HOST = hostLink || process.env.NEXT_PUBLIC_SERVER_URL || '/api/parse';
 
       let header: Record<string, string> = {
         'Content-Type': 'application/json',
