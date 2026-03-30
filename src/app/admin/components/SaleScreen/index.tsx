@@ -1,6 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -301,22 +307,44 @@ const SaleScreen: React.FC = () => {
   );
 
   // ─── Recalculate totals ─────────────────────────────
-  const recalculateTotals = (productList: ProductItem[]) => {
-    let totalNumberOfProductForSale = 0;
-    let totalMoneyForSale = 0;
-    let totalMoneyForSaleAfterFee = 0;
-    productList.forEach(item => {
-      const qty = item.numberOfProductForSale || 1;
-      totalNumberOfProductForSale += qty;
-      totalMoneyForSale += qty * item.price;
-      totalMoneyForSaleAfterFee += qty * item.priceAfterFee;
-    });
-    return {
-      totalNumberOfProductForSale,
-      totalMoneyForSale,
-      totalMoneyForSaleAfterFee,
-    };
-  };
+  const recalculateTotals = useCallback(
+    (productList: ProductItem[]) => {
+      let totalNumberOfProductForSale = 0;
+      let totalMoneyForSale = 0;
+      let totalMoneyForSaleAfterFee = 0;
+      productList.forEach(item => {
+        const qty = item.numberOfProductForSale || 1;
+        totalNumberOfProductForSale += qty;
+        totalMoneyForSale += qty * item.price;
+        totalMoneyForSaleAfterFee += qty * item.priceAfterFee;
+      });
+      return {
+        totalNumberOfProductForSale,
+        totalMoneyForSale,
+        totalMoneyForSaleAfterFee,
+      };
+    },
+    [panes?.[currentPaneIndex]]
+  );
+
+  useEffect(() => {
+    if (panes?.[currentPaneIndex]?.discountPercent > 0) {
+      updateCurrentPane(pane => {
+        const newList = [];
+        pane.productList.map(productItem => {
+          newList.push({
+            ...productItem,
+          });
+        });
+        const totals = recalculateTotals(newList);
+        return {
+          ...pane,
+          productList: newList,
+          ...totals,
+        };
+      });
+    }
+  }, [panes?.[currentPaneIndex]?.discountPercent]);
 
   // ─── Product scanning ──────────────────────────────
   const onChangeTextProductInput = useCallback(
@@ -495,7 +523,9 @@ const SaleScreen: React.FC = () => {
             transferBankMoneyAmount: null,
           };
         }
-        const total = Number(pane.totalMoneyForSale);
+        const total = Number(
+          (pane.totalMoneyForSale * (100 - pane.discountPercent)) / 100
+        );
         const clamped = Math.min(numVal, total);
         const remainder = total - clamped;
 
@@ -741,6 +771,9 @@ const SaleScreen: React.FC = () => {
   // ─── Create order ───────────────────────────────────
   const onHandleCreateOrder = useCallback(async () => {
     const currentPane = panes[currentPaneIndex];
+
+    console.log('panes[currentPaneIndex]', panes[currentPaneIndex]);
+
     if (!currentPane) return;
 
     // Validation
@@ -788,10 +821,17 @@ const SaleScreen: React.FC = () => {
     try {
       const dataOrder = { ...currentPane };
       // Set count field for each product
+
       dataOrder.productList = dataOrder.productList.map(item => ({
         ...item,
         count: item.numberOfProductForSale || 1,
       }));
+
+      dataOrder.totalMoneyForSale =
+        ((dataOrder?.totalMoneyForSale || 0) / 100) *
+        (100 - (dataOrder?.discountPercent || 0));
+
+      console.log('dataOrder', dataOrder);
 
       const resUser = await GapService.getCustomer(
         currentPane.clientInfo.phoneNumber
@@ -918,6 +958,28 @@ const SaleScreen: React.FC = () => {
       : currentPane?.isTransferWithBank === 'true'
         ? 'true'
         : 'false';
+
+  const BillComponent = useMemo(() => {
+    console.log('currentPane', currentPane);
+    return (
+      <div style={{ display: 'none' }}>
+        <ReceiptOffline
+          ref={receiptRef}
+          data={{
+            objectIdOrder: currentPane?.objectIdOrder,
+            productList: currentPane?.productList?.map(p => ({
+              name: p.name,
+              price: p.price,
+              count: p.count,
+            })),
+            totalNumberOfProductForSale:
+              currentPane?.totalNumberOfProductForSale,
+            totalMoneyForSale: currentPane?.totalMoneyForSale,
+          }}
+        />
+      </div>
+    );
+  }, [currentPane]);
 
   // ─── Render ─────────────────────────────────────────
   return (
@@ -1125,7 +1187,8 @@ const SaleScreen: React.FC = () => {
                           updateCurrentPane(pane => ({
                             ...pane,
                             selectedEventId: eventId,
-                            discountPercent: selectedEvent?.discountPercent || 0,
+                            discountPercent:
+                              selectedEvent?.discountPercent || 0,
                           }));
                         }}
                       >
@@ -1133,9 +1196,7 @@ const SaleScreen: React.FC = () => {
                           <SelectValue placeholder="Chọn sự kiện" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">
-                            Không có sự kiện
-                          </SelectItem>
+                          <SelectItem value="none">Không có sự kiện</SelectItem>
                           {eventsRedux.map((event: any) => (
                             <SelectItem
                               key={event.objectId}
@@ -1533,10 +1594,7 @@ const SaleScreen: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-center gap-3">
-              <Button
-                variant="outline"
-                onClick={() => handlePrintBill()}
-              >
+              <Button variant="outline" onClick={() => handlePrintBill()}>
                 <Printer className="h-4 w-4 mr-2" />
                 In hoá đơn
               </Button>
@@ -1545,21 +1603,7 @@ const SaleScreen: React.FC = () => {
                 Tạo mới
               </Button>
             </div>
-            <div style={{ display: 'none' }}>
-              <ReceiptOffline
-                ref={receiptRef}
-                data={{
-                  objectIdOrder: currentPane.objectIdOrder,
-                  productList: currentPane.productList.map(p => ({
-                    name: p.name,
-                    price: p.price,
-                    count: p.count ?? p.numberOfProductForSale,
-                  })),
-                  totalNumberOfProductForSale: currentPane.totalNumberOfProductForSale,
-                  totalMoneyForSale: currentPane.totalMoneyForSale,
-                }}
-              />
-            </div>
+            {BillComponent}
           </CardContent>
         </Card>
       ) : null}

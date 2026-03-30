@@ -562,8 +562,8 @@ const TableConsignmentScreen: React.FC = () => {
               <TableHead className="text-right">SL</TableHead>
               <TableHead className="text-right">Đã bán</TableHead>
               <TableHead className="text-right">Còn lại</TableHead>
-              <TableHead className="text-right">Tiền trả</TableHead>
-              <TableHead className="text-right">Tổng tiền</TableHead>
+              {/* <TableHead className="text-right">Tiền trả</TableHead>
+              <TableHead className="text-right">Tổng tiền</TableHead> */}
               <TableHead className="text-center">Trả tiền</TableHead>
               <TableHead>CK/TT</TableHead>
               <TableHead>Ghi chú</TableHead>
@@ -612,12 +612,12 @@ const TableConsignmentScreen: React.FC = () => {
                     {(item.numberOfProducts || 0) -
                       (item.numSoldConsignment || 0)}
                   </TableCell>
-                  <TableCell className="text-right text-sm font-medium">
+                  {/* <TableCell className="text-right text-sm font-medium">
                     {numberWithCommas(item.moneyBack || 0)}
                   </TableCell>
                   <TableCell className="text-right text-sm">
                     {numberWithCommas(item.moneyBackForFullSold || 0)}
-                  </TableCell>
+                  </TableCell> */}
                   <TableCell className="text-center">
                     {item.isGetMoney ? (
                       <Badge variant="default" className="bg-green-500 text-xs">
@@ -733,7 +733,7 @@ const TableConsignmentScreen: React.FC = () => {
                     }
                   />
                 </div>
-                <div className="space-y-1">
+                {/* <div className="space-y-1">
                   <Label className="text-xs">Số lượng SP</Label>
                   <Input
                     type="number"
@@ -749,7 +749,7 @@ const TableConsignmentScreen: React.FC = () => {
                       )
                     }
                   />
-                </div>
+                </div> */}
                 <div className="space-y-1">
                   <Label className="text-xs">SL đã bán</Label>
                   <Input
@@ -767,7 +767,7 @@ const TableConsignmentScreen: React.FC = () => {
                     }
                   />
                 </div>
-                <div className="space-y-1">
+                {/* <div className="space-y-1">
                   <Label className="text-xs">Tiền trả lại</Label>
                   <Input
                     type="number"
@@ -780,8 +780,8 @@ const TableConsignmentScreen: React.FC = () => {
                       )
                     }
                   />
-                </div>
-                <div className="space-y-1">
+                </div> */}
+                {/* <div className="space-y-1">
                   <Label className="text-xs">Tiền trả full</Label>
                   <Input
                     type="number"
@@ -797,7 +797,7 @@ const TableConsignmentScreen: React.FC = () => {
                       )
                     }
                   />
-                </div>
+                </div> */}
                 <div className="flex items-center gap-2 pt-5">
                   <Switch
                     checked={editingItem.isGetMoney || false}

@@ -195,19 +195,23 @@ const TableEventScreen: React.FC = () => {
               </CardHeader>
               <CardContent className="space-y-1 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Giảm giá:</span>
+                  <span className="text-muted-foreground">
+                    Giảm giá đơn hàng:
+                  </span>
                   <span className="font-medium">
                     {event.discountPercent || 0}%
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    Tiền ký gửi nhận được:
-                  </span>
-                  <span className="font-medium">
-                    {event.moneyBackPercent || 0}%
-                  </span>
-                </div>
+                {event.moneyBackPercent > 0 ? (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">
+                      Tiền ký gửi nhận được:
+                    </span>
+                    <span className="font-medium">
+                      {event.moneyBackPercent || 0}%
+                    </span>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           ))}
