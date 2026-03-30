@@ -56,6 +56,7 @@ export interface AppState {
   channelMonitorRedux: any | null;
   tempConsignmentRedux: any | null;
   unitAddressRedux: any | null;
+  eventsRedux: any[] | null;
 }
 
 export interface AppActions {
@@ -91,6 +92,7 @@ export interface AppActions {
   setChannelMonitorRedux: (data: any) => void;
   setTempConsignment: (data: any) => void;
   setUnitAddressRedux: (data: any) => void;
+  setEventsRedux: (data: any[]) => void;
 }
 
 type AppStore = AppState & AppActions;
@@ -115,6 +117,7 @@ const initialState: AppState = {
   channelMonitorRedux: null,
   tempConsignmentRedux: null,
   unitAddressRedux: null,
+  eventsRedux: null,
 };
 
 // ============ STORE ============
@@ -252,6 +255,7 @@ export const useAppStore = create<AppStore>()(
       setChannelMonitorRedux: data => set({ channelMonitorRedux: data }),
       setTempConsignment: data => set({ tempConsignmentRedux: data }),
       setUnitAddressRedux: data => set({ unitAddressRedux: data }),
+      setEventsRedux: data => set({ eventsRedux: data }),
     }),
     {
       name: 'gap-app-storage',

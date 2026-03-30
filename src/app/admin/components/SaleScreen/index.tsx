@@ -106,6 +106,8 @@ interface OrderPane {
   transferOfflineMoneyAmount: number | null;
   note?: string;
   objectIdOrder?: string;
+  discountPercent: number;
+  selectedEventId: string;
 }
 
 interface AddressWard {
@@ -140,7 +142,7 @@ const DEFAULT_SHIPPING_INFO: ShippingInfo = {
 
 // ─── Component ────────────────────────────────────────
 const SaleScreen: React.FC = () => {
-  const { userData, unitAddressRedux } = useAppStore();
+  const { userData, unitAddressRedux, eventsRedux } = useAppStore();
 
   const [panes, setPanes] = useState<OrderPane[]>([]);
   const [currentPaneIndex, setCurrentPaneIndex] = useState<number>(0);
@@ -200,6 +202,8 @@ const SaleScreen: React.FC = () => {
       totalMoneyForSale: 0,
       transferBankMoneyAmount: null,
       transferOfflineMoneyAmount: null,
+      discountPercent: 0,
+      selectedEventId: '',
     };
 
     setPanes(prev => {
@@ -275,6 +279,8 @@ const SaleScreen: React.FC = () => {
         transferOfflineMoneyAmount: null,
         note: undefined,
         objectIdOrder: undefined,
+        discountPercent: 0,
+        selectedEventId: '',
       };
       return updated;
     });
@@ -1105,6 +1111,62 @@ const SaleScreen: React.FC = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* Event selection */}
+                  {eventsRedux && eventsRedux.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-xs">Sự kiện</Label>
+                      <Select
+                        value={currentPane.selectedEventId || 'none'}
+                        onValueChange={value => {
+                          const eventId = value === 'none' ? '' : value;
+                          const selectedEvent = eventsRedux?.find(
+                            (ev: any) => ev.objectId === eventId
+                          );
+                          updateCurrentPane(pane => ({
+                            ...pane,
+                            selectedEventId: eventId,
+                            discountPercent: selectedEvent?.discountPercent || 0,
+                          }));
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Chọn sự kiện" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">
+                            Không có sự kiện
+                          </SelectItem>
+                          {eventsRedux.map((event: any) => (
+                            <SelectItem
+                              key={event.objectId}
+                              value={event.objectId}
+                            >
+                              {event.name} (-{event.discountPercent}%)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {/* Discount percent input */}
+                  <div className="space-y-2">
+                    <Label className="text-xs">% Giảm giá</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={currentPane.discountPercent}
+                      onChange={e =>
+                        updateCurrentPane(pane => ({
+                          ...pane,
+                          discountPercent: Number(e.target.value),
+                        }))
+                      }
+                      placeholder="0"
+                    />
+                  </div>
+
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
                       Tổng tiền:
@@ -1116,6 +1178,24 @@ const SaleScreen: React.FC = () => {
                       vnđ
                     </span>
                   </div>
+
+                  {currentPane.discountPercent > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">
+                        Sau giảm giá ({currentPane.discountPercent}%):
+                      </span>
+                      <span className="text-lg font-bold text-green-600">
+                        {numberWithCommas(
+                          Math.round(
+                            (currentPane.totalMoneyForSale || 0) *
+                              1000 *
+                              (1 - currentPane.discountPercent / 100)
+                          )
+                        )}{' '}
+                        vnđ
+                      </span>
+                    </div>
+                  )}
 
                   <Separator />
 

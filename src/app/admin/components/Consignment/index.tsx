@@ -111,6 +111,7 @@ const Consignment: React.FC<ConsignmentProps> = () => {
     channelMonitorRedux,
     tempConsignmentRedux,
     setTempConsignment,
+    eventsRedux,
   } = useAppStore();
 
   // ── State ──
@@ -166,6 +167,8 @@ const Consignment: React.FC<ConsignmentProps> = () => {
   const [isErrorFormat, setIsErrorFormat] = useState<boolean>(false);
   const [note, setNote] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [selectedEventId, setSelectedEventId] = useState<string>('');
+  const [moneyBackPercent, setMoneyBackPercent] = useState<number>(0);
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -1326,6 +1329,49 @@ const Consignment: React.FC<ConsignmentProps> = () => {
           </div>
 
           <Separator />
+
+          {/* Event selection */}
+          {eventsRedux && eventsRedux.length > 0 && (
+            <div className="grid grid-cols-[140px_1fr] items-center gap-2">
+              <Label>Sự kiện</Label>
+              <Select
+                value={selectedEventId || 'none'}
+                onValueChange={value => {
+                  const eventId = value === 'none' ? '' : value;
+                  setSelectedEventId(eventId);
+                  const selectedEvent = eventsRedux?.find(
+                    (ev: any) => ev.objectId === eventId
+                  );
+                  setMoneyBackPercent(selectedEvent?.moneyBackPercent || 0);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Chọn sự kiện" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Không có sự kiện</SelectItem>
+                  {eventsRedux.map((event: any) => (
+                    <SelectItem key={event.objectId} value={event.objectId}>
+                      {event.name} ({event.moneyBackPercent}%)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* MoneyBack percent input */}
+          <div className="grid grid-cols-[140px_1fr] items-center gap-2">
+            <Label>% Tiền ký gửi nhận được</Label>
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              value={moneyBackPercent}
+              onChange={e => setMoneyBackPercent(Number(e.target.value))}
+              placeholder="0"
+            />
+          </div>
 
           {/* Note */}
           <div className="grid grid-cols-[140px_1fr] items-start gap-2">

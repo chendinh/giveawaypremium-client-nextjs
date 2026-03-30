@@ -9,6 +9,7 @@ import TableOrderScreen from './components/TableOrder';
 import TableCustomerScreen from './components/TableCustomer';
 import TableAppointmentScreen from './components/TableAppointment';
 import TableEmailScreen from './components/TableEmailScreen';
+import TableEventScreen from './components/TableEventScreen';
 // import TableRequestOrder from './components/TableRequestOrder';
 
 import './style.scss';
@@ -28,6 +29,7 @@ const ManageScreen: React.FC = () => {
           <TabsTrigger value="6">Lịch hẹn</TabsTrigger>
           <TabsTrigger value="7">Email</TabsTrigger>
           <TabsTrigger value="8">Hàng Chờ</TabsTrigger>
+          <TabsTrigger value="9">Sự kiện</TabsTrigger>
         </TabsList>
 
         <TabsContent value="1">
@@ -65,6 +67,10 @@ const ManageScreen: React.FC = () => {
           <div className="text-muted-foreground text-center py-10">
             Hàng Chờ (chưa convert)
           </div>
+        </TabsContent>
+
+        <TabsContent value="9">
+          <TableEventScreen />
         </TabsContent>
       </Tabs>
     </div>
