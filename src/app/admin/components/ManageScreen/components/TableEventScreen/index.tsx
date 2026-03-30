@@ -62,8 +62,7 @@ const TableEventScreen: React.FC = () => {
       setEvents(eventsRedux);
     }
     fetchEvents();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchEvents]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Dialog handlers ──
   const openCreateDialog = () => {
