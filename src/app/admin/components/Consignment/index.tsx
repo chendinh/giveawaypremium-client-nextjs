@@ -111,6 +111,7 @@ const Consignment: React.FC<ConsignmentProps> = () => {
     channelMonitorRedux,
     tempConsignmentRedux,
     setTempConsignment,
+    eventsRedux,
   } = useAppStore();
 
   // ── State ──
@@ -166,6 +167,8 @@ const Consignment: React.FC<ConsignmentProps> = () => {
   const [isErrorFormat, setIsErrorFormat] = useState<boolean>(false);
   const [note, setNote] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [selectedEventId, setSelectedEventId] = useState<string>('');
+  const [moneyBackPercent, setMoneyBackPercent] = useState<number>(0);
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -206,6 +209,13 @@ const Consignment: React.FC<ConsignmentProps> = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (moneyBackPercent > 0) {
+      const list = productList.slice();
+      recalcTotals(list);
+    }
+  }, [moneyBackPercent]);
+
   // ── Fetch tags ──
   const fetchAllTags = async () => {
     setIsLoadingTags(true);
@@ -217,15 +227,19 @@ const Consignment: React.FC<ConsignmentProps> = () => {
   };
 
   // ── Price calculation ──
+  //
   const convertPriceAfterFee = useCallback(
     (productPrice: number = 0): number => {
+      if (moneyBackPercent > 0) {
+        return (productPrice * moneyBackPercent) / 100;
+      }
       if (productPrice <= 0) return 0;
       if (productPrice < 1000) return (productPrice * 74) / 100;
       if (productPrice >= 1000 && productPrice <= 10000)
         return (productPrice * 77) / 100;
       return (productPrice * 80) / 100;
     },
-    []
+    [moneyBackPercent]
   );
 
   const recalcTotals = useCallback(
@@ -233,6 +247,7 @@ const Consignment: React.FC<ConsignmentProps> = () => {
       let moneyBack = 0;
       let total = 0;
       let count = 0;
+      let listTemp = [];
       list.forEach(item => {
         if (!item.isDeleted) {
           count += Number(item.count);
@@ -241,6 +256,18 @@ const Consignment: React.FC<ConsignmentProps> = () => {
           total += item.count * Number(item.price) * 1000;
         }
       });
+
+      list.map(productItem => {
+        listTemp.push({
+          ...productItem,
+          priceAfterFee: convertPriceAfterFee(Number(productItem.price)),
+          totalPriceAfterFee: Math.round(
+            productItem.count * convertPriceAfterFee(Number(productItem.price))
+          ),
+        });
+      });
+
+      setProductList(listTemp);
       setMoneyBackForFullSold(moneyBack);
       setTotalMoney(total);
       return { moneyBack, total, count };
@@ -1326,6 +1353,49 @@ const Consignment: React.FC<ConsignmentProps> = () => {
           </div>
 
           <Separator />
+
+          {/* Event selection */}
+          {eventsRedux && eventsRedux.length > 0 && (
+            <div className="grid grid-cols-[140px_1fr] items-center gap-2">
+              <Label>Sự kiện</Label>
+              <Select
+                value={selectedEventId || 'none'}
+                onValueChange={value => {
+                  const eventId = value === 'none' ? '' : value;
+                  setSelectedEventId(eventId);
+                  const selectedEvent = eventsRedux?.find(
+                    (ev: any) => ev.objectId === eventId
+                  );
+                  setMoneyBackPercent(selectedEvent?.moneyBackPercent || 0);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Chọn sự kiện" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Không có sự kiện</SelectItem>
+                  {eventsRedux.map((event: any) => (
+                    <SelectItem key={event.objectId} value={event.objectId}>
+                      {event.name} ({event.moneyBackPercent}%)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* MoneyBack percent input */}
+          <div className="grid grid-cols-[140px_1fr] items-center gap-2">
+            <Label>% Tiền ký gửi nhận được</Label>
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              value={moneyBackPercent}
+              onChange={e => setMoneyBackPercent(Number(e.target.value))}
+              placeholder="0"
+            />
+          </div>
 
           {/* Note */}
           <div className="grid grid-cols-[140px_1fr] items-start gap-2">

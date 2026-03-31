@@ -92,6 +92,7 @@ const DashBoard: React.FC = () => {
     categoryRedux,
     setCategoryRedux,
     setUnitAddressRedux,
+    setEventsRedux,
     fetchSettings,
   } = useAppStore();
 
@@ -133,6 +134,11 @@ const DashBoard: React.FC = () => {
         const unitAddressRes = await GapService.getUnitAddress();
         if (unitAddressRes?.result) {
           setUnitAddressRedux(unitAddressRes.result);
+        }
+
+        const eventsRes = await GapService.getEvents();
+        if (eventsRes?.results) {
+          setEventsRedux(eventsRes.results);
         }
       } catch (err) {
         console.error('Error fetching initial data:', err);

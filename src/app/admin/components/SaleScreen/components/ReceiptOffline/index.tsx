@@ -30,7 +30,6 @@ interface ReceiptOfflineProps {
 const ReceiptOffline = React.forwardRef<HTMLDivElement, ReceiptOfflineProps>(
   ({ data = {} }, ref) => {
     const { productList = [] } = data;
-
     return (
       <div className="BoxContainer" ref={ref}>
         <style type="text/css" media="print">
@@ -42,7 +41,9 @@ const ReceiptOffline = React.forwardRef<HTMLDivElement, ReceiptOfflineProps>(
             <p style={{ marginBottom: '0px' }}>Địa chỉ: 01 Phó Đức Chính</p>
             <p>phường Nguyễn Thái Bình, Q1, HCM</p>
             <p>Hotline: 0703.334.443</p>
-            <p style={{ marginBottom: '0px' }}>Facebook: Give Away Premium Quận 1</p>
+            <p style={{ marginBottom: '0px' }}>
+              Facebook: Give Away Premium Quận 1
+            </p>
             <p>Instagram: @giveawaypremium_quan1</p>
           </div>
           <div className="BoxContent">
@@ -80,7 +81,9 @@ const ReceiptOffline = React.forwardRef<HTMLDivElement, ReceiptOfflineProps>(
                 </tr>
                 <tr>
                   <th>Tổng tiền:</th>
-                  <td>{numberWithCommas(data.totalMoneyForSale || '0')},000đ</td>
+                  <td>
+                    {numberWithCommas(data.totalMoneyForSale || '0')},000đ
+                  </td>
                 </tr>
               </tbody>
             </table>

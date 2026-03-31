@@ -530,6 +530,69 @@ export class GapService {
     }
   }
 
+  // Event
+  static async getEvents(): Promise<any> {
+    const customQuery = `where={"deletedAt":${null}}`;
+    return this.fetchData(
+      '/classes/Event',
+      REQUEST_TYPE.GET,
+      null,
+      null,
+      null,
+      null,
+      customQuery
+    );
+  }
+
+  static async setEvent(eventData: {
+    name: string;
+    discountPercent: number;
+    moneyBackPercent: number;
+  }): Promise<any> {
+    const body = {
+      name: eventData.name,
+      discountPercent: eventData.discountPercent,
+      moneyBackPercent: eventData.moneyBackPercent,
+    };
+    return this.fetchData('/classes/Event', REQUEST_TYPE.POST, null, body);
+  }
+
+  static async updateEvent(
+    objectId: string,
+    eventData: {
+      name?: string;
+      discountPercent?: number;
+      moneyBackPercent?: number;
+    }
+  ): Promise<any> {
+    return this.fetchData(
+      `/classes/Event/${objectId}`,
+      REQUEST_TYPE.PUT,
+      null,
+      eventData
+    );
+  }
+
+  static async deleteEvent(objectId: string): Promise<any> {
+    try {
+      const body = {
+        deletedAt: {
+          __type: 'Date',
+          iso: moment().toISOString(),
+        },
+      };
+      return this.fetchData(
+        `/classes/Event/${objectId}`,
+        REQUEST_TYPE.PUT,
+        null,
+        body
+      );
+    } catch (e) {
+      console.log(e);
+      return false;
+    }
+  }
+
   // Product
   static async getProduct(
     page: number = 1,
