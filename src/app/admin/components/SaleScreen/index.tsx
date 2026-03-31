@@ -886,6 +886,13 @@ const SaleScreen: React.FC = () => {
               ...pane,
               objectIdOrder: result.objectId,
               isCreatedSuccessfully: true,
+              productList: pane.productList.map(item => ({
+                ...item,
+                count: item.numberOfProductForSale || 1,
+              })),
+              totalMoneyForSale:
+                ((pane.totalMoneyForSale || 0) / 100) *
+                (100 - (pane.discountPercent || 0)),
             }));
           } else {
             toast.error('Tạo Đơn hàng thất bại');
@@ -932,6 +939,13 @@ const SaleScreen: React.FC = () => {
               ...pane,
               objectIdOrder: result.objectId,
               isCreatedSuccessfully: true,
+              productList: pane.productList.map(item => ({
+                ...item,
+                count: item.numberOfProductForSale || 1,
+              })),
+              totalMoneyForSale:
+                ((pane.totalMoneyForSale || 0) / 100) *
+                (100 - (pane.discountPercent || 0)),
             }));
           } else {
             toast.error('Tạo Đơn hàng thất bại');
