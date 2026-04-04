@@ -71,6 +71,7 @@ interface ClientInfo {
 
 interface ShippingInfo {
   optionTransfer: string;
+  shippingProvider: string; // 'viettel-post' or 'ghtk'
   orderAdressProvince?: string;
   orderAdressDistrict?: string;
   orderAdressWard?: string;
@@ -144,6 +145,7 @@ const DEFAULT_CLIENT_INFO: ClientInfo = {
 
 const DEFAULT_SHIPPING_INFO: ShippingInfo = {
   optionTransfer: 'tk',
+  shippingProvider: 'viettel-post', // Default to Viettel Post
 };
 
 // ─── Component ────────────────────────────────────────
@@ -684,7 +686,8 @@ const SaleScreen: React.FC = () => {
           newShipping.orderAdressProvince || '',
           newShipping.orderAdressDistrict || '',
           value,
-          newShipping.optionTransfer
+          newShipping.optionTransfer,
+          newShipping.shippingProvider || 'viettel-post'
         );
         return { ...pane, shippingInfo: newShipping };
       });
@@ -697,7 +700,8 @@ const SaleScreen: React.FC = () => {
     province: string,
     district: string,
     ward: string,
-    optionTransfer: string
+    optionTransfer: string,
+    shippingProvider: string
   ) => {
     if (!province || !district || !ward) return;
     toast.loading('Đang lấy thông tin phí shipping...', { id: 'shipping-fee' });
@@ -707,15 +711,30 @@ const SaleScreen: React.FC = () => {
         orderAdressDistrict: district,
         orderAdressWard: ward,
       };
-      const resFee = await GapService.getFeeForTransport(
-        formDataFee,
-        optionTransfer === 'ht'
-      );
+
+      let resFee;
+      if (shippingProvider === 'viettel-post') {
+        // Use Viettel Post fee calculation
+        resFee = await GapService.getViettelPostFee(
+          formDataFee,
+          0.5, // Default weight 0.5kg
+          0, // Default value
+          0 // No COD
+        );
+      } else {
+        // Use GHTK fee calculation
+        resFee = await GapService.getFeeForTransport(
+          formDataFee,
+          optionTransfer === 'ht'
+        );
+      }
+
       toast.dismiss('shipping-fee');
-      if (resFee?.result) {
+      if (resFee?.result || resFee?.fee) {
+        const fee = resFee.result || resFee.fee;
         updateCurrentPane(pane => ({
           ...pane,
-          shippingInfo: { ...pane.shippingInfo, shippingFee: resFee.result },
+          shippingInfo: { ...pane.shippingInfo, shippingFee: fee },
         }));
       } else {
         toast.error('Không thể ước tính phí ship');
@@ -757,7 +776,8 @@ const SaleScreen: React.FC = () => {
             newShipping.orderAdressProvince || '',
             newShipping.orderAdressDistrict || '',
             newShipping.orderAdressWard || '',
-            value
+            value,
+            newShipping.shippingProvider || 'viettel-post'
           );
         }
 
@@ -1442,6 +1462,35 @@ const SaleScreen: React.FC = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Đơn vị vận chuyển</Label>
+                      <Select
+                        value={currentPane.shippingInfo.shippingProvider || 'viettel-post'}
+                        onValueChange={(value) =>
+                          updateCurrentPane(pane => ({
+                            ...pane,
+                            shippingInfo: {
+                              ...pane.shippingInfo,
+                              shippingProvider: value,
+                              shippingFee: undefined, // Reset fee when changing provider
+                            },
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="viettel-post">
+                            Viettel Post
+                          </SelectItem>
+                          <SelectItem value="ghtk">
+                            Giao hàng tiết kiệm (GHTK)
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     <div className="space-y-1">
                       <Label className="text-xs">
                         Địa chỉ giao hàng (số nhà - đường)

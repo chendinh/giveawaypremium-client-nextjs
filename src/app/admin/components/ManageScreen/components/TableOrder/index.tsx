@@ -56,6 +56,7 @@ import moment from 'moment';
 
 import TagPrintBox from './components/TagPrintBox/index';
 import BillOrderGHTK from './components/BillOrderGHTK/index';
+import BillOrderViettelPost from './components/BillOrderViettelPost/index';
 
 import './style.scss';
 
@@ -464,6 +465,30 @@ const TableOrderScreen: React.FC = () => {
     }
   };
 
+  // ── Viettel Post: push order ──
+  const handlePushOrderToViettelPost = async (row: OrderItem) => {
+    if (row && !row.isGetMoney) {
+      toast.error('Vui lòng xác nhận Nhận Tiền trước');
+      return;
+    }
+    try {
+      const res = await GapService.pushOrderToViettelPost(row as any, row.objectId);
+      if (res) {
+        if (res.error) {
+          toast.error(res.error || 'Cập nhật Viettel Post chưa được');
+          return;
+        }
+        handleRefresh();
+        toast.success('Tạo đơn Viettel Post thành công');
+      } else {
+        toast.error('Cập nhật Viettel Post chưa được');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Có lỗi xảy ra');
+    }
+  };
+
   // ── GHTK: view detail ──
   const openGHTKDetail = (item: OrderItem) => {
     if (item?.transporter?.res?.order) {
@@ -566,22 +591,35 @@ const TableOrderScreen: React.FC = () => {
     }
   };
 
-  // ── GHTK action column render ──
-  const renderGhtkAction = (item: OrderItem) => {
+  // ── Shipping action column render ──
+  const renderShippingAction = (item: OrderItem) => {
     if (item.isOnlineSale !== 'Online') return null;
+
+    // Determine shipping provider from shippingInfo or default to viettel-post
+    const shippingProvider = item.shippingInfo?.shippingProvider || 'viettel-post';
+
     if (!item.transporter) {
+      // No shipping order created yet - show create button
       return (
         <Button
           variant="outline"
           size="sm"
           className="h-7 text-xs w-full"
-          onClick={() => handlePushOrderToGHTK(item)}
+          onClick={() => {
+            if (shippingProvider === 'ghtk') {
+              handlePushOrderToGHTK(item);
+            } else {
+              handlePushOrderToViettelPost(item);
+            }
+          }}
         >
           <Truck className="h-3 w-3 mr-1" />
-          Tạo đơn
+          Tạo {shippingProvider === 'ghtk' ? 'GHTK' : 'VTP'}
         </Button>
       );
     }
+
+    // Shipping order exists - show view button
     if (item.transporter.success) {
       return (
         <div className="space-y-1">
@@ -591,7 +629,7 @@ const TableOrderScreen: React.FC = () => {
             className="h-7 text-xs w-full"
             onClick={() => openGHTKDetail(item)}
           >
-            Xem GHTK
+            Xem {shippingProvider === 'ghtk' ? 'GHTK' : 'VTP'}
           </Button>
           <p className="text-xs text-muted-foreground truncate">
             {translateStatusName(item.transporter)}
@@ -739,7 +777,7 @@ const TableOrderScreen: React.FC = () => {
               <TableHead>Ngày tạo</TableHead>
               <TableHead>Ngày nhận tiền</TableHead>
               <TableHead className="w-[70px]">Xoá</TableHead>
-              <TableHead className="w-[120px]">GHTK</TableHead>
+              <TableHead className="w-[120px]">Vận chuyển</TableHead>
               <TableHead className="w-[100px]">Bill</TableHead>
               <TableHead className="w-[90px]">Nhận tiền</TableHead>
             </TableRow>
@@ -837,7 +875,7 @@ const TableOrderScreen: React.FC = () => {
                         </Button>
                       </TableCell>
                       <TableCell>
-                        {renderGhtkAction(item)}
+                        {renderShippingAction(item)}
                       </TableCell>
                       <TableCell>
                         <TagPrintBox
@@ -993,14 +1031,19 @@ const TableOrderScreen: React.FC = () => {
       <Dialog open={ghtkDetailOpen} onOpenChange={setGhtkDetailOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Giao hàng tiết kiệm</DialogTitle>
+            <DialogTitle>
+              {ghtkDetailItem?.shippingInfo?.shippingProvider === 'ghtk'
+                ? 'Giao hàng tiết kiệm (GHTK)'
+                : 'Viettel Post'}
+            </DialogTitle>
           </DialogHeader>
           {ghtkDetailItem?.transporter?.res?.order && (() => {
             const shipData = ghtkDetailItem.transporter!.res!.order!;
+            const isGHTK = ghtkDetailItem?.shippingInfo?.shippingProvider === 'ghtk';
             return (
               <div className="space-y-2 text-sm">
                 <p>
-                  <span className="text-muted-foreground">ID đơn GHTK:</span>{' '}
+                  <span className="text-muted-foreground">ID đơn {isGHTK ? 'GHTK' : 'VTP'}:</span>{' '}
                   {shipData.label_id}
                 </p>
                 <p>
@@ -1049,20 +1092,26 @@ const TableOrderScreen: React.FC = () => {
                   >
                     Huỷ Đơn Hàng
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      trackingOrder(shipData.label_id || '')
-                    }
-                  >
-                    <ExternalLink className="h-3 w-3 mr-1" />
-                    Tra cứu GHTK
-                  </Button>
+                  {isGHTK && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        trackingOrder(shipData.label_id || '')
+                      }
+                    >
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                      Tra cứu GHTK
+                    </Button>
+                  )}
                 </div>
                 <div className="border-t pt-3 mt-3">
                   <p className="text-sm font-medium mb-2">Nhãn đơn hàng</p>
-                  <BillOrderGHTK orderId={ghtkDetailItem.objectId} />
+                  {isGHTK ? (
+                    <BillOrderGHTK orderId={ghtkDetailItem.objectId} />
+                  ) : (
+                    <BillOrderViettelPost orderNumber={shipData.label_id || ghtkDetailItem.objectId} />
+                  )}
                 </div>
               </div>
             );
