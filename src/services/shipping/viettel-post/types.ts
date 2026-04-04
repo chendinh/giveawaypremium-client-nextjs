@@ -206,8 +206,7 @@ export const VIETTEL_POST_STATUS_TRANSLATIONS: Record<number, string> = {
   [300]: 'Đã ký nhận',
   [500]: 'Đã giao hàng thành công',
   [501]: 'Đang chuyển hoàn',
-  [502]: 'Đang chuyển hoàn (COD)
-',
+  [502]: 'Đang chuyển hoàn (COD)',
   [503]: 'Đang hoàn',
   [504]: 'Đã hoàn',
   [505]: 'Hủy chuyển hoàn',
