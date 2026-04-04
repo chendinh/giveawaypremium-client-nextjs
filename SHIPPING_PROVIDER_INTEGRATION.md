@@ -83,9 +83,24 @@ VIETTEL_POST_USERNAME=0703334443
 VIETTEL_POST_PASSWORD=So1phoducchinh@
 ```
 
-**Lưu ý**: File `.env.viettel-post.example` đã có sẵn để tham khảo.
+**Lưu ý**:
+- File `.env.viettel-post.example` đã có sẵn để tham khảo.
+- Viettel Post sử dụng luồng xác thực 2 bước (Login + OwnerConnect) - được xử lý tự động bởi `ViettelPostService`
 
-### 2. Cấu hình GHTK
+### 2. Viettel Post Authentication Flow
+
+Viettel Post API yêu cầu luồng xác thực 2 bước:
+
+1. **POST /v2/user/Login** → Lấy temporary token
+2. **POST /v2/user/ownerconnect** → Đổi temporary token thành long-term token
+3. Sử dụng long-term token cho tất cả API calls
+
+**ViettelPostService** tự động xử lý toàn bộ luồng này:
+- Tự động login và lấy long-term token khi cần
+- Cache token và tự động refresh khi hết hạn (24 giờ)
+- Xem chi tiết trong `src/services/shipping/viettel-post/ViettelPostService.ts`
+
+### 3. Cấu hình GHTK
 
 GHTK đã được cấu hình từ trước, sử dụng Parse Server.
 

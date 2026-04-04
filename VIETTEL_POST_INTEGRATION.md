@@ -4,6 +4,35 @@
 
 Tích hợp Viettel Post đã được triển khai trong Next.js với kiến trúc xử lý trực tiếp qua Next.js API Routes, không cần qua Parse Server như GHTK.
 
+## Authentication Flow
+
+Viettel Post sử dụng luồng xác thực 2 bước:
+
+### Bước 1: Login - Lấy temporary token
+```
+POST /v2/user/Login
+Body: { USERNAME, PASSWORD }
+Response: { data: { token: "temporary_token" } }
+```
+
+### Bước 2: OwnerConnect - Đổi temporary token thành long-term token
+```
+POST /v2/user/ownerconnect
+Headers: { Token: "temporary_token" }
+Body: { USERNAME, PASSWORD }
+Response: { data: { token: "long_term_token" } }
+```
+
+### Bước 3: Sử dụng long-term token cho các API call
+```
+Headers: { Token: "long_term_token" }
+```
+
+**Lưu ý quan trọng**:
+- Phải thực hiện cả 2 bước mới có token hợp lệ
+- Token có hiệu lực 24 giờ
+- ViettelPostService tự động xử lý luồng này và cache token
+
 ## Kiến trúc
 
 ```
@@ -14,6 +43,9 @@ GapServices (Client API Layer)
 Next.js API Routes (/api/shipping/viettel-post/*)
     ↓
 ViettelPostService (Server-side Service)
+    ↓ (Two-step authentication)
+    │  1. POST /user/Login → temp token
+    │  2. POST /user/ownerconnect → long-term token
     ↓
 Viettel Post API
 ```

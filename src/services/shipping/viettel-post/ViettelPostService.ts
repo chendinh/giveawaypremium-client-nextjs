@@ -43,7 +43,7 @@ export class ViettelPostService {
   }
 
   /**
-   * Login to Viettel Post API and get authentication token
+   * Step 1: Login to Viettel Post API and get temporary token
    */
   private async login(): Promise<string> {
     try {
@@ -53,13 +53,10 @@ export class ViettelPostService {
       });
 
       if (response.data && response.data.data && response.data.data.token) {
-        this.token = response.data.data.token;
-        // Token typically expires in 24 hours
-        this.tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
-        return this.token;
+        return response.data.data.token;
       }
 
-      throw new Error('Failed to get authentication token from Viettel Post');
+      throw new Error('Failed to get temporary token from Viettel Post');
     } catch (error) {
       console.error('Viettel Post login error:', error);
       throw new Error('Viettel Post authentication failed');
@@ -67,7 +64,59 @@ export class ViettelPostService {
   }
 
   /**
-   * Get valid authentication token (login if needed)
+   * Step 2: Exchange temporary token for long-term token via ownerconnect
+   */
+  private async ownerConnect(tempToken: string): Promise<string> {
+    try {
+      const response = await this.client.post(
+        '/user/ownerconnect',
+        {
+          USERNAME: this.username,
+          PASSWORD: this.password,
+        },
+        {
+          headers: {
+            Token: tempToken,
+          },
+        }
+      );
+
+      if (response.data && response.data.data && response.data.data.token) {
+        return response.data.data.token;
+      }
+
+      throw new Error('Failed to get long-term token from Viettel Post');
+    } catch (error) {
+      console.error('Viettel Post ownerconnect error:', error);
+      throw new Error('Viettel Post ownerconnect failed');
+    }
+  }
+
+  /**
+   * Complete authentication flow: Login + OwnerConnect
+   */
+  private async authenticate(): Promise<string> {
+    try {
+      // Step 1: Get temporary token
+      const tempToken = await this.login();
+
+      // Step 2: Exchange for long-term token
+      const longTermToken = await this.ownerConnect(tempToken);
+
+      // Store the long-term token
+      this.token = longTermToken;
+      // Long-term token typically expires in 24 hours
+      this.tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      return this.token;
+    } catch (error) {
+      console.error('Viettel Post authentication error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get valid authentication token (authenticate if needed)
    */
   private async getToken(): Promise<string> {
     // Check if we have a valid token
@@ -79,8 +128,8 @@ export class ViettelPostService {
       return this.token;
     }
 
-    // Login to get new token
-    return await this.login();
+    // Perform full authentication flow to get new token
+    return await this.authenticate();
   }
 
   /**
