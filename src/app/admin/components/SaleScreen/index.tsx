@@ -686,7 +686,8 @@ const SaleScreen: React.FC = () => {
           newShipping.orderAdressProvince || '',
           newShipping.orderAdressDistrict || '',
           value,
-          newShipping.optionTransfer
+          newShipping.optionTransfer,
+          newShipping.shippingProvider || 'ghtk'
         );
         return { ...pane, shippingInfo: newShipping };
       });
@@ -699,7 +700,8 @@ const SaleScreen: React.FC = () => {
     province: string,
     district: string,
     ward: string,
-    optionTransfer: string
+    optionTransfer: string,
+    shippingProvider: string = 'ghtk'
   ) => {
     if (!province || !district || !ward) return;
     toast.loading('Đang lấy thông tin phí shipping...', { id: 'shipping-fee' });
@@ -709,15 +711,31 @@ const SaleScreen: React.FC = () => {
         orderAdressDistrict: district,
         orderAdressWard: ward,
       };
-      const resFee = await GapService.getFeeForTransport(
-        formDataFee,
-        optionTransfer === 'ht'
-      );
+
+      let resFee;
+      if (shippingProvider === 'viettelpost') {
+        // Use Viettel Post fee calculation
+        resFee = await GapService.getViettelPostFee(
+          formDataFee,
+          0.5, // Default weight 0.5kg
+          0, // Default value
+          0 // No COD
+        );
+      } else {
+        // Use GHTK fee calculation
+        resFee = await GapService.getFeeForTransport(
+          formDataFee,
+          optionTransfer === 'ht'
+        );
+      }
+
       toast.dismiss('shipping-fee');
-      if (resFee?.result) {
+      // Handle different response formats
+      const fee = resFee?.result || resFee?.fee;
+      if (fee) {
         updateCurrentPane(pane => ({
           ...pane,
-          shippingInfo: { ...pane.shippingInfo, shippingFee: resFee.result },
+          shippingInfo: { ...pane.shippingInfo, shippingFee: fee },
         }));
       } else {
         toast.error('Không thể ước tính phí ship');
@@ -759,7 +777,8 @@ const SaleScreen: React.FC = () => {
             newShipping.orderAdressProvince || '',
             newShipping.orderAdressDistrict || '',
             newShipping.orderAdressWard || '',
-            value
+            value,
+            newShipping.shippingProvider || 'ghtk'
           );
         }
 
@@ -1542,16 +1561,34 @@ const SaleScreen: React.FC = () => {
                       <Label className="text-xs">Đơn vị vận chuyển</Label>
                       <Select
                         value={currentPane.shippingInfo.shippingProvider || 'ghtk'}
-                        onValueChange={(value) =>
-                          updateCurrentPane(pane => ({
-                            ...pane,
-                            shippingInfo: {
+                        onValueChange={(value) => {
+                          updateCurrentPane(pane => {
+                            const newShipping = {
                               ...pane.shippingInfo,
                               shippingProvider: value,
                               shippingFee: undefined, // Reset fee when changing provider
-                            },
-                          }))
-                        }
+                            };
+
+                            // Recalculate fee with new provider if address is complete
+                            if (newShipping.orderAdressProvince &&
+                                newShipping.orderAdressDistrict &&
+                                newShipping.orderAdressWard &&
+                                newShipping.optionTransfer !== 'tt') {
+                              fetchShippingFee(
+                                newShipping.orderAdressProvince,
+                                newShipping.orderAdressDistrict,
+                                newShipping.orderAdressWard,
+                                newShipping.optionTransfer,
+                                value
+                              );
+                            }
+
+                            return {
+                              ...pane,
+                              shippingInfo: newShipping,
+                            };
+                          });
+                        }}
                       >
                         <SelectTrigger>
                           <SelectValue />
