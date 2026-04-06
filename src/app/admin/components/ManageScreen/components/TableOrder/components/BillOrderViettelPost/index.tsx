@@ -21,7 +21,13 @@ const BillOrderViettelPost: React.FC<BillOrderViettelPostProps> = ({
   const fetchLabel = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await GapService.getViettelPostLabel(orderNumber);
+      // Use unified transporter API with viettelpost provider
+      const response = await GapService.getLabelTransform(
+        orderNumber,
+        'landscape',
+        'A6',
+        'viettelpost'
+      );
 
       if (response?.success && response.pdfBase64) {
         setBase64(response.pdfBase64);
