@@ -742,7 +742,7 @@ const SaleScreen: React.FC = () => {
         ...pane,
         shippingInfo: {
           ...pane.shippingInfo,
-          orderAdressStreet: e.target.value.trim(),
+          orderAdressStreet: e.target.value,
         },
       }));
     },
