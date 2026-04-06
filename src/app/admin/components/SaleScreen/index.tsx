@@ -71,6 +71,7 @@ interface ClientInfo {
 
 interface ShippingInfo {
   optionTransfer: string;
+  shippingProvider?: string; // 'ghtk' or 'viettelpost'
   orderAdressProvince?: string;
   orderAdressDistrict?: string;
   orderAdressWard?: string;
@@ -144,6 +145,7 @@ const DEFAULT_CLIENT_INFO: ClientInfo = {
 
 const DEFAULT_SHIPPING_INFO: ShippingInfo = {
   optionTransfer: 'tk',
+  shippingProvider: 'ghtk', // Default to GHTK
 };
 
 // ─── Component ────────────────────────────────────────
@@ -1535,6 +1537,35 @@ const SaleScreen: React.FC = () => {
                     </div>
 
                     <Separator />
+
+                    <div className="space-y-2">
+                      <Label className="text-xs">Đơn vị vận chuyển</Label>
+                      <Select
+                        value={currentPane.shippingInfo.shippingProvider || 'ghtk'}
+                        onValueChange={(value) =>
+                          updateCurrentPane(pane => ({
+                            ...pane,
+                            shippingInfo: {
+                              ...pane.shippingInfo,
+                              shippingProvider: value,
+                              shippingFee: undefined, // Reset fee when changing provider
+                            },
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ghtk">
+                            Giao hàng tiết kiệm (GHTK)
+                          </SelectItem>
+                          <SelectItem value="viettelpost">
+                            Viettel Post
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
                     <div className="space-y-2">
                       <Label className="text-xs">Hình thức giao hàng</Label>
