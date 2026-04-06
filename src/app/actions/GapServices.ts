@@ -1018,10 +1018,13 @@ export class GapService {
       orderAdressDistrict: string;
       orderAdressWard: string;
     },
-    isXteam: boolean = false
+    isXteam: boolean = false,
+    provider: 'ghtk' | 'viettelpost' = 'ghtk'
   ): Promise<any> {
+    const serviceName = provider === 'viettelpost' ? 'viettelpost' : 'giaohangtietkiem';
+
     const body = {
-      service: 'giaohangtietkiem',
+      service: serviceName,
       action: 'PRICE_ESTIMATE',
       data: {
         weight: 0.1,
@@ -1048,9 +1051,14 @@ export class GapService {
     );
   }
 
-  static async deleteTransport(orderId: string): Promise<any> {
+  static async deleteTransport(
+    orderId: string,
+    provider: 'ghtk' | 'viettelpost' = 'ghtk'
+  ): Promise<any> {
+    const serviceName = provider === 'viettelpost' ? 'viettelpost' : 'giaohangtietkiem';
+
     const body = {
-      service: 'giaohangtietkiem',
+      service: serviceName,
       action: 'CANCEL_ORDER',
       data: { orderId },
     };
@@ -1065,10 +1073,13 @@ export class GapService {
   static async getLabelTransform(
     orderId: string,
     orginal: 'landscape' | 'portrait' = 'landscape',
-    pageSize: 'A6' | 'A5' = 'A6'
+    pageSize: 'A6' | 'A5' = 'A6',
+    provider: 'ghtk' | 'viettelpost' = 'ghtk'
   ): Promise<any> {
+    const serviceName = provider === 'viettelpost' ? 'viettelpost' : 'giaohangtietkiem';
+
     const body = {
-      service: 'giaohangtietkiem',
+      service: serviceName,
       action: 'GET_ORDER_LABEL',
       data: { orderId, orginal, pageSize },
     };
@@ -1078,191 +1089,6 @@ export class GapService {
       null,
       body
     );
-  }
-
-  // ── Viettel Post Shipping ──
-
-  /**
-   * Get shipping fee estimate from Viettel Post
-   */
-  static async getViettelPostFee(
-    formData: {
-      orderAdressProvince?: string;
-      orderAdressDistrict?: string;
-      orderAdressWard?: string;
-    },
-    weight: number = 0.2,
-    value: number = 0,
-    moneyCollection: number = 0
-  ): Promise<any> {
-    try {
-      // Note: This requires province/district IDs for Viettel Post
-      // For now, we'll use a simplified approach
-      const body = {
-        senderProvinceId: 1, // Hồ Chí Minh - should be configurable
-        senderDistrictId: 1, // Quận 1 - should be configurable
-        receiverProvinceId: 1, // TODO: Map from province name to ID
-        receiverDistrictId: 1, // TODO: Map from district name to ID
-        weight,
-        value,
-        moneyCollection,
-      };
-
-      const response = await fetch('/api/shipping/viettel-post/estimate-fee', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      });
-
-      return await response.json();
-    } catch (error) {
-      console.error('Viettel Post fee estimate error:', error);
-      return { error: true, message: 'Failed to estimate shipping fee' };
-    }
-  }
-
-  /**
-   * Create Viettel Post shipping order
-   */
-  static async pushOrderToViettelPost(
-    orderData: any,
-    orderId: string
-  ): Promise<any> {
-    try {
-      const {
-        clientInfo = {},
-        shippingInfo = {},
-        productList = [],
-        totalMoneyForSale = 0,
-      } = orderData;
-
-      // Calculate total weight and prepare product info
-      const totalWeight = productList.reduce(
-        (sum: number, item: any) => sum + (item.count || 1) * 0.2,
-        0
-      );
-      const productNames = productList
-        .map((item: any) => `${item.name} (x${item.count || 1})`)
-        .join(', ');
-
-      const body = {
-        orderNumber: orderId,
-        sender: {
-          name: 'Giveaway Premium store',
-          address: '1 Phó Đức Chính, Phường Nguyễn Thái Bình',
-          phone: '0703334443',
-          email: 'store@giveawaypremium.com',
-          provinceId: 1, // Hồ Chí Minh
-          districtId: 1, // Quận 1
-          wardId: 1, // Phường Nguyễn Thái Bình
-        },
-        receiver: {
-          name: clientInfo.fullName || '',
-          address: `${shippingInfo.orderAdressStreet || ''}, ${shippingInfo.orderAdressWard || ''}, ${shippingInfo.orderAdressDistrict || ''}, ${shippingInfo.orderAdressProvince || ''}`,
-          phone: clientInfo.phoneNumber || '',
-          email: clientInfo.mail || '',
-          provinceId: 1, // TODO: Map from province name
-          districtId: 1, // TODO: Map from district name
-          wardId: 1, // TODO: Map from ward name
-        },
-        product: {
-          name: productNames || 'Sản phẩm',
-          description: productNames,
-          quantity: productList.length,
-          price: Math.min(totalMoneyForSale * 1000, 2000000),
-          weight: totalWeight,
-          items: productList.map((item: any) => ({
-            PRODUCT_NAME: item.name || 'Sản phẩm',
-            PRODUCT_PRICE: (item.priceAfterFee || item.price || 0) * 1000,
-            PRODUCT_WEIGHT: 0.2,
-            PRODUCT_QUANTITY: item.count || 1,
-          })),
-        },
-        payment: {
-          type: 1, // Người gửi trả
-        },
-        service: {
-          type: 'VCN', // Viettel Chuyển Nhanh
-        },
-        moneyCollection: 0, // No COD
-        note: shippingInfo.note || '',
-      };
-
-      const response = await fetch('/api/shipping/viettel-post/create-order', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      });
-
-      return await response.json();
-    } catch (error) {
-      console.error('Viettel Post create order error:', error);
-      return { error: true, message: 'Failed to create Viettel Post order' };
-    }
-  }
-
-  /**
-   * Cancel Viettel Post order
-   */
-  static async cancelViettelPostOrder(orderNumber: string): Promise<any> {
-    try {
-      const response = await fetch('/api/shipping/viettel-post/cancel-order', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ orderNumber }),
-      });
-
-      return await response.json();
-    } catch (error) {
-      console.error('Viettel Post cancel order error:', error);
-      return { error: true, message: 'Failed to cancel order' };
-    }
-  }
-
-  /**
-   * Get Viettel Post shipping label
-   */
-  static async getViettelPostLabel(orderNumber: string): Promise<any> {
-    try {
-      const response = await fetch('/api/shipping/viettel-post/get-label', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ orderNumbers: [orderNumber] }),
-      });
-
-      return await response.json();
-    } catch (error) {
-      console.error('Viettel Post get label error:', error);
-      return { error: true, message: 'Failed to get shipping label' };
-    }
-  }
-
-  /**
-   * Get Viettel Post order tracking info
-   */
-  static async getViettelPostTracking(orderNumber: string): Promise<any> {
-    try {
-      const response = await fetch('/api/shipping/viettel-post/tracking', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ orderNumber }),
-      });
-
-      return await response.json();
-    } catch (error) {
-      console.error('Viettel Post tracking error:', error);
-      return { error: true, message: 'Failed to get tracking info' };
-    }
   }
 
   // ── Customer ──
@@ -2025,10 +1851,13 @@ export class GapService {
     );
   }
 
-  static async pushOrderToGHTK(
+  static async pushOrderToTransporter(
     formData: OrderData,
-    orderId: string
+    orderId: string,
+    provider: 'ghtk' | 'viettelpost' = 'ghtk'
   ): Promise<any> {
+    const serviceName = provider === 'viettelpost' ? 'viettelpost' : 'giaohangtietkiem';
+
     const formDataFee = {
       orderAdressProvince:
         formData.shippingInfo?.orderAdressProvince ||
@@ -2043,7 +1872,7 @@ export class GapService {
         formData.shippingInfo?.ward ||
         '',
     };
-    const resFee = await this.getFeeForTransport(formDataFee);
+    const resFee = await this.getFeeForTransport(formDataFee, false, provider);
 
     let shippingFee: number;
     if (resFee?.result) {
@@ -2054,7 +1883,7 @@ export class GapService {
     }
 
     const body: Record<string, any> = {
-      service: 'giaohangtietkiem',
+      service: serviceName,
       action: 'CREATE_ORDER',
       data: {
         from: {
@@ -2122,6 +1951,14 @@ export class GapService {
       null,
       body
     );
+  }
+
+  // Backward compatibility alias
+  static async pushOrderToGHTK(
+    formData: OrderData,
+    orderId: string
+  ): Promise<any> {
+    return this.pushOrderToTransporter(formData, orderId, 'ghtk');
   }
 
   // ============ NOTE CRUD ============

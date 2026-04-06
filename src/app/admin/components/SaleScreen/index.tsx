@@ -712,25 +712,15 @@ const SaleScreen: React.FC = () => {
         orderAdressWard: ward,
       };
 
-      let resFee;
-      if (shippingProvider === 'viettelpost') {
-        // Use Viettel Post fee calculation
-        resFee = await GapService.getViettelPostFee(
-          formDataFee,
-          0.5, // Default weight 0.5kg
-          0, // Default value
-          0 // No COD
-        );
-      } else {
-        // Use GHTK fee calculation
-        resFee = await GapService.getFeeForTransport(
-          formDataFee,
-          optionTransfer === 'ht'
-        );
-      }
+      // Use unified API for all providers
+      const resFee = await GapService.getFeeForTransport(
+        formDataFee,
+        optionTransfer === 'ht',
+        shippingProvider as 'ghtk' | 'viettelpost'
+      );
 
       toast.dismiss('shipping-fee');
-      // Handle different response formats
+      // Handle response format
       const fee = resFee?.result || resFee?.fee;
       if (fee) {
         updateCurrentPane(pane => ({
