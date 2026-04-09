@@ -71,6 +71,7 @@ interface ClientInfo {
 
 interface ShippingInfo {
   optionTransfer: string;
+  shippingProvider?: string; // 'ghtk' or 'viettelpost'
   orderAdressProvince?: string;
   orderAdressDistrict?: string;
   orderAdressWard?: string;
@@ -144,6 +145,7 @@ const DEFAULT_CLIENT_INFO: ClientInfo = {
 
 const DEFAULT_SHIPPING_INFO: ShippingInfo = {
   optionTransfer: 'tk',
+  shippingProvider: 'ghtk', // Default to GHTK
 };
 
 // ─── Component ────────────────────────────────────────
@@ -684,7 +686,8 @@ const SaleScreen: React.FC = () => {
           newShipping.orderAdressProvince || '',
           newShipping.orderAdressDistrict || '',
           value,
-          newShipping.optionTransfer
+          newShipping.optionTransfer,
+          newShipping.shippingProvider || 'ghtk'
         );
         return { ...pane, shippingInfo: newShipping };
       });
@@ -697,7 +700,8 @@ const SaleScreen: React.FC = () => {
     province: string,
     district: string,
     ward: string,
-    optionTransfer: string
+    optionTransfer: string,
+    shippingProvider: string = 'ghtk'
   ) => {
     if (!province || !district || !ward) return;
     toast.loading('Đang lấy thông tin phí shipping...', { id: 'shipping-fee' });
@@ -707,15 +711,21 @@ const SaleScreen: React.FC = () => {
         orderAdressDistrict: district,
         orderAdressWard: ward,
       };
+
+      // Use unified API for all providers
       const resFee = await GapService.getFeeForTransport(
         formDataFee,
-        optionTransfer === 'ht'
+        optionTransfer === 'ht',
+        shippingProvider as 'ghtk' | 'viettelpost'
       );
+
       toast.dismiss('shipping-fee');
-      if (resFee?.result) {
+      // Handle response format
+      const fee = resFee?.result || resFee?.fee;
+      if (fee) {
         updateCurrentPane(pane => ({
           ...pane,
-          shippingInfo: { ...pane.shippingInfo, shippingFee: resFee.result },
+          shippingInfo: { ...pane.shippingInfo, shippingFee: fee },
         }));
       } else {
         toast.error('Không thể ước tính phí ship');
@@ -732,7 +742,7 @@ const SaleScreen: React.FC = () => {
         ...pane,
         shippingInfo: {
           ...pane.shippingInfo,
-          orderAdressStreet: e.target.value.trim(),
+          orderAdressStreet: e.target.value,
         },
       }));
     },
@@ -757,7 +767,8 @@ const SaleScreen: React.FC = () => {
             newShipping.orderAdressProvince || '',
             newShipping.orderAdressDistrict || '',
             newShipping.orderAdressWard || '',
-            value
+            value,
+            newShipping.shippingProvider || 'ghtk'
           );
         }
 
@@ -1535,6 +1546,53 @@ const SaleScreen: React.FC = () => {
                     </div>
 
                     <Separator />
+
+                    <div className="space-y-2">
+                      <Label className="text-xs">Đơn vị vận chuyển</Label>
+                      <Select
+                        value={currentPane.shippingInfo.shippingProvider || 'ghtk'}
+                        onValueChange={(value) => {
+                          updateCurrentPane(pane => {
+                            const newShipping = {
+                              ...pane.shippingInfo,
+                              shippingProvider: value,
+                              shippingFee: undefined, // Reset fee when changing provider
+                            };
+
+                            // Recalculate fee with new provider if address is complete
+                            if (newShipping.orderAdressProvince &&
+                                newShipping.orderAdressDistrict &&
+                                newShipping.orderAdressWard &&
+                                newShipping.optionTransfer !== 'tt') {
+                              fetchShippingFee(
+                                newShipping.orderAdressProvince,
+                                newShipping.orderAdressDistrict,
+                                newShipping.orderAdressWard,
+                                newShipping.optionTransfer,
+                                value
+                              );
+                            }
+
+                            return {
+                              ...pane,
+                              shippingInfo: newShipping,
+                            };
+                          });
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ghtk">
+                            Giao hàng tiết kiệm (GHTK)
+                          </SelectItem>
+                          <SelectItem value="viettelpost">
+                            Viettel Post
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
                     <div className="space-y-2">
                       <Label className="text-xs">Hình thức giao hàng</Label>

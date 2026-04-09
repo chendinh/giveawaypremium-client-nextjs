@@ -1018,10 +1018,13 @@ export class GapService {
       orderAdressDistrict: string;
       orderAdressWard: string;
     },
-    isXteam: boolean = false
+    isXteam: boolean = false,
+    provider: 'ghtk' | 'viettelpost' = 'ghtk'
   ): Promise<any> {
+    const serviceName = provider === 'viettelpost' ? 'viettelpost' : 'giaohangtietkiem';
+
     const body = {
-      service: 'giaohangtietkiem',
+      service: serviceName,
       action: 'PRICE_ESTIMATE',
       data: {
         weight: 0.1,
@@ -1048,9 +1051,14 @@ export class GapService {
     );
   }
 
-  static async deleteTransport(orderId: string): Promise<any> {
+  static async deleteTransport(
+    orderId: string,
+    provider: 'ghtk' | 'viettelpost' = 'ghtk'
+  ): Promise<any> {
+    const serviceName = provider === 'viettelpost' ? 'viettelpost' : 'giaohangtietkiem';
+
     const body = {
-      service: 'giaohangtietkiem',
+      service: serviceName,
       action: 'CANCEL_ORDER',
       data: { orderId },
     };
@@ -1065,10 +1073,13 @@ export class GapService {
   static async getLabelTransform(
     orderId: string,
     orginal: 'landscape' | 'portrait' = 'landscape',
-    pageSize: 'A6' | 'A5' = 'A6'
+    pageSize: 'A6' | 'A5' = 'A6',
+    provider: 'ghtk' | 'viettelpost' = 'ghtk'
   ): Promise<any> {
+    const serviceName = provider === 'viettelpost' ? 'viettelpost' : 'giaohangtietkiem';
+
     const body = {
-      service: 'giaohangtietkiem',
+      service: serviceName,
       action: 'GET_ORDER_LABEL',
       data: { orderId, orginal, pageSize },
     };
@@ -1840,10 +1851,13 @@ export class GapService {
     );
   }
 
-  static async pushOrderToGHTK(
+  static async pushOrderToTransporter(
     formData: OrderData,
-    orderId: string
+    orderId: string,
+    provider: 'ghtk' | 'viettelpost' = 'ghtk'
   ): Promise<any> {
+    const serviceName = provider === 'viettelpost' ? 'viettelpost' : 'giaohangtietkiem';
+
     const formDataFee = {
       orderAdressProvince:
         formData.shippingInfo?.orderAdressProvince ||
@@ -1858,7 +1872,7 @@ export class GapService {
         formData.shippingInfo?.ward ||
         '',
     };
-    const resFee = await this.getFeeForTransport(formDataFee);
+    const resFee = await this.getFeeForTransport(formDataFee, false, provider);
 
     let shippingFee: number;
     if (resFee?.result) {
@@ -1869,7 +1883,7 @@ export class GapService {
     }
 
     const body: Record<string, any> = {
-      service: 'giaohangtietkiem',
+      service: serviceName,
       action: 'CREATE_ORDER',
       data: {
         from: {
@@ -1937,6 +1951,14 @@ export class GapService {
       null,
       body
     );
+  }
+
+  // Backward compatibility alias
+  static async pushOrderToGHTK(
+    formData: OrderData,
+    orderId: string
+  ): Promise<any> {
+    return this.pushOrderToTransporter(formData, orderId, 'ghtk');
   }
 
   // ============ NOTE CRUD ============
