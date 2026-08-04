@@ -285,7 +285,7 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
 
     const res = await GapService.setAppointment(values, slotID, time, day);
 
-    if (res?.objectId) {
+    if (res && typeof res === 'object' && 'objectId' in res && res.objectId) {
       setBookingDataCode(newBookingDataCode);
       setIsHideUserForm(true);
       setIsConsigning(false);
