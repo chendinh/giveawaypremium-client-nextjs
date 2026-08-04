@@ -279,10 +279,83 @@ const TableProductScreen: React.FC = () => {
   };
 
   const handleResetSearch = () => {
-    setSearchFilters({ code: '', name: '', remainNumberProduct: '' });
+    const resetFilters = { code: '', name: '', remainNumberProduct: '' };
+    setSearchFilters(resetFilters);
     setCurrentPage(1);
-    fetchTableData(1);
+    // Pass reset filters directly to avoid stale state closure
+    fetchTableDataWithFilters(1, resetFilters);
   };
+
+  // Internal: fetch with explicit filters (avoids stale state in handleResetSearch)
+  const fetchTableDataWithFilters = useCallback(
+    async (page: number, filters: SearchFilters, tagId?: string) => {
+      const tagToUse = tagId || currentTag;
+      if (!tagToUse) return;
+
+      setIsLoadingData(true);
+      try {
+        const hasFilters =
+          filters.code || filters.name || filters.remainNumberProduct;
+        const selectedKeys = hasFilters
+          ? {
+              ...(filters.code && { code: filters.code }),
+              ...(filters.name && { name: filters.name }),
+              ...(filters.remainNumberProduct && {
+                remainNumberProduct: filters.remainNumberProduct,
+              }),
+            }
+          : null;
+
+        const res = await GapService.getProduct(
+          page,
+          selectedKeys,
+          100,
+          tagToUse
+        );
+
+        if (res?.results) {
+          const mapped: ProductItem[] = res.results.map(
+            (item: Record<string, any>) => {
+              let categoryType = '';
+              if (item.category?.name && item.subCategory?.name) {
+                categoryType = `${item.category.name} → ${item.subCategory.name}`;
+              } else if (item.category?.name) {
+                categoryType = item.category.name;
+              }
+
+              const price = Number(item.price) || 0;
+              const count = Number(item.count) || 0;
+              const priceAfterFee = Number(item.priceAfterFee) || 0;
+              const soldNumberProduct = Number(item.soldNumberProduct) || 0;
+
+              return {
+                ...item,
+                key: item.objectId,
+                category: categoryType,
+                categoryId: item.category?.objectId,
+                price,
+                count,
+                priceAfterFee,
+                soldNumberProduct,
+                remainNumberProduct: count - soldNumberProduct,
+                numberTagCount: count - soldNumberProduct,
+                moneyBackProduct: Math.round(soldNumberProduct * priceAfterFee),
+              };
+            }
+          );
+          setProductData(mapped);
+          setTotalCount(res.count || mapped.length);
+        } else {
+          setProductData([]);
+          setTotalCount(0);
+        }
+      } catch {
+        toast.error('Không thể tải dữ liệu sản phẩm');
+      }
+      setIsLoadingData(false);
+    },
+    [currentTag]
+  );
 
   // ── Pagination ──
   const handlePageChange = (page: number) => {
@@ -388,6 +461,12 @@ const TableProductScreen: React.FC = () => {
   };
 
   // ── Image upload ──
+  // Dùng 1 hidden input chung + programmatic click để tránh conditional ref binding
+  const handleUploadClick = (recordKey: string) => {
+    setUploadTargetKey(recordKey);
+    setTimeout(() => fileInputRef.current?.click(), 0);
+  };
+
   const handleFileUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
     recordKey: string
@@ -504,33 +583,19 @@ const TableProductScreen: React.FC = () => {
                   Ảnh ({medias.length}/5)
                 </Label>
                 {medias.length < 5 && (
-                  <div className="relative">
-                    <input
-                      ref={
-                        uploadTargetKey === record.key
-                          ? fileInputRef
-                          : undefined
-                      }
-                      type="file"
-                      accept=".png,.jpg,.jpeg,.gif"
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      onChange={e => handleFileUpload(e, record.key)}
-                      disabled={isUploading}
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={isUploading}
-                      onClick={() => setUploadTargetKey(record.key)}
-                    >
-                      {isUploading && uploadTargetKey === record.key ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                      ) : (
-                        <Upload className="h-4 w-4 mr-1" />
-                      )}
-                      Thêm ảnh
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isUploading}
+                    onClick={() => handleUploadClick(record.key)}
+                  >
+                    {isUploading && uploadTargetKey === record.key ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    ) : (
+                      <Upload className="h-4 w-4 mr-1" />
+                    )}
+                    Thêm ảnh
+                  </Button>
                 )}
               </div>
               {medias.length > 0 ? (
@@ -606,6 +671,15 @@ const TableProductScreen: React.FC = () => {
   // ── Render ──
   return (
     <div className="table-product-container space-y-4">
+      {/* Hidden file input chung cho tất cả row */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".png,.jpg,.jpeg,.gif"
+        className="hidden"
+        onChange={e => handleFileUpload(e, uploadTargetKey)}
+        disabled={isUploading}
+      />
       {/* Consignment Tabs */}
       {isLoadingTags ? (
         <div className="flex items-center gap-2 py-2">
@@ -620,13 +694,27 @@ const TableProductScreen: React.FC = () => {
           onValueChange={handleTabChange}
           className="w-full"
         >
-          <TabsList className="flex flex-wrap h-auto gap-1">
-            {allInfoTag.map((tag, idx) => (
-              <TabsTrigger key={tag.objectId} value={String(idx)}>
-                {tag.code || `Nhóm ${idx + 1}`}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          {/* Giới hạn 2 hàng, scroll ngang khi tràn */}
+          <div className="overflow-x-auto pb-1">
+            <TabsList
+              className="inline-grid h-auto gap-1 p-1"
+              style={{
+                gridTemplateRows: 'repeat(2, auto)',
+                gridAutoFlow: 'column',
+                gridAutoColumns: 'max-content',
+              }}
+            >
+              {allInfoTag.map((tag, idx) => (
+                <TabsTrigger
+                  key={tag.objectId}
+                  value={String(idx)}
+                  className="text-xs px-2 py-1 h-7 whitespace-nowrap"
+                >
+                  {tag.code || `Nhóm ${idx + 1}`}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
         </Tabs>
       ) : null}
 

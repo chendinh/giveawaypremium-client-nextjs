@@ -23,9 +23,6 @@ import ParallaxHome from '@/components/parallaxHome';
 // # css file import
 import 'react-image-gallery/styles/css/image-gallery.css';
 
-// # js file import (using webpack)
-import 'react-image-gallery/styles/css/image-gallery.css';
-
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {

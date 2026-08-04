@@ -1,11 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-// import ReduxServices from 'common/redux';
-// import { images } from 'config/images';
-// import MyModal from 'pages/Components/MyModal';
-import moment from 'moment';
+import React, { useState, useEffect, useCallback } from 'react';
+import { addDays, format } from 'date-fns';
 import GapService from '@/app/actions/GapServices';
 import Lottie from 'react-lottie';
 import successJson from '@images/Lottie/success.json';
@@ -26,6 +22,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { cn } from '@/lib/utils';
 
 import './style.scss';
 import { toast } from 'sonner';
@@ -33,9 +30,8 @@ import {
   BOOKING_OPTION_EACH_DAY_DATA_DEFAULT,
   TIME_BOOKING,
   BookingOptionEachDayType,
-  TimeBookingItem,
 } from '@/lib/constants';
-import { useAppStore, StoreServices } from '@/store/useAppStore';
+import { StoreServices } from '@/store/useAppStore';
 import Image from 'next/image';
 
 // Types
@@ -50,19 +46,6 @@ interface TimeBooking {
   timeCode: string;
 }
 
-interface FormData {
-  customerName: string;
-  phoneNumber: string;
-  numberOfProduct: number;
-}
-
-interface ErrorSlotInfo {
-  customerName: string;
-  date: string;
-  dateTime: string;
-  phoneNumber: string;
-}
-
 interface BookingOptionEachDay {
   OPTION_1?: string;
   OPTION_2?: string;
@@ -74,6 +57,13 @@ interface BookingOptionEachDay {
   OPTION_8?: string;
   OPTION_9?: string;
   [key: string]: string | undefined;
+}
+
+interface ErrorSlotInfo {
+  customerName: string;
+  date: string;
+  dateTime: string;
+  phoneNumber: string;
 }
 
 interface ConsignmentScreenProps {
@@ -90,13 +80,33 @@ const formSchema = z.object({
     .max(100, 'Số lượng tối đa là 100'),
 });
 
+type FormValues = z.infer<typeof formSchema>;
+
+const DAY_NAMES: Record<string, string> = {
+  Sunday: 'Chủ Nhật',
+  Monday: 'Thứ hai',
+  Tuesday: 'Thứ ba',
+  Wednesday: 'Thứ tư',
+  Thursday: 'Thứ năm',
+  Friday: 'Thứ sáu',
+  Saturday: 'Thứ bảy',
+};
+
+const defaultOptionsSuccess = {
+  loop: false,
+  autoplay: true,
+  animationData: successJson,
+};
+
+const defaultOptionsRightArrow = {
+  loop: true,
+  autoplay: true,
+  animationData: rightArrowJson,
+};
+
 const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
   backConsignment,
 }) => {
-  const router = useRouter();
-  //   const myModal = useRef<any>(null);
-
-  // States
   const [dayBooking, setDayBooking] = useState<DayBooking[]>([]);
   const [timeBooking, setTimeBooking] = useState<TimeBooking[]>([]);
   const [step, setStep] = useState<number>(0);
@@ -108,7 +118,6 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
   const [choosenDayCode, setChoosenDayCode] = useState<string | null>(null);
   const [choosenTimeCode, setChoosenTimeCode] = useState<string | null>(null);
   const [bookingDataCode, setBookingDataCode] = useState<string>('');
-  const [isErrorMax, setIsErrorMax] = useState<boolean>(false);
   const [bookingOptionValue, setBookingOptionValue] = useState<number>(8);
   const [bookingOptionEachDay, setBookingOptionEachDay] =
     useState<BookingOptionEachDay>({});
@@ -117,8 +126,7 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
   const [bookingCustomOptionString, setBookingCustomOptionString] =
     useState<string>('default');
 
-  // Form
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       customerName: '',
@@ -127,280 +135,186 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
     },
   });
 
+  const formValues = form.watch();
+
+  /**
+   * Tìm option + timeBooking tương ứng với ngày đã chọn.
+   * Refactored từ 9 if-else chain → loop.
+   */
   const checkDayCodeToBookingOption = useCallback(
     (
       choosenDay: DayBooking | null,
       bookingOptionData: BookingOptionEachDay = BOOKING_OPTION_EACH_DAY_DATA_DEFAULT
     ): { option: number; timeBooking: TimeBooking[] } => {
-      console.log('checkDayCodeToBookingOption', choosenDay, bookingOptionData);
-      if (choosenDay && choosenDay.dayCode && bookingOptionData) {
-        if (bookingOptionData.OPTION_1?.includes(choosenDay.dayCode))
-          return { option: 1, timeBooking: TIME_BOOKING.OPTION_1 };
-        else if (bookingOptionData.OPTION_2?.includes(choosenDay.dayCode))
-          return { option: 2, timeBooking: TIME_BOOKING.OPTION_2 };
-        else if (bookingOptionData.OPTION_3?.includes(choosenDay.dayCode))
-          return { option: 3, timeBooking: TIME_BOOKING.OPTION_3 };
-        else if (bookingOptionData.OPTION_4?.includes(choosenDay.dayCode))
-          return { option: 4, timeBooking: TIME_BOOKING.OPTION_4 };
-        else if (bookingOptionData.OPTION_5?.includes(choosenDay.dayCode))
-          return { option: 5, timeBooking: TIME_BOOKING.OPTION_5 };
-        else if (bookingOptionData.OPTION_6?.includes(choosenDay.dayCode))
-          return { option: 6, timeBooking: TIME_BOOKING.OPTION_6 };
-        else if (bookingOptionData.OPTION_7?.includes(choosenDay.dayCode))
-          return { option: 7, timeBooking: TIME_BOOKING.OPTION_7 };
-        else if (bookingOptionData.OPTION_8?.includes(choosenDay.dayCode))
-          return { option: 8, timeBooking: TIME_BOOKING.OPTION_8 };
-        else if (bookingOptionData.OPTION_9?.includes(choosenDay.dayCode))
-          return { option: 9, timeBooking: TIME_BOOKING.OPTION_9 };
-        else return { option: 8, timeBooking: TIME_BOOKING.OPTION_8 };
+      const fallback = { option: 8, timeBooking: TIME_BOOKING.OPTION_8 };
+
+      if (!choosenDay?.dayCode || !bookingOptionData) return fallback;
+
+      for (let i = 1; i <= 9; i++) {
+        const key = `OPTION_${i}`;
+        if (bookingOptionData[key]?.includes(choosenDay.dayCode)) {
+          return {
+            option: i,
+            timeBooking:
+              TIME_BOOKING[key as keyof typeof TIME_BOOKING] ??
+              TIME_BOOKING.OPTION_8,
+          };
+        }
       }
-      return { option: 8, timeBooking: TIME_BOOKING.OPTION_8 };
+
+      return fallback;
     },
     []
   );
 
   const fetchAppointment = useCallback(async (dayBookingData: DayBooking[]) => {
-    const arrayDate: string[] = [];
-    let bookingCode = '';
-
-    dayBookingData.forEach(itemDate => {
-      arrayDate.push(`"${itemDate.date}"`);
-    });
-
+    const arrayDate = dayBookingData.map(item => `"${item.date}"`);
     const res = await GapService.getAppointmentWithDate(arrayDate);
 
-    if (res && res.results) {
-      res.results.forEach((itemData: any) => {
-        if (itemData && itemData.slot) {
-          bookingCode += '-' + itemData.slot + '-';
-        }
+    let code = '';
+    if (res?.results) {
+      res.results.forEach((item: any) => {
+        if (item?.slot) code += `-${item.slot}-`;
       });
     }
 
-    setBookingDataCode(bookingCode);
+    setBookingDataCode(code);
   }, []);
 
   useEffect(() => {
     const initData = async () => {
-      const newSettingRedux = await StoreServices.getSetting();
-      let workingDayCountTemp = 14;
-
-      if (newSettingRedux.WORKING_DAY_COUNT) {
-        workingDayCountTemp = newSettingRedux.WORKING_DAY_COUNT;
-      }
-
-      const dayBookingTemp: DayBooking[] = [];
-      const bookingOptionEachDayData =
-        newSettingRedux.BOOKING_OPTION_EACH_DAY ||
+      const settings = await StoreServices.getSetting();
+      const dayCount = settings.WORKING_DAY_COUNT ?? 14;
+      const optionEachDay =
+        settings.BOOKING_OPTION_EACH_DAY ??
         BOOKING_OPTION_EACH_DAY_DATA_DEFAULT;
 
-      for (let i = 0; i < workingDayCountTemp; i++) {
-        dayBookingTemp.push({
-          dayName: moment().add(i, 'day').format('dddd'),
-          date: moment().add(i, 'day').format('DD-MM-YYYY'),
-          dayCode: moment()
-            .add(i, 'day')
-            .format('DD-MM-YYYY')
-            .replaceAll('-', ''),
-        });
-      }
+      const days: DayBooking[] = Array.from({ length: dayCount }, (_, i) => {
+        const d = addDays(new Date(), i);
+        const dateStr = format(d, 'dd-MM-yyyy');
+        return {
+          dayName: format(d, 'EEEE'),
+          date: dateStr,
+          dayCode: dateStr.replaceAll('-', ''),
+        };
+      });
 
-      const choosenDayCodeTemp =
-        dayBookingTemp && dayBookingTemp[0] ? dayBookingTemp[0].dayCode : '';
+      const firstDay = days[0];
+      const firstDayCode = firstDay?.dayCode ?? '';
       const { option, timeBooking: timeBookingData } =
-        checkDayCodeToBookingOption(
-          dayBookingTemp[0],
-          bookingOptionEachDayData
-        );
+        checkDayCodeToBookingOption(firstDay, optionEachDay);
 
-      // Check for custom booking option for this day
-      let bookingCustomOptionStringTemp = 'default';
-      if (
-        newSettingRedux.BOOKING_OPTION_CUSTOM_EACH_DAY &&
-        newSettingRedux.BOOKING_OPTION_CUSTOM_EACH_DAY[choosenDayCodeTemp]
-      ) {
-        bookingCustomOptionStringTemp =
-          newSettingRedux.BOOKING_OPTION_CUSTOM_EACH_DAY[choosenDayCodeTemp];
-      }
+      const customOption =
+        settings.BOOKING_OPTION_CUSTOM_EACH_DAY?.[firstDayCode] ?? 'default';
 
-      console.log('timeBookingData', timeBookingData);
-
-      setBookingCustomOptionString(bookingCustomOptionStringTemp);
+      setBookingCustomOptionString(customOption);
       setBookingOptionValue(option);
       setTimeBooking(timeBookingData);
-      setBookingOptionEachDay(bookingOptionEachDayData);
-      setDayBooking(dayBookingTemp);
-      setWorkingDayCount(workingDayCountTemp);
+      setBookingOptionEachDay(optionEachDay);
+      setDayBooking(days);
+      setWorkingDayCount(dayCount);
 
-      await fetchAppointment(dayBookingTemp);
+      await fetchAppointment(days);
     };
 
     initData();
   }, [checkDayCodeToBookingOption, fetchAppointment]);
 
-  const translationDate = (key: string): string => {
-    switch (key) {
-      case 'Sunday':
-        return 'Chủ Nhật';
-      case 'Monday':
-        return 'Thứ hai';
-      case 'Tuesday':
-        return 'Thứ ba';
-      case 'Wednesday':
-        return 'Thứ tư';
-      case 'Thursday':
-        return 'Thứ năm';
-      case 'Friday':
-        return 'Thứ sáu';
-      case 'Saturday':
-        return 'Thứ bảy';
-      default:
-        return key;
-    }
-  };
-
   const onChooseDay = async (choosenDay: DayBooking) => {
-    const newSettingRedux = await StoreServices.getSetting();
-
+    const settings = await StoreServices.getSetting();
     const { option, timeBooking: timeBookingData } =
       checkDayCodeToBookingOption(choosenDay, bookingOptionEachDay);
 
-    // Check for custom booking option for this day
-    let bookingCustomOptionStringTemp = 'default';
-    if (
-      newSettingRedux.BOOKING_OPTION_CUSTOM_EACH_DAY &&
-      newSettingRedux.BOOKING_OPTION_CUSTOM_EACH_DAY[choosenDay.dayCode]
-    ) {
-      bookingCustomOptionStringTemp =
-        newSettingRedux.BOOKING_OPTION_CUSTOM_EACH_DAY[choosenDay.dayCode];
-    }
+    const customOption =
+      settings.BOOKING_OPTION_CUSTOM_EACH_DAY?.[choosenDay.dayCode] ??
+      'default';
 
-    setBookingCustomOptionString(bookingCustomOptionStringTemp);
+    setBookingCustomOptionString(customOption);
     setBookingOptionValue(option);
     setTimeBooking(timeBookingData);
     setStep(1);
     setIsHideUserForm(true);
     setChoosenTimeCode(null);
-    setChoosenDayCode(choosenDay?.dayCode || '');
+    setChoosenDayCode(choosenDay?.dayCode ?? '');
   };
 
   const onChooseTime = (choosenTime: TimeBooking) => {
     setStep(1);
-    setChoosenTimeCode(choosenTime?.timeCode || '');
+    setChoosenTimeCode(choosenTime?.timeCode ?? '');
   };
 
   const convertCodeToTime = (): string => {
-    if (choosenTimeCode && choosenDayCode) {
-      const formatedTime =
-        choosenTimeCode.substring(0, 2) + ':' + choosenTimeCode.substring(2, 4);
-      const formatedDay =
-        choosenDayCode.substring(0, 2) +
-        '-' +
-        choosenDayCode.substring(2, 4) +
-        '-' +
-        choosenDayCode.substring(4, 8);
-      return formatedDay + ' ' + formatedTime;
-    }
-    return '---';
+    if (!choosenTimeCode || !choosenDayCode) return '---';
+
+    const time = `${choosenTimeCode.substring(0, 2)}:${choosenTimeCode.substring(2, 4)}`;
+    const day = `${choosenDayCode.substring(0, 2)}-${choosenDayCode.substring(2, 4)}-${choosenDayCode.substring(4, 8)}`;
+    return `${day} ${time}`;
   };
 
-  const onConsign = async (values: z.infer<typeof formSchema>) => {
-    if (choosenTimeCode && choosenDayCode) {
-      setIsConsigning(true);
+  const onConsign = async (values: FormValues) => {
+    if (!choosenTimeCode || !choosenDayCode) return;
 
-      const formatedTime =
-        choosenTimeCode.substring(0, 2) + ':' + choosenTimeCode.substring(2, 4);
-      const formatedDay =
-        choosenDayCode.substring(0, 2) +
-        '-' +
-        choosenDayCode.substring(2, 4) +
-        '-' +
-        choosenDayCode.substring(4, 8);
-      const slotID = choosenTimeCode + choosenDayCode;
-      const newBookingDataCode = bookingDataCode + '-' + slotID + '-';
+    setIsConsigning(true);
 
-      const resWithPhone = await GapService.getAppointmentWithPhone(
-        values.phoneNumber
+    const time = `${choosenTimeCode.substring(0, 2)}:${choosenTimeCode.substring(2, 4)}`;
+    const day = `${choosenDayCode.substring(0, 2)}-${choosenDayCode.substring(2, 4)}-${choosenDayCode.substring(4, 8)}`;
+    const slotID = choosenTimeCode + choosenDayCode;
+    const newBookingDataCode = `${bookingDataCode}-${slotID}-`;
+
+    const resWithPhone = await GapService.getAppointmentWithPhone(
+      values.phoneNumber
+    );
+
+    if (resWithPhone?.results?.length > 0) {
+      const conflict = resWithPhone.results.find(
+        (item: any) => item.date === day
       );
-
-      let isExistPhoneNumber = false;
-      let errorInfo: ErrorSlotInfo | null = null;
-
-      if (
-        resWithPhone &&
-        resWithPhone.results &&
-        resWithPhone.results.length > 0
-      ) {
-        resWithPhone.results.forEach((item: any) => {
-          if (item.date === formatedDay) {
-            isExistPhoneNumber = true;
-            errorInfo = {
-              customerName: item.customerName,
-              date: item.date,
-              dateTime: item.dateTime,
-              phoneNumber: item.phoneNumber,
-            };
-          }
+      if (conflict) {
+        setIsConsigning(false);
+        setErrorSlotInfo({
+          customerName: conflict.customerName,
+          date: conflict.date,
+          dateTime: conflict.dateTime,
+          phoneNumber: conflict.phoneNumber,
         });
-
-        if (isExistPhoneNumber) {
-          setIsConsigning(false);
-          setErrorSlotInfo(errorInfo);
-          return;
-        } else {
-          setErrorSlotInfo(null);
-        }
-      } else {
-        setErrorSlotInfo(null);
+        return;
       }
+    }
 
-      const res = await GapService.setAppointment(
-        values,
-        slotID,
-        formatedTime,
-        formatedDay
-      );
+    setErrorSlotInfo(null);
 
-      if (res && res.objectId) {
-        setBookingDataCode(newBookingDataCode);
-        setIsHideUserForm(true);
-        setIsConsigning(false);
-        setStep(3);
-        setIsHideDayColumn(true);
-      } else {
-        setIsConsigning(false);
-        await fetchAppointment(dayBooking);
-        toast.error('Đặt lịch thất bại!');
-      }
+    const res = await GapService.setAppointment(values, slotID, time, day);
+
+    if (res?.objectId) {
+      setBookingDataCode(newBookingDataCode);
+      setIsHideUserForm(true);
+      setIsConsigning(false);
+      setStep(3);
+      setIsHideDayColumn(true);
+    } else {
+      setIsConsigning(false);
+      await fetchAppointment(dayBooking);
+      toast.error('Đặt lịch thất bại!');
     }
   };
 
   const onHandleStepTwo = () => {
     setIsHideUserForm(false);
-    setTimeout(() => {
-      setStep(2);
-    }, 200);
+    setTimeout(() => setStep(2), 200);
   };
 
   const backStepOne = () => {
     setIsHideUserForm(true);
     fetchAppointment(dayBooking);
-    setTimeout(() => {
-      setStep(1);
-    }, 200);
+    setTimeout(() => setStep(1), 200);
   };
 
   const resetAndBackProps = (isOpenInstrucmentPage: boolean = false) => {
-    form.reset({
-      customerName: '',
-      phoneNumber: '',
-      numberOfProduct: 5,
-    });
+    form.reset({ customerName: '', phoneNumber: '', numberOfProduct: 5 });
     setStep(0);
     setIsHideDayColumn(false);
     setChoosenDayCode(null);
     setChoosenTimeCode(null);
-
     fetchAppointment(dayBooking);
     backConsignment();
 
@@ -416,31 +330,15 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
     'IS_SHOW_BOOKING_FORM',
     'true'
   );
-  const formValues = form.watch();
-
-  const defaultOptionsSuccess = {
-    loop: false,
-    autoplay: true,
-    animationData: successJson,
-  };
-
-  const defaultOptionsRightArrow = {
-    loop: true,
-    autoplay: true,
-    animationData: rightArrowJson,
-  };
+  const isSubmitDisabled =
+    formValues.numberOfProduct < 5 ||
+    formValues.numberOfProduct > 100 ||
+    isConsigning;
 
   return (
     <div className="bookingform-home-container">
       {!isShowBookingForm ? (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            width: '60%',
-            marginTop: '40px',
-          }}
-        >
+        <div className="flex flex-col w-3/5 mt-10">
           <p className="text day-txt">
             Hiện tại tính năng đặt lịch ký gửi trên website đang tạm khoá.
           </p>
@@ -449,8 +347,7 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
           </p>
           <p className="text day-txt">Xin lỗi vì sự bất tiện này.</p>
           <Button
-            style={{ maxWidth: '150px' }}
-            className="MT20"
+            className="MT20 max-w-[150px]"
             onClick={() => resetAndBackProps()}
           >
             Quay lại
@@ -458,21 +355,22 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
         </div>
       ) : (
         <div className="bookingform">
+          {/* Cột chọn ngày */}
           <div
             style={{
               maxHeight: '80vh',
               overflowX: 'hidden',
               overflowY: 'scroll',
             }}
-            className={'dayBooking-box' + (!isHideDayColumn ? ' show' : '')}
+            className={cn('dayBooking-box', !isHideDayColumn && 'show')}
           >
             {dayBooking.map((dayItem, dayIndex) => (
               <div
-                key={dayIndex}
+                key={dayItem.dayCode}
                 className="day-box"
                 onClick={() => onChooseDay(dayItem)}
                 style={
-                  choosenDayCode && choosenDayCode === dayItem.dayCode
+                  choosenDayCode === dayItem.dayCode
                     ? { borderColor: 'black', opacity: 1 }
                     : choosenDayCode && choosenDayCode !== dayItem.dayCode
                       ? { opacity: 0.4 }
@@ -482,7 +380,7 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
                 <span className="text day-name">
                   {dayIndex === 0
                     ? 'Hôm nay'
-                    : translationDate(dayItem.dayName)}
+                    : (DAY_NAMES[dayItem.dayName] ?? dayItem.dayName)}
                 </span>
                 <span className="text text-base sm:text-sm day-txt">
                   {dayItem.date}
@@ -507,18 +405,12 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
             />
           </div>
 
+          {/* Cột chọn giờ + form */}
           <div className="timeBooking-box">
             {bookingOptionValue === 7 ? (
+              // Trạng thái tạm khoá
               <div className="justity-center align-center">
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    width: '90%',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}
-                >
+                <div className="flex flex-col w-[90%] justify-center items-center">
                   <Image
                     width={70}
                     src={logoHeaderWhite}
@@ -526,14 +418,7 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
                     alt="logo"
                   />
                 </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    width: '85%',
-                    margin: '30px 5% 0 5%',
-                  }}
-                >
+                <div className="flex flex-col w-[85%] mx-[5%] mt-[30px]">
                   <p className="text day-txt">
                     Hiện tại tính năng đặt lịch ký gửi trên website đang tạm
                     khoá.
@@ -543,19 +428,9 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
                     thông tin.
                   </p>
                   <p className="text day-txt">Xin lỗi vì sự bất tiện này.</p>
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      width: '100%',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      marginTop: '20px',
-                    }}
-                  >
+                  <div className="flex flex-col w-full justify-center items-center mt-5">
                     <Button
-                      style={{ maxWidth: '150px' }}
-                      className="MT20"
+                      className="MT20 max-w-[150px]"
                       onClick={() => resetAndBackProps()}
                     >
                       Quay lại
@@ -565,51 +440,48 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
               </div>
             ) : (
               <>
+                {/* Grid các khung giờ */}
                 <div
-                  style={
-                    bookingOptionValue === 9
-                      ? { gridTemplateColumns: 'auto auto auto' }
-                      : { gridTemplateColumns: 'auto auto' }
-                  }
-                  className={
-                    'timeBooking-grid' +
-                    (step === 1 && isHideUserForm ? ' show' : '')
-                  }
+                  style={{
+                    gridTemplateColumns:
+                      bookingOptionValue === 9 ? 'auto auto auto' : 'auto auto',
+                  }}
+                  className={cn(
+                    'timeBooking-grid',
+                    step === 1 && isHideUserForm && 'show'
+                  )}
                 >
                   {timeBooking.map((itemTime, indexTime) => {
+                    const isBusy = bookingDataCode.includes(
+                      itemTime.timeCode + choosenDayCode
+                    );
                     const isReady =
                       !bookingDataCode.includes(
                         choosenTimeCode + choosenDayCode
                       ) && itemTime.timeCode === choosenTimeCode;
-                    const isBusy = bookingDataCode.includes(
-                      itemTime.timeCode + choosenDayCode
-                    );
-
-                    // Check if this time slot should be shown based on custom option
                     const isShow =
                       bookingCustomOptionString === 'default'
                         ? true
                         : bookingCustomOptionString.includes(itemTime.timeCode);
 
-                    if (!isShow) {
-                      return null;
-                    }
+                    if (!isShow) return null;
 
                     return (
                       <div
+                        key={indexTime}
                         style={
                           isBusy
                             ? { pointerEvents: 'none', cursor: 'none' }
                             : {}
                         }
                         onClick={() => !isBusy && onChooseTime(itemTime)}
-                        key={indexTime}
-                        className={
-                          'time-box' +
-                          (isReady ? ' ready' : isBusy ? ' busy' : '')
-                        }
+                        className={cn(
+                          'time-box',
+                          isReady && 'ready',
+                          isBusy && 'busy'
+                        )}
                       >
-                        <span className="text text-base sm:text-sm ">
+                        <span className="text text-base sm:text-sm">
                           {itemTime.timeName}
                         </span>
                       </div>
@@ -617,11 +489,12 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
                   })}
                 </div>
 
+                {/* Legend */}
                 <div
-                  className={
-                    'explain-box' +
-                    (step === 1 && isHideUserForm ? ' show' : '')
-                  }
+                  className={cn(
+                    'explain-box',
+                    step === 1 && isHideUserForm && 'show'
+                  )}
                 >
                   <div className="explain-box-left">
                     <div className="box-full" />
@@ -633,18 +506,19 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
                   </div>
                 </div>
 
+                {/* Footer navigation */}
                 <div
-                  className={
-                    'timeBooking-footer' +
-                    ((step === 1 || step === 0) && isHideUserForm
-                      ? ' show'
-                      : '')
-                  }
+                  className={cn(
+                    'timeBooking-footer',
+                    (step === 1 || step === 0) && isHideUserForm && 'show'
+                  )}
                 >
                   <span
                     onClick={() => resetAndBackProps(false)}
                     className="text"
-                  >{`< Quay lại`}</span>
+                  >
+                    {'< Quay lại'}
+                  </span>
                   {step === 1 && (
                     <span
                       onClick={onHandleStepTwo}
@@ -655,19 +529,20 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
                           : { opacity: 0.5, pointerEvents: 'none' }
                       }
                     >
-                      {`Tiếp tục >`}
+                      {'Tiếp tục >'}
                     </span>
                   )}
                 </div>
               </>
             )}
 
+            {/* Form nhập thông tin */}
             <Form {...form}>
               <form
-                className={
-                  'w-[95%] sm:w-[80%] px-2 sm:px-0 timeBooking-form' +
-                  (!isHideUserForm && step === 2 ? ' show' : '')
-                }
+                className={cn(
+                  'w-[95%] sm:w-[80%] px-2 sm:px-0 timeBooking-form',
+                  !isHideUserForm && step === 2 && 'show'
+                )}
                 onSubmit={form.handleSubmit(onConsign)}
               >
                 <div className="flex flex-col gap-3 sm:gap-4 sell-card-form justify-center">
@@ -736,11 +611,9 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
                             type="number"
                             placeholder="Số lượng..."
                             className="w-full sm:w-32"
-                            onChange={e => {
-                              const value = parseInt(e.target.value) || 0;
-                              field.onChange(value);
-                              setIsErrorMax(value > 50);
-                            }}
+                            onChange={e =>
+                              field.onChange(parseInt(e.target.value) || 0)
+                            }
                           />
                         </FormControl>
                         <FormMessage className="text-xs" />
@@ -748,21 +621,13 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
                     )}
                   />
 
-                  {formValues.numberOfProduct < 5 && (
-                    <p className="text-red-500 text-sm">
-                      Số lượng ký gửi tối thiểu là 5 món. Tuy nhiên, nếu anh/chị
-                      ký gửi sản phẩm luxury (giá trị ký gửi trên 5.000.000đ).
-                      Vui lòng liên hệ hotline 0703334443 để được hỗ trợ tốt
-                      nhất.
-                    </p>
-                  )}
-
-                  {isErrorMax && (
-                    <p className="text-red-500 text-sm">
-                      Với số lượng hàng hoá trên 50, Xin vui lòng liên hệ
-                      hotline 0703334443 để được hỗ trợ tốt nhất.
-                    </p>
-                  )}
+                  {formValues.numberOfProduct > 50 &&
+                    formValues.numberOfProduct <= 100 && (
+                      <p className="text-red-500 text-sm">
+                        Với số lượng hàng hoá trên 50, Xin vui lòng liên hệ
+                        hotline 0703334443 để được hỗ trợ tốt nhất.
+                      </p>
+                    )}
 
                   <div className="bookingNoteString">
                     <span>
@@ -794,12 +659,7 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
                     <Button
                       type="submit"
                       variant="secondary"
-                      disabled={
-                        isErrorMax ||
-                        formValues.numberOfProduct < 5 ||
-                        formValues.numberOfProduct > 100 ||
-                        isConsigning
-                      }
+                      disabled={isSubmitDisabled}
                     >
                       {isConsigning ? 'Đang xử lý...' : 'Xác nhận'}
                     </Button>
@@ -808,11 +668,12 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
               </form>
             </Form>
 
+            {/* Màn hình xác nhận thành công */}
             <div
-              className={
-                'timeBooking-confirm' +
-                (isHideUserForm && step === 3 ? ' show' : '')
-              }
+              className={cn(
+                'timeBooking-confirm',
+                isHideUserForm && step === 3 && 'show'
+              )}
             >
               <Lottie
                 options={defaultOptionsSuccess}
@@ -822,24 +683,22 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
                 isPaused={false}
               />
               <div className="flex justify-center">
-                <div className="w-4/5">
-                  <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <span className="font-medium">Thời gian ký gửi:</span>
-                      <span>{convertCodeToTime()}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <span className="font-medium">Tên Khách Hàng:</span>
-                      <span>{formValues.customerName}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <span className="font-medium">Số điện thoại:</span>
-                      <span>{formValues.phoneNumber}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <span className="font-medium">Số lượng hàng hoá:</span>
-                      <span>{formValues.numberOfProduct}</span>
-                    </div>
+                <div className="w-4/5 space-y-2">
+                  <div className="flex gap-2">
+                    <span className="font-medium">Thời gian ký gửi:</span>
+                    <span>{convertCodeToTime()}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="font-medium">Tên Khách Hàng:</span>
+                    <span>{formValues.customerName}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="font-medium">Số điện thoại:</span>
+                    <span>{formValues.phoneNumber}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="font-medium">Số lượng hàng hoá:</span>
+                    <span>{formValues.numberOfProduct}</span>
                   </div>
                 </div>
               </div>
@@ -850,7 +709,6 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
           </div>
         </div>
       )}
-      {/* <MyModal ref={myModal} /> */}
     </div>
   );
 };

@@ -25,7 +25,7 @@ import {
   Store,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import moment from 'moment';
+import { format } from 'date-fns';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -76,6 +76,7 @@ const convertPriceAfterFee = (productPrice: number = 0): number => {
 interface OrderItem {
   objectId: string;
   totalMoneyForSale?: number | string;
+  totalMoneyForSaleAfterFee?: number | string;
   totalNumberOfProductForSale?: number | string;
   isOnlineSale?: boolean;
   transferBankMoneyAmount?: number | string;
@@ -164,19 +165,18 @@ const SummaryScreen: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const fromMoment = moment(fromDate).format('YYYY-MM-DD');
-      const toMoment = moment(toDate).format('YYYY-MM-DD');
+      const fromStr = format(fromDate, 'yyyy-MM-dd');
+      const toStr = format(toDate, 'yyyy-MM-dd');
       const orderList = await GapService.getOrder(
         1,
         null,
         100000,
-        fromMoment,
-        toMoment
+        fromStr,
+        toStr
       );
 
       let moneyForSale = 0;
       let moneyAfterFee = 0;
-      let moneyFromFee = 0;
       let totalProduct = 0;
       let transferBankMoneyAmount = 0;
       let transferOfflineMoneyAmount = 0;
@@ -187,40 +187,49 @@ const SummaryScreen: React.FC = () => {
 
       if (orderList?.results?.length > 0) {
         orderList.results.forEach((item: OrderItem) => {
-          moneyForSale += Number(item.totalMoneyForSale || 0);
-          moneyAfterFee += Math.floor(
-            convertPriceAfterFee(Number(item.totalMoneyForSale))
-          );
-          totalProduct += Number(item.totalNumberOfProductForSale || 0);
-          transferBankMoneyAmount += Number(item.transferBankMoneyAmount || 0);
-          transferOfflineMoneyAmount += Number(
-            item.transferOfflineMoneyAmount || 0
-          );
+          const total = Number(item.totalMoneyForSale) || 0;
+          const totalAfterFee = Number(item.totalMoneyForSaleAfterFee) || 0;
+
+          // Ưu tiên dùng totalMoneyForSaleAfterFee được lưu sẵn trên đơn hàng
+          // (đã tính đúng per-product khi tạo đơn), fallback mới tính lại
+          const afterFee =
+            totalAfterFee > 0 ? totalAfterFee : convertPriceAfterFee(total);
+
+          moneyForSale += total;
+          moneyAfterFee += afterFee;
+          totalProduct += Number(item.totalNumberOfProductForSale) || 0;
+
+          // Guard NaN: transferBankMoneyAmount có thể là '---' string từ API
+          const bankAmt = Number(item.transferBankMoneyAmount);
+          const offlineAmt = Number(item.transferOfflineMoneyAmount);
+          transferBankMoneyAmount += isNaN(bankAmt) ? 0 : bankAmt;
+          transferOfflineMoneyAmount += isNaN(offlineAmt) ? 0 : offlineAmt;
 
           if (item.isOnlineSale) {
             numberOnlineSale += 1;
-            moneyForOnlineSale += Number(item.totalMoneyForSale || 0);
+            moneyForOnlineSale += total;
           } else {
             numberOfflineSale += 1;
-            moneyForOfflineSale += Number(item.totalMoneyForSale || 0);
+            moneyForOfflineSale += total;
           }
         });
 
-        moneyFromFee = moneyForSale - moneyAfterFee;
+        // Lợi nhuận = doanh thu - tiền trả lại cho người ký gửi
+        const moneyFromFee = moneyForSale - moneyAfterFee;
 
         setSummary({
-          moneyForSale,
-          moneyAfterFee,
-          moneyFromFee,
+          moneyForSale: Math.round(moneyForSale),
+          moneyAfterFee: Math.round(moneyAfterFee),
+          moneyFromFee: Math.round(moneyFromFee),
           totalProduct,
           dataOrderList: orderList.results,
           totalOrder: orderList.count || orderList.results.length,
-          transferBankMoneyAmount,
-          transferOfflineMoneyAmount,
+          transferBankMoneyAmount: Math.round(transferBankMoneyAmount),
+          transferOfflineMoneyAmount: Math.round(transferOfflineMoneyAmount),
           numberOnlineSale,
           numberOfflineSale,
-          moneyForOnlineSale,
-          moneyForOfflineSale,
+          moneyForOnlineSale: Math.round(moneyForOnlineSale),
+          moneyForOfflineSale: Math.round(moneyForOfflineSale),
         });
       } else {
         setSummary({
@@ -245,13 +254,7 @@ const SummaryScreen: React.FC = () => {
 
   // ─── Chart Data ─────────────────────────────────────
   const revenueBarData = {
-    labels: [
-      'Doanh thu',
-      'Trả khách',
-      'Lợi nhuận',
-      'Tiền mặt',
-      'Chuyển khoản',
-    ],
+    labels: ['Doanh thu', 'Trả khách', 'Lợi nhuận', 'Tiền mặt', 'Chuyển khoản'],
     datasets: [
       {
         label: 'Số tiền (vnđ)',
@@ -304,10 +307,7 @@ const SummaryScreen: React.FC = () => {
     datasets: [
       {
         data: [summary.numberOnlineSale, summary.numberOfflineSale],
-        backgroundColor: [
-          'rgba(59, 130, 246, 0.7)',
-          'rgba(249, 115, 22, 0.7)',
-        ],
+        backgroundColor: ['rgba(59, 130, 246, 0.7)', 'rgba(249, 115, 22, 0.7)'],
         borderColor: ['rgb(59, 130, 246)', 'rgb(249, 115, 22)'],
         borderWidth: 1,
       },
@@ -331,10 +331,7 @@ const SummaryScreen: React.FC = () => {
           summary.moneyForOnlineSale * 1000,
           summary.moneyForOfflineSale * 1000,
         ],
-        backgroundColor: [
-          'rgba(34, 197, 94, 0.7)',
-          'rgba(239, 68, 68, 0.7)',
-        ],
+        backgroundColor: ['rgba(34, 197, 94, 0.7)', 'rgba(239, 68, 68, 0.7)'],
         borderColor: ['rgb(34, 197, 94)', 'rgb(239, 68, 68)'],
         borderWidth: 1,
       },
@@ -373,7 +370,7 @@ const SummaryScreen: React.FC = () => {
               )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {fromDate ? moment(fromDate).format('DD/MM/YYYY') : 'Từ ngày'}
+              {fromDate ? format(fromDate, 'dd/MM/yyyy') : 'Từ ngày'}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0">
@@ -400,7 +397,7 @@ const SummaryScreen: React.FC = () => {
               )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {toDate ? moment(toDate).format('DD/MM/YYYY') : 'Đến ngày'}
+              {toDate ? format(toDate, 'dd/MM/yyyy') : 'Đến ngày'}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0">

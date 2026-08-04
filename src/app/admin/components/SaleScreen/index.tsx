@@ -1,12 +1,6 @@
 'use client';
 
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-  useMemo,
-} from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -50,12 +44,16 @@ import GapService from '@/app/actions/GapServices';
 import { useAppStore } from '@/store/useAppStore';
 import { useReactToPrint } from 'react-to-print';
 import ReceiptOffline from './components/ReceiptOffline/index';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 import './style.scss';
 
 // ─── Helpers ──────────────────────────────────────────
 const numberWithCommas = (x: number | string): string =>
   x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+/** Làm tròn lên đến bội số 1000 gần nhất — dùng cho giá VTP */
+const roundUpTo1000 = (price: number): number => Math.ceil(price / 1000) * 1000;
 
 // ─── Types ────────────────────────────────────────────
 interface ClientInfo {
@@ -71,10 +69,15 @@ interface ClientInfo {
 
 interface ShippingInfo {
   optionTransfer: string;
+  // tên hiển thị (label)
   orderAdressProvince?: string;
   orderAdressDistrict?: string;
   orderAdressWard?: string;
   orderAdressStreet?: string;
+  // VTP numeric IDs — dùng trực tiếp khi gọi API
+  vtpProvinceId?: number;
+  vtpDistrictId?: number;
+  vtpWardId?: number;
   shippingFee?: number;
 }
 
@@ -117,17 +120,18 @@ interface OrderPane {
 }
 
 interface AddressWard {
-  name: string;
+  WARDS_ID: number;
+  WARDS_NAME: string;
 }
 
 interface AddressDistrict {
-  name: string;
-  wards: AddressWard[];
+  DISTRICT_ID: number;
+  DISTRICT_NAME: string;
 }
 
 interface AddressProvince {
-  name: string;
-  districts: AddressDistrict[];
+  PROVINCE_ID: number;
+  PROVINCE_NAME: string;
 }
 
 // ─── Constants ────────────────────────────────────────
@@ -148,15 +152,25 @@ const DEFAULT_SHIPPING_INFO: ShippingInfo = {
 
 // ─── Component ────────────────────────────────────────
 const SaleScreen: React.FC = () => {
-  const { userData, unitAddressRedux, eventsRedux } = useAppStore();
+  const { userData, eventsRedux } = useAppStore();
 
   const [panes, setPanes] = useState<OrderPane[]>([]);
   const [currentPaneIndex, setCurrentPaneIndex] = useState<number>(0);
   const [activeKey, setActiveKey] = useState<number | null>(null);
   const [isCreatingOrder, setIsCreatingOrder] = useState<boolean>(false);
 
-  // Address options derived from unitAddressRedux
-  const [provinces, setProvinces] = useState<AddressProvince[]>([]);
+  // VTP address state (cascade)
+  const [vtpProvinces, setVtpProvinces] = useState<AddressProvince[]>([]);
+  const [vtpDistricts, setVtpDistricts] = useState<AddressDistrict[]>([]);
+  const [vtpWards, setVtpWards] = useState<AddressWard[]>([]);
+  const [isLoadingDistricts, setIsLoadingDistricts] = useState(false);
+  const [isLoadingWards, setIsLoadingWards] = useState(false);
+
+  // VTP available services for current address
+  const [vtpServices, setVtpServices] = useState<
+    Array<{ code: string; name: string; price: number; time: string }>
+  >([]);
+  const [isLoadingServices, setIsLoadingServices] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const numPaneTempRef = useRef<number>(0);
@@ -168,14 +182,23 @@ const SaleScreen: React.FC = () => {
 
   // ── Init ──
   useEffect(() => {
-    if (unitAddressRedux && Array.isArray(unitAddressRedux)) {
-      setProvinces(unitAddressRedux as AddressProvince[]);
-    }
     addPane();
     return () => {
       numPaneTempRef.current = 0;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Load VTP provinces once on mount ──
+  useEffect(() => {
+    GapService.getVtpProvinces()
+      .then(res => {
+        const list: AddressProvince[] = Array.isArray(res?.result)
+          ? res.result
+          : [];
+        setVtpProvinces(list);
+      })
+      .catch(() => toast.error('Không thể tải danh sách tỉnh/thành'));
   }, []);
 
   // ── Focus input when pane changes ──
@@ -213,7 +236,7 @@ const SaleScreen: React.FC = () => {
     };
 
     setPanes(prev => {
-      const updated = [newPane];
+      const updated = [...prev, newPane];
       const idx = updated.length - 1;
       setCurrentPaneIndex(idx);
       setActiveKey(newKey);
@@ -307,44 +330,27 @@ const SaleScreen: React.FC = () => {
   );
 
   // ─── Recalculate totals ─────────────────────────────
-  const recalculateTotals = useCallback(
-    (productList: ProductItem[]) => {
-      let totalNumberOfProductForSale = 0;
-      let totalMoneyForSale = 0;
-      let totalMoneyForSaleAfterFee = 0;
-      productList.forEach(item => {
-        const qty = item.numberOfProductForSale || 1;
-        totalNumberOfProductForSale += qty;
-        totalMoneyForSale += qty * item.price;
-        totalMoneyForSaleAfterFee += qty * item.priceAfterFee;
-      });
-      return {
-        totalNumberOfProductForSale,
-        totalMoneyForSale,
-        totalMoneyForSaleAfterFee,
-      };
-    },
-    [panes?.[currentPaneIndex]]
-  );
+  const recalculateTotals = useCallback((productList: ProductItem[]) => {
+    let totalNumberOfProductForSale = 0;
+    let totalMoneyForSale = 0;
+    let totalMoneyForSaleAfterFee = 0;
+    productList.forEach(item => {
+      const qty = item.numberOfProductForSale || 1;
+      totalNumberOfProductForSale += qty;
+      totalMoneyForSale += qty * item.price;
+      totalMoneyForSaleAfterFee += qty * item.priceAfterFee;
+    });
+    return {
+      totalNumberOfProductForSale,
+      totalMoneyForSale,
+      totalMoneyForSaleAfterFee,
+    };
+  }, []);
 
-  useEffect(() => {
-    if (panes?.[currentPaneIndex]?.discountPercent > 0) {
-      updateCurrentPane(pane => {
-        const newList = [];
-        pane.productList.map(productItem => {
-          newList.push({
-            ...productItem,
-          });
-        });
-        const totals = recalculateTotals(newList);
-        return {
-          ...pane,
-          productList: newList,
-          ...totals,
-        };
-      });
-    }
-  }, [panes?.[currentPaneIndex]?.discountPercent]);
+  // ─── Recalc totals when discount changes ────────────
+  // Chỉ trigger khi discountPercent thực sự thay đổi, không gọi updateCurrentPane
+  // vì productList không thay đổi — chỉ cần re-render để hiển thị giá mới
+  // (totals được tính inline trong render, không cần lưu vào state)
 
   // ─── Product scanning ──────────────────────────────
   const onChangeTextProductInput = useCallback(
@@ -546,7 +552,9 @@ const SaleScreen: React.FC = () => {
     [updateCurrentPane]
   );
 
-  // ─── Customer lookup by phone ───────────────────────
+  // ─── Customer lookup by phone (debounced 400ms) ────
+  const phoneDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const fetchUserByPhoneNumber = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const phoneValue = e.target.value || '';
@@ -558,35 +566,45 @@ const SaleScreen: React.FC = () => {
         isFoundUser: false,
       }));
 
+      if (phoneDebounceRef.current) clearTimeout(phoneDebounceRef.current);
+
       if (phoneValue.length >= 10) {
-        toast.loading('Đang lấy thông tin khách hàng...', {
-          id: 'customer-lookup',
-        });
-
-        try {
-          const res = await GapService.getCustomer(phoneValue);
-          toast.dismiss('customer-lookup');
-
-          if (res?.results?.[0]) {
-            const cust = res.results[0];
-            toast.success('Thông tin khách hàng đã tồn tại');
-            updateCurrentPane(pane => ({
-              ...pane,
-              isLoadingUser: false,
-              isFoundUser: true,
-              clientInfo: {
-                fullName: cust.fullName || '',
-                phoneNumber: cust.phoneNumber || phoneValue,
-                bankName: cust.banks?.[0]?.type || '',
-                bankId: cust.banks?.[0]?.accNumber || '',
-                consignerIdCard: cust.identityNumber || '',
-                birthday: cust.birthday || '',
-                mail: cust.mail || '',
-                objectId: cust.objectId || '',
-              },
-            }));
-          } else {
-            toast.info('Thông tin khách hàng chưa tồn tại');
+        phoneDebounceRef.current = setTimeout(async () => {
+          toast.loading('Đang lấy thông tin khách hàng...', {
+            id: 'customer-lookup',
+          });
+          try {
+            const res = await GapService.getCustomer(phoneValue);
+            toast.dismiss('customer-lookup');
+            if (res?.results?.[0]) {
+              const cust = res.results[0];
+              toast.success('Thông tin khách hàng đã tồn tại');
+              updateCurrentPane(pane => ({
+                ...pane,
+                isLoadingUser: false,
+                isFoundUser: true,
+                clientInfo: {
+                  fullName: cust.fullName || '',
+                  phoneNumber: cust.phoneNumber || phoneValue,
+                  bankName: cust.banks?.[0]?.type || '',
+                  bankId: cust.banks?.[0]?.accNumber || '',
+                  consignerIdCard: cust.identityNumber || '',
+                  birthday: cust.birthday || '',
+                  mail: cust.mail || '',
+                  objectId: cust.objectId || '',
+                },
+              }));
+            } else {
+              toast.info('Thông tin khách hàng chưa tồn tại');
+              updateCurrentPane(pane => ({
+                ...pane,
+                isLoadingUser: false,
+                isFoundUser: false,
+                clientInfo: { ...DEFAULT_CLIENT_INFO, phoneNumber: phoneValue },
+              }));
+            }
+          } catch {
+            toast.dismiss('customer-lookup');
             updateCurrentPane(pane => ({
               ...pane,
               isLoadingUser: false,
@@ -594,15 +612,7 @@ const SaleScreen: React.FC = () => {
               clientInfo: { ...DEFAULT_CLIENT_INFO, phoneNumber: phoneValue },
             }));
           }
-        } catch {
-          toast.dismiss('customer-lookup');
-          updateCurrentPane(pane => ({
-            ...pane,
-            isLoadingUser: false,
-            isFoundUser: false,
-            clientInfo: { ...DEFAULT_CLIENT_INFO, phoneNumber: phoneValue },
-          }));
-        }
+        }, 400);
       } else {
         updateCurrentPane(pane => ({
           ...pane,
@@ -626,105 +636,170 @@ const SaleScreen: React.FC = () => {
     [updateCurrentPane]
   );
 
-  // ─── Shipping: address selects ──────────────────────
-  const getDistrictsForProvince = (provinceName: string): AddressDistrict[] => {
-    const prov = provinces.find(p => p.name === provinceName);
-    return prov?.districts || [];
-  };
+  const fetchShippingFee = useCallback(
+    async (
+      provinceId: number,
+      districtId: number,
+      wardId: number,
+      serviceCode: string
+    ) => {
+      if (!provinceId || !districtId || !wardId || !serviceCode) return;
+      toast.loading('Đang lấy thông tin phí shipping...', {
+        id: 'shipping-fee',
+      });
+      try {
+        const resFee = await GapService.getFeeForTransport(
+          {
+            orderAdressProvince: '',
+            orderAdressDistrict: '',
+            orderAdressWard: '',
+            vtpProvinceId: provinceId,
+            vtpDistrictId: districtId,
+            vtpWardId: wardId,
+            vtpServiceCode: serviceCode,
+          },
+          false
+        );
+        toast.dismiss('shipping-fee');
+        if (resFee?.result) {
+          updateCurrentPane(pane => ({
+            ...pane,
+            shippingInfo: { ...pane.shippingInfo, shippingFee: resFee.result },
+          }));
+        } else {
+          toast.error('Không thể ước tính phí ship');
+        }
+      } catch {
+        toast.dismiss('shipping-fee');
+        toast.error('Không thể ước tính phí ship');
+      }
+    },
+    [updateCurrentPane]
+  );
 
-  const getWardsForDistrict = (
-    provinceName: string,
-    districtName: string
-  ): AddressWard[] => {
-    const districts = getDistrictsForProvince(provinceName);
-    const dist = districts.find(d => d.name === districtName);
-    return dist?.wards || [];
-  };
-
+  // ─── Shipping: address selects (VTP cascade) ───────
   const onChangeProvince = useCallback(
     async (value: string) => {
+      // value = "PROVINCE_ID|PROVINCE_NAME"
+      const [idStr, name] = value.split('|');
+      const provinceId = Number(idStr);
       updateCurrentPane(pane => ({
         ...pane,
         shippingInfo: {
           ...pane.shippingInfo,
-          orderAdressProvince: value,
+          orderAdressProvince: name,
+          vtpProvinceId: provinceId,
           orderAdressDistrict: undefined,
+          vtpDistrictId: undefined,
           orderAdressWard: undefined,
+          vtpWardId: undefined,
           shippingFee: undefined,
         },
       }));
+      setVtpDistricts([]);
+      setVtpWards([]);
+      setIsLoadingDistricts(true);
+      try {
+        const res = await GapService.getVtpDistricts(provinceId);
+        setVtpDistricts(Array.isArray(res?.result) ? res.result : []);
+      } catch {
+        toast.error('Không thể tải danh sách quận/huyện');
+      } finally {
+        setIsLoadingDistricts(false);
+      }
     },
     [updateCurrentPane]
   );
 
   const onChangeDistrict = useCallback(
     async (value: string) => {
+      // value = "DISTRICT_ID|DISTRICT_NAME"
+      const [idStr, name] = value.split('|');
+      const districtId = Number(idStr);
       updateCurrentPane(pane => ({
         ...pane,
         shippingInfo: {
           ...pane.shippingInfo,
-          orderAdressDistrict: value,
+          orderAdressDistrict: name,
+          vtpDistrictId: districtId,
           orderAdressWard: undefined,
+          vtpWardId: undefined,
           shippingFee: undefined,
         },
       }));
+      setVtpWards([]);
+      setIsLoadingWards(true);
+      try {
+        const res = await GapService.getVtpWards(districtId);
+        setVtpWards(Array.isArray(res?.result) ? res.result : []);
+      } catch {
+        toast.error('Không thể tải danh sách phường/xã');
+      } finally {
+        setIsLoadingWards(false);
+      }
     },
     [updateCurrentPane]
   );
 
   const onChangeWard = useCallback(
     async (value: string) => {
-      updateCurrentPane(pane => {
-        const newShipping: ShippingInfo = {
-          ...pane.shippingInfo,
-          orderAdressWard: value,
-        };
-        // Fetch fee in background
-        fetchShippingFee(
-          newShipping.orderAdressProvince || '',
-          newShipping.orderAdressDistrict || '',
-          value,
-          newShipping.optionTransfer
-        );
-        return { ...pane, shippingInfo: newShipping };
-      });
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [updateCurrentPane]
-  );
+      const [idStr, name] = value.split('|');
+      const wardId = Number(idStr);
 
-  const fetchShippingFee = async (
-    province: string,
-    district: string,
-    ward: string,
-    optionTransfer: string
-  ) => {
-    if (!province || !district || !ward) return;
-    toast.loading('Đang lấy thông tin phí shipping...', { id: 'shipping-fee' });
-    try {
-      const formDataFee = {
-        orderAdressProvince: province,
-        orderAdressDistrict: district,
-        orderAdressWard: ward,
-      };
-      const resFee = await GapService.getFeeForTransport(
-        formDataFee,
-        optionTransfer === 'ht'
-      );
-      toast.dismiss('shipping-fee');
-      if (resFee?.result) {
-        updateCurrentPane(pane => ({
+      // Cập nhật ward vào state, đồng thời lấy provinceId/districtId từ pane hiện tại
+      let capturedProvinceId: number | undefined;
+      let capturedDistrictId: number | undefined;
+
+      updateCurrentPane(pane => {
+        capturedProvinceId = pane.shippingInfo.vtpProvinceId;
+        capturedDistrictId = pane.shippingInfo.vtpDistrictId;
+        return {
           ...pane,
-          shippingInfo: { ...pane.shippingInfo, shippingFee: resFee.result },
-        }));
-      } else {
-        toast.error('Không thể ước tính phí ship');
+          shippingInfo: {
+            ...pane.shippingInfo,
+            orderAdressWard: name,
+            vtpWardId: wardId,
+            shippingFee: undefined,
+            optionTransfer: '',
+          },
+        };
+      });
+
+      if (!capturedProvinceId || !capturedDistrictId) return;
+
+      setVtpServices([]);
+      setIsLoadingServices(true);
+      try {
+        const res = await GapService.getVtpServices(
+          capturedProvinceId,
+          capturedDistrictId,
+          wardId
+        );
+        const services = Array.isArray(res?.result) ? res.result : [];
+        setVtpServices(services);
+        if (services.length > 0) {
+          const first = services[0];
+          updateCurrentPane(p => ({
+            ...p,
+            shippingInfo: { ...p.shippingInfo, optionTransfer: first.code },
+          }));
+          fetchShippingFee(
+            capturedProvinceId!,
+            capturedDistrictId!,
+            wardId,
+            first.code
+          );
+        } else {
+          toast.error('Không có dịch vụ vận chuyển cho địa chỉ này');
+        }
+      } catch {
+        toast.error('Không thể tải dịch vụ vận chuyển');
+      } finally {
+        setIsLoadingServices(false);
       }
-    } catch {
-      toast.dismiss('shipping-fee');
-      toast.error('Không thể ước tính phí ship');
-    }
-  };
+    },
+    [updateCurrentPane, fetchShippingFee]
+  );
 
   const onChangeStreetAddress = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -732,7 +807,7 @@ const SaleScreen: React.FC = () => {
         ...pane,
         shippingInfo: {
           ...pane.shippingInfo,
-          orderAdressStreet: e.target.value.trim(),
+          orderAdressStreet: e.target.value, // trim khi submit, không trim realtime
         },
       }));
     },
@@ -744,23 +819,23 @@ const SaleScreen: React.FC = () => {
     async (value: string) => {
       updateCurrentPane(pane => {
         if (pane.shippingInfo.optionTransfer === value) return pane;
-
         const newShipping: ShippingInfo = {
           ...pane.shippingInfo,
           optionTransfer: value,
+          shippingFee: undefined,
         };
-
-        if (value === 'tt') {
-          newShipping.shippingFee = 0;
-        } else if (newShipping.orderAdressProvince) {
+        if (
+          newShipping.vtpProvinceId &&
+          newShipping.vtpDistrictId &&
+          newShipping.vtpWardId
+        ) {
           fetchShippingFee(
-            newShipping.orderAdressProvince || '',
-            newShipping.orderAdressDistrict || '',
-            newShipping.orderAdressWard || '',
+            newShipping.vtpProvinceId,
+            newShipping.vtpDistrictId,
+            newShipping.vtpWardId,
             value
           );
         }
-
         return { ...pane, shippingInfo: newShipping };
       });
     },
@@ -771,9 +846,6 @@ const SaleScreen: React.FC = () => {
   // ─── Create order ───────────────────────────────────
   const onHandleCreateOrder = useCallback(async () => {
     const currentPane = panes[currentPaneIndex];
-
-    console.log('panes[currentPaneIndex]', panes[currentPaneIndex]);
-
     if (!currentPane) return;
 
     // Validation
@@ -821,17 +893,17 @@ const SaleScreen: React.FC = () => {
     try {
       const dataOrder = { ...currentPane };
       // Set count field for each product
-
       dataOrder.productList = dataOrder.productList.map(item => ({
         ...item,
         count: item.numberOfProductForSale || 1,
       }));
 
-      dataOrder.totalMoneyForSale =
-        ((dataOrder?.totalMoneyForSale || 0) / 100) *
-        (100 - (dataOrder?.discountPercent || 0));
-
-      console.log('dataOrder', dataOrder);
+      // Áp dụng discount 1 lần duy nhất cho API call
+      const discountedTotal = Math.round(
+        (dataOrder.totalMoneyForSale || 0) *
+          (1 - (dataOrder.discountPercent || 0) / 100)
+      );
+      dataOrder.totalMoneyForSale = discountedTotal;
 
       const resUser = await GapService.getCustomer(
         currentPane.clientInfo.phoneNumber
@@ -890,9 +962,8 @@ const SaleScreen: React.FC = () => {
                 ...item,
                 count: item.numberOfProductForSale || 1,
               })),
-              totalMoneyForSale:
-                ((pane.totalMoneyForSale || 0) / 100) *
-                (100 - (pane.discountPercent || 0)),
+              // Dùng discountedTotal đã tính — không apply discount lần 2
+              totalMoneyForSale: discountedTotal,
             }));
           } else {
             toast.error('Tạo Đơn hàng thất bại');
@@ -943,9 +1014,7 @@ const SaleScreen: React.FC = () => {
                 ...item,
                 count: item.numberOfProductForSale || 1,
               })),
-              totalMoneyForSale:
-                ((pane.totalMoneyForSale || 0) / 100) *
-                (100 - (pane.discountPercent || 0)),
+              totalMoneyForSale: discountedTotal,
             }));
           } else {
             toast.error('Tạo Đơn hàng thất bại');
@@ -963,7 +1032,6 @@ const SaleScreen: React.FC = () => {
     setIsCreatingOrder(false);
   }, [panes, currentPaneIndex, userData, updateCurrentPane]);
 
-  // ─── Current pane shorthand ─────────────────────────
   const currentPane = panes[currentPaneIndex] ?? null;
 
   const currentPaymentValue =
@@ -972,28 +1040,6 @@ const SaleScreen: React.FC = () => {
       : currentPane?.isTransferWithBank === 'true'
         ? 'true'
         : 'false';
-
-  const BillComponent = useMemo(() => {
-    console.log('currentPane', currentPane);
-    return (
-      <div style={{ display: 'none' }}>
-        <ReceiptOffline
-          ref={receiptRef}
-          data={{
-            objectIdOrder: currentPane?.objectIdOrder,
-            productList: currentPane?.productList?.map(p => ({
-              name: p.name,
-              price: p.price,
-              count: p.count,
-            })),
-            totalNumberOfProductForSale:
-              currentPane?.totalNumberOfProductForSale,
-            totalMoneyForSale: currentPane?.totalMoneyForSale,
-          }}
-        />
-      </div>
-    );
-  }, [currentPane]);
 
   // ─── Render ─────────────────────────────────────────
   return (
@@ -1006,7 +1052,7 @@ const SaleScreen: React.FC = () => {
           className="flex-1"
         >
           <div className="flex items-center gap-2">
-            <TabsList className="h-auto flex-wrap">
+            <TabsList className="h-auto flex-wrap gap-5 p-1">
               {panes.map((pane, idx) => (
                 <TabsTrigger
                   key={pane.key}
@@ -1459,78 +1505,71 @@ const SaleScreen: React.FC = () => {
                     <div className="grid grid-cols-3 gap-2">
                       <div className="space-y-1">
                         <Label className="text-xs">Tỉnh/Thành phố</Label>
-                        <Select
+                        <SearchableSelect
+                          options={vtpProvinces.map(p => ({
+                            value: `${p.PROVINCE_ID}|${p.PROVINCE_NAME}`,
+                            label: p.PROVINCE_NAME,
+                          }))}
                           value={
-                            currentPane.shippingInfo.orderAdressProvince || ''
+                            currentPane.shippingInfo.vtpProvinceId
+                              ? `${currentPane.shippingInfo.vtpProvinceId}|${currentPane.shippingInfo.orderAdressProvince}`
+                              : ''
                           }
                           onValueChange={onChangeProvince}
+                          placeholder="Chọn tỉnh"
+                          searchPlaceholder="Tìm tỉnh/thành..."
                           disabled={
                             currentPane.shippingInfo.optionTransfer === 'tt'
                           }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Chọn tỉnh" />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-[200px]">
-                            {provinces.map(prov => (
-                              <SelectItem key={prov.name} value={prov.name}>
-                                {prov.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        />
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs">Quận/Huyện</Label>
-                        <Select
+                        <SearchableSelect
+                          options={vtpDistricts.map(d => ({
+                            value: `${d.DISTRICT_ID}|${d.DISTRICT_NAME}`,
+                            label: d.DISTRICT_NAME,
+                          }))}
                           value={
-                            currentPane.shippingInfo.orderAdressDistrict || ''
+                            currentPane.shippingInfo.vtpDistrictId
+                              ? `${currentPane.shippingInfo.vtpDistrictId}|${currentPane.shippingInfo.orderAdressDistrict}`
+                              : ''
                           }
                           onValueChange={onChangeDistrict}
+                          placeholder={
+                            isLoadingDistricts ? 'Đang tải...' : 'Chọn quận'
+                          }
+                          searchPlaceholder="Tìm quận/huyện..."
                           disabled={
                             currentPane.shippingInfo.optionTransfer === 'tt' ||
-                            !currentPane.shippingInfo.orderAdressProvince
+                            !currentPane.shippingInfo.vtpProvinceId ||
+                            isLoadingDistricts
                           }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Chọn quận" />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-[200px]">
-                            {getDistrictsForProvince(
-                              currentPane.shippingInfo.orderAdressProvince || ''
-                            ).map(dist => (
-                              <SelectItem key={dist.name} value={dist.name}>
-                                {dist.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        />
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs">Xã/Phường</Label>
-                        <Select
-                          value={currentPane.shippingInfo.orderAdressWard || ''}
+                        <SearchableSelect
+                          options={vtpWards.map(w => ({
+                            value: `${w.WARDS_ID}|${w.WARDS_NAME}`,
+                            label: w.WARDS_NAME,
+                          }))}
+                          value={
+                            currentPane.shippingInfo.vtpWardId
+                              ? `${currentPane.shippingInfo.vtpWardId}|${currentPane.shippingInfo.orderAdressWard}`
+                              : ''
+                          }
                           onValueChange={onChangeWard}
+                          placeholder={
+                            isLoadingWards ? 'Đang tải...' : 'Chọn xã'
+                          }
+                          searchPlaceholder="Tìm xã/phường..."
                           disabled={
                             currentPane.shippingInfo.optionTransfer === 'tt' ||
-                            !currentPane.shippingInfo.orderAdressDistrict
+                            !currentPane.shippingInfo.vtpDistrictId ||
+                            isLoadingWards
                           }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Chọn xã" />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-[200px]">
-                            {getWardsForDistrict(
-                              currentPane.shippingInfo.orderAdressProvince ||
-                                '',
-                              currentPane.shippingInfo.orderAdressDistrict || ''
-                            ).map(ward => (
-                              <SelectItem key={ward.name} value={ward.name}>
-                                {ward.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        />
                       </div>
                     </div>
 
@@ -1538,21 +1577,36 @@ const SaleScreen: React.FC = () => {
 
                     <div className="space-y-2">
                       <Label className="text-xs">Hình thức giao hàng</Label>
-                      <Select
-                        value={currentPane.shippingInfo.optionTransfer}
-                        onValueChange={onChangeShippingMethod}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="tk">
-                            Giao hàng tiết kiệm
-                          </SelectItem>
-                          <SelectItem value="ht">Hoả tốc</SelectItem>
-                          <SelectItem value="tt">Lấy hàng trực tiếp</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {isLoadingServices ? (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Đang tải dịch vụ...
+                        </div>
+                      ) : vtpServices.length > 0 ? (
+                        <Select
+                          value={currentPane.shippingInfo.optionTransfer}
+                          onValueChange={onChangeShippingMethod}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Chọn dịch vụ" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {vtpServices.map(svc => (
+                              <SelectItem key={svc.code} value={svc.code}>
+                                {svc.name} —{' '}
+                                {numberWithCommas(roundUpTo1000(svc.price))} vnđ
+                                ({svc.time})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          {currentPane.shippingInfo.vtpWardId
+                            ? 'Không có dịch vụ cho địa chỉ này'
+                            : 'Chọn tỉnh/quận/phường để xem dịch vụ'}
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between">
@@ -1561,7 +1615,7 @@ const SaleScreen: React.FC = () => {
                       </span>
                       <span className="text-sm font-medium">
                         {currentPane.shippingInfo.shippingFee != null
-                          ? `${numberWithCommas(currentPane.shippingInfo.shippingFee)} vnđ`
+                          ? `${numberWithCommas(roundUpTo1000(currentPane.shippingInfo.shippingFee))} vnđ`
                           : '---'}
                       </span>
                     </div>
@@ -1617,7 +1671,22 @@ const SaleScreen: React.FC = () => {
                 Tạo mới
               </Button>
             </div>
-            {BillComponent}
+            <div style={{ display: 'none' }}>
+              <ReceiptOffline
+                ref={receiptRef}
+                data={{
+                  objectIdOrder: currentPane?.objectIdOrder,
+                  productList: currentPane?.productList?.map(p => ({
+                    name: p.name,
+                    price: p.price,
+                    count: p.count,
+                  })),
+                  totalNumberOfProductForSale:
+                    currentPane?.totalNumberOfProductForSale,
+                  totalMoneyForSale: currentPane?.totalMoneyForSale,
+                }}
+              />
+            </div>
           </CardContent>
         </Card>
       ) : null}

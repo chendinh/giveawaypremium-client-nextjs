@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import moment from 'moment';
+import { format, addDays, parseISO } from 'date-fns';
 import GapService from '@/app/actions/GapServices';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -90,9 +90,6 @@ const SearchForm: React.FC<SearchFormProps> = ({ backConsignment }) => {
     try {
       let res;
 
-      console.log('fetchTableData');
-      console.log(formData);
-
       if (formData.phoneNumber && formData.phoneNumber.length > 0) {
         res = await GapService.getConsignmentWithPhone(
           page,
@@ -110,8 +107,6 @@ const SearchForm: React.FC<SearchFormProps> = ({ backConsignment }) => {
         setIsSearching(false);
         return;
       }
-
-      console.log('res: ', res);
 
       if (res && res.results && res.results.length > 0) {
         setTotal(res.results.length);
@@ -233,7 +228,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ backConsignment }) => {
             <span className="note-label">Ngày tổng kết:</span>
             <span className="note-value">
               {item.group?.timeGetMoney
-                ? `${moment(item.group.timeGetMoney).format('DD-MM-YYYY')} -> ${moment(item.group.timeGetMoney).add(10, 'day').format('DD-MM-YYYY')}`
+                ? `${format(parseISO(item.group.timeGetMoney), 'dd-MM-yyyy')} -> ${format(addDays(parseISO(item.group.timeGetMoney), 10), 'dd-MM-yyyy')}`
                 : '---'}
             </span>
           </div>
@@ -248,7 +243,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ backConsignment }) => {
               <span className="note-label">Ngày khách đã nhận tiền:</span>
               <span className="note-value note-value-done">
                 {item.timeConfirmGetMoney
-                  ? moment(item.timeConfirmGetMoney).format('DD-MM-YYYY')
+                  ? format(parseISO(item.timeConfirmGetMoney), 'dd-MM-yyyy')
                   : '---'}
               </span>
             </div>

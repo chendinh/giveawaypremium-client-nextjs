@@ -1,5 +1,11 @@
 import { StoreServices } from '@/store/useAppStore';
-import moment from 'moment';
+import {
+  format,
+  addDays,
+  subDays,
+  startOfDay,
+  parse as parseDateFns,
+} from 'date-fns';
 import { toast } from 'sonner';
 
 // ============ STORAGE HELPERS (to avoid circular dependency with store) ============
@@ -175,6 +181,17 @@ const ADDRESS_GET_ORDER_ARRAY = [
   'Phường Nguyễn Thái Bình',
 ];
 
+// ViettelPost dùng numeric ID — địa chỉ cửa hàng GiveAwayPremium Q1
+// Ref: GET /categories/listProvinceById, listDistrict, listWards
+const VTP_SENDER_ADDRESS = {
+  province: 2, // Hồ Chí Minh
+  district: 43, // Quận 1
+  ward: 773, // Phường Nguyễn Thái Bình
+  address: '1 Phó Đức Chính, Phường Nguyễn Thái Bình, Quận 1, HCM',
+  name: 'Giveaway Premium Store',
+  phone: '0703334443',
+};
+
 // ============ HELPER FUNCTIONS ============
 
 const numberWithCommas = (x: number | string): string => {
@@ -202,14 +219,16 @@ export class GapService {
     file: File,
     authKey?: string
   ): Promise<any> => {
-    console.log('file uploading ======', file);
     const key = getAuthToken();
+    // Dùng NEXT_PUBLIC_SERVER_URL thay vì hardcode URL production
+    const serverUrl =
+      process.env.NEXT_PUBLIC_SERVER_URL?.replace('/parse', '') || '';
 
     return new Promise(resolve => {
       const data = new FormData();
       data.append('media', file);
 
-      fetch('https://giveaway-premium-api-sbows.ondigitalocean.app/media', {
+      fetch(`${serverUrl}/media`, {
         body: data,
         method: 'POST',
         headers: {
@@ -224,8 +243,6 @@ export class GapService {
   };
 
   static uploadSingleFileWithTinify = async (file: File): Promise<any> => {
-    console.log('file uploading ======', file);
-
     return new Promise(resolve => {
       const data = new FormData();
       data.append('media', file);
@@ -301,10 +318,30 @@ export class GapService {
           numberOfProduct: consignmentInfo.numberOfProducts?.toString(),
           bankName: consignmentInfo.bankName,
           bankId: consignmentInfo.bankId,
-          timeGetMoney: `${consignmentInfo.timeGetMoney} -> ${moment(consignmentInfo.timeGetMoney, 'DD-MM-YYYY').add(10, 'day').format('DD-MM-YYYY')}`,
-          timeCheck: moment(consignmentInfo.timeGetMoney, 'DD-MM-YYYY')
-            .subtract(3, 'day')
-            .format('DD-MM-YYYY'),
+          timeGetMoney: (() => {
+            try {
+              const d = parseDateFns(
+                consignmentInfo.timeGetMoney || '',
+                'dd-MM-yyyy',
+                new Date()
+              );
+              return `${consignmentInfo.timeGetMoney} -> ${format(addDays(d, 10), 'dd-MM-yyyy')}`;
+            } catch {
+              return consignmentInfo.timeGetMoney || '';
+            }
+          })(),
+          timeCheck: (() => {
+            try {
+              const d = parseDateFns(
+                consignmentInfo.timeGetMoney || '',
+                'dd-MM-yyyy',
+                new Date()
+              );
+              return format(subDays(d, 3), 'dd-MM-yyyy');
+            } catch {
+              return '';
+            }
+          })(),
           products: productListTemp,
         },
       };
@@ -394,7 +431,7 @@ export class GapService {
       const body = {
         deletedAt: {
           __type: 'Date',
-          iso: moment().toISOString(),
+          iso: new Date().toISOString(),
         },
       };
       return this.fetchData(
@@ -515,7 +552,7 @@ export class GapService {
       const body = {
         deletedAt: {
           __type: 'Date',
-          iso: moment().toISOString(),
+          iso: new Date().toISOString(),
         },
       };
       return this.fetchData(
@@ -578,7 +615,7 @@ export class GapService {
       const body = {
         deletedAt: {
           __type: 'Date',
-          iso: moment().toISOString(),
+          iso: new Date().toISOString(),
         },
       };
       return this.fetchData(
@@ -936,7 +973,7 @@ export class GapService {
       const body = {
         deletedAt: {
           __type: 'Date',
-          iso: moment().toISOString(),
+          iso: new Date().toISOString(),
         },
       };
       return this.fetchData(
@@ -1017,24 +1054,40 @@ export class GapService {
       orderAdressProvince: string;
       orderAdressDistrict: string;
       orderAdressWard: string;
+      vtpProvinceId?: number;
+      vtpDistrictId?: number;
+      vtpWardId?: number;
+      vtpServiceCode?: string;
     },
     isXteam: boolean = false
   ): Promise<any> {
+    const provinceId = formData.vtpProvinceId;
+    const districtId = formData.vtpDistrictId;
+    const wardId = formData.vtpWardId;
+    const serviceCode = formData.vtpServiceCode || (isXteam ? 'VHT' : 'VCN');
+
+    if (!provinceId || !districtId || !wardId) {
+      showNotification('Chưa chọn đủ tỉnh/quận/phường');
+      return null;
+    }
+
     const body = {
-      service: 'giaohangtietkiem',
+      service: 'viettelpost',
       action: 'PRICE_ESTIMATE',
       data: {
-        weight: 0.1,
-        serviceLevel: isXteam ? 'xteam' : 'none',
+        weight: 500,
+        serviceLevel: serviceCode,
         from: {
-          province: ADDRESS_GET_ORDER_ARRAY[0],
-          district: ADDRESS_GET_ORDER_ARRAY[1],
-          address: ADDRESS_GET_ORDER_ARRAY[2],
+          province: VTP_SENDER_ADDRESS.province,
+          district: VTP_SENDER_ADDRESS.district,
+          ward: VTP_SENDER_ADDRESS.ward,
+          address: VTP_SENDER_ADDRESS.address,
         },
         to: {
-          province: formData.orderAdressProvince,
-          district: formData.orderAdressDistrict,
-          address: formData.orderAdressWard,
+          province: provinceId,
+          district: districtId,
+          ward: wardId,
+          address: formData.orderAdressWard || '',
         },
         transport: 'road',
         value: 0,
@@ -1050,7 +1103,7 @@ export class GapService {
 
   static async deleteTransport(orderId: string): Promise<any> {
     const body = {
-      service: 'giaohangtietkiem',
+      service: 'viettelpost',
       action: 'CANCEL_ORDER',
       data: { orderId },
     };
@@ -1058,25 +1111,33 @@ export class GapService {
       '/functions/transporter',
       REQUEST_TYPE.POST,
       null,
-      body
+      body,
+      null,
+      null,
+      null,
+      true // gửi X-Parse-Session-Token — CANCEL_ORDER yêu cầu đăng nhập
     );
   }
 
   static async getLabelTransform(
     orderId: string,
-    orginal: 'landscape' | 'portrait' = 'landscape',
+    original: 'landscape' | 'portrait' = 'landscape',
     pageSize: 'A6' | 'A5' = 'A6'
   ): Promise<any> {
     const body = {
-      service: 'giaohangtietkiem',
+      service: 'viettelpost',
       action: 'GET_ORDER_LABEL',
-      data: { orderId, orginal, pageSize },
+      data: { orderId, original, pageSize },
     };
     return this.fetchData(
       '/functions/transporter',
       REQUEST_TYPE.POST,
       null,
-      body
+      body,
+      null,
+      null,
+      null,
+      true // gửi X-Parse-Session-Token — GET_ORDER_LABEL yêu cầu đăng nhập
     );
   }
 
@@ -1349,7 +1410,7 @@ export class GapService {
   static async deleteChannel(objectId: string): Promise<any> {
     try {
       const body = {
-        deletedAt: { __type: 'Date', iso: moment().toISOString() },
+        deletedAt: { __type: 'Date', iso: new Date().toISOString() },
       };
       return this.fetchData(
         `/classes/Channel/${objectId}`,
@@ -1466,7 +1527,7 @@ export class GapService {
   static async deleteOrder(objectId: string): Promise<any> {
     try {
       const body = {
-        deletedAt: { __type: 'Date', iso: moment().toISOString() },
+        deletedAt: { __type: 'Date', iso: new Date().toISOString() },
       };
       return this.fetchData(
         `/classes/Order/${objectId}`,
@@ -1491,9 +1552,13 @@ export class GapService {
     const skip = limited * page - limited;
 
     if (selectedKeys) {
-      const fromDateFormated = moment(fromDateMoment, 'YYYY-MM-DD');
-      const toDateFormated = moment(toDateMoment, 'YYYY-MM-DD');
-      let allSearchRegex = `"deletedAt":${null}, "createdAt": {"$gte": {"__type": "Date","iso": "${fromDateFormated}"},"$lte": {"__type": "Date","iso": "${toDateFormated}"}}`;
+      const fromISO = fromDateMoment
+        ? new Date(fromDateMoment).toISOString()
+        : new Date().toISOString();
+      const toISO = toDateMoment
+        ? new Date(toDateMoment).toISOString()
+        : new Date().toISOString();
+      let allSearchRegex = `"deletedAt":${null}, "createdAt": {"$gte": {"__type": "Date","iso": "${fromISO}"},"$lte": {"__type": "Date","iso": "${toISO}"}}`;
 
       if (selectedKeys.phoneNumber) {
         allSearchRegex += `,"phoneNumber":{"$regex":"${selectedKeys.phoneNumber.trim()}"}`;
@@ -1536,9 +1601,13 @@ export class GapService {
         );
       }
     } else {
-      const fromDateFormated = moment(fromDateMoment, 'YYYY-MM-DD');
-      const toDateFormated = moment(toDateMoment, 'YYYY-MM-DD');
-      const customQuery = `skip=${skip}&limit=${limited}&count=1&include=client,transporter,productList.consignment&where={"deletedAt":${null}, "createdAt": {"$gte": {"__type": "Date","iso": "${fromDateFormated}"},"$lte": {"__type": "Date","iso": "${toDateFormated}"}}}`;
+      const fromISO = fromDateMoment
+        ? new Date(fromDateMoment).toISOString()
+        : new Date().toISOString();
+      const toISO = toDateMoment
+        ? new Date(toDateMoment).toISOString()
+        : new Date().toISOString();
+      const customQuery = `skip=${skip}&limit=${limited}&count=1&include=client,transporter,productList.consignment&where={"deletedAt":${null}, "createdAt": {"$gte": {"__type": "Date","iso": "${fromISO}"},"$lte": {"__type": "Date","iso": "${toISO}"}}}`;
       return this.fetchData(
         '/classes/Order',
         REQUEST_TYPE.GET,
@@ -1563,9 +1632,13 @@ export class GapService {
     const skip = limited * page - limited;
 
     if (selectedKeys) {
-      const fromDateFormated = moment(fromDateMoment, 'YYYY-MM-DD');
-      const toDateFormated = moment(toDateMoment, 'YYYY-MM-DD');
-      let allSearchRegex = `"deletedAt":${null}, "createdAt": {"$gte": {"__type": "Date","iso": "${fromDateFormated}"},"$lte": {"__type": "Date","iso": "${toDateFormated}"}}`;
+      const fromISO = fromDateMoment
+        ? new Date(fromDateMoment).toISOString()
+        : new Date().toISOString();
+      const toISO = toDateMoment
+        ? new Date(toDateMoment).toISOString()
+        : new Date().toISOString();
+      let allSearchRegex = `"deletedAt":${null}, "createdAt": {"$gte": {"__type": "Date","iso": "${fromISO}"},"$lte": {"__type": "Date","iso": "${toISO}"}}`;
 
       if (selectedKeys.phoneNumber) {
         allSearchRegex += `,"phoneNumber":{"$regex":"${selectedKeys.phoneNumber.trim()}"}`;
@@ -1616,9 +1689,13 @@ export class GapService {
         );
       }
     } else {
-      const fromDateFormated = moment(fromDateMoment, 'YYYY-MM-DD');
-      const toDateFormated = moment(toDateMoment, 'YYYY-MM-DD');
-      const customQuery = `skip=${skip}&limit=${limited}&count=1&include=product,orderData,orderData.transporter&where={"deletedAt":${null}, "createdAt": {"$gte": {"__type": "Date","iso": "${fromDateFormated}"},"$lte": {"__type": "Date","iso": "${toDateFormated}"}}}`;
+      const fromISO = fromDateMoment
+        ? new Date(fromDateMoment).toISOString()
+        : new Date().toISOString();
+      const toISO = toDateMoment
+        ? new Date(toDateMoment).toISOString()
+        : new Date().toISOString();
+      const customQuery = `skip=${skip}&limit=${limited}&count=1&include=product,orderData,orderData.transporter&where={"deletedAt":${null}, "createdAt": {"$gte": {"__type": "Date","iso": "${fromISO}"},"$lte": {"__type": "Date","iso": "${toISO}"}}}`;
       return this.fetchData(
         '/classes/OrderRequest',
         REQUEST_TYPE.GET,
@@ -1639,10 +1716,9 @@ export class GapService {
     const limited = limit || 100;
     const skip = limited * page - limited;
 
-    const fromDateFormated = moment().startOf('day');
-    const toDateFormated = moment(fromDateFormated).add(1, 'day');
+    const fromISO = startOfDay(new Date()).toISOString();
 
-    const customQuery = `include=product&skip=${skip}&limit=${limited}&count=1&where={"$or":[{"status":"IN_QUEUE"}, {"status":"VALID"}],"deletedAt":${null}, "createdAt": {"$gte": {"__type": "Date","iso": "${fromDateFormated}"}} ,"product": { "__type": "Pointer", "className": "Product", "objectId": "${productId}" }}`;
+    const customQuery = `include=product&skip=${skip}&limit=${limited}&count=1&where={"$or":[{"status":"IN_QUEUE"}, {"status":"VALID"}],"deletedAt":${null}, "createdAt": {"$gte": {"__type": "Date","iso": "${fromISO}"}} ,"product": { "__type": "Pointer", "className": "Product", "objectId": "${productId}" }}`;
     return this.fetchData(
       '/classes/OrderRequest',
       REQUEST_TYPE.GET,
@@ -1677,7 +1753,7 @@ export class GapService {
   static async deleteConsignment(objectId: string): Promise<any> {
     try {
       const body = {
-        deletedAt: { __type: 'Date', iso: moment().toISOString() },
+        deletedAt: { __type: 'Date', iso: new Date().toISOString() },
       };
       return this.fetchData(
         `/classes/Consignment/${objectId}`,
@@ -1840,78 +1916,157 @@ export class GapService {
     );
   }
 
+  /**
+   * Lấy danh sách tỉnh/TP từ VTP (có cache 7 ngày)
+   * Trả về: [{ PROVINCE_ID, PROVINCE_CODE, PROVINCE_NAME }]
+   */
+  /**
+   * Lấy danh sách dịch vụ VTP khả dụng cho tuyến đường (getPriceAll)
+   */
+  static async getVtpServices(
+    provinceId: number,
+    districtId: number,
+    wardId: number,
+    weight: number = 500
+  ): Promise<any> {
+    return this.fetchData('/functions/transporter', REQUEST_TYPE.POST, null, {
+      service: 'viettelpost',
+      action: 'GET_SERVICES',
+      data: {
+        fromProvince: 2,
+        fromDistrict: 43,
+        fromWard: 773,
+        toProvince: provinceId,
+        toDistrict: districtId,
+        toWard: wardId,
+        weight,
+      },
+    });
+  }
+
+  static async getVtpProvinces(): Promise<any> {
+    return this.fetchData(
+      '/functions/vtpProvinces',
+      REQUEST_TYPE.POST,
+      null,
+      {}
+    );
+  }
+
+  /**
+   * Lấy danh sách quận/huyện theo tỉnh VTP
+   */
+  static async getVtpDistricts(provinceId: number): Promise<any> {
+    return this.fetchData('/functions/vtpDistricts', REQUEST_TYPE.POST, null, {
+      provinceId,
+    });
+  }
+
+  /**
+   * Lấy danh sách phường/xã theo quận VTP
+   */
+  static async getVtpWards(districtId: number): Promise<any> {
+    return this.fetchData('/functions/vtpWards', REQUEST_TYPE.POST, null, {
+      districtId,
+    });
+  }
+
+  /**
+   * Lookup VTP numeric IDs từ tên string
+   * Dùng khi SaleScreen chọn địa chỉ từ danh sách tên (unitAddressRedux)
+   * Trả về: { provinceId, districtId, wardId, found }
+   */
+  static async lookupVtpAddress(
+    provinceName: string,
+    districtName: string,
+    wardName: string
+  ): Promise<{
+    result: {
+      provinceId: number | null;
+      districtId: number | null;
+      wardId: number | null;
+      found: boolean;
+    };
+  }> {
+    return this.fetchData(
+      '/functions/vtpLookupAddress',
+      REQUEST_TYPE.POST,
+      null,
+      {
+        provinceName,
+        districtName,
+        wardName,
+      }
+    );
+  }
+
+  /**
+   * Tạo vận đơn ViettelPost
+   * Tên hàm giữ nguyên để không break code cũ, nhưng đã đổi sang VTP
+   *
+   * Tự động lookup VTP numeric IDs từ tên string trước khi tạo đơn.
+   */
   static async pushOrderToGHTK(
     formData: OrderData,
     orderId: string
   ): Promise<any> {
-    const formDataFee = {
-      orderAdressProvince:
-        formData.shippingInfo?.orderAdressProvince ||
-        formData.shippingInfo?.province ||
-        '',
-      orderAdressDistrict:
-        formData.shippingInfo?.orderAdressDistrict ||
-        formData.shippingInfo?.district ||
-        '',
-      orderAdressWard:
-        formData.shippingInfo?.orderAdressWard ||
-        formData.shippingInfo?.ward ||
-        '',
-    };
-    const resFee = await this.getFeeForTransport(formDataFee);
+    const isXteam = formData.shippingInfo?.optionTransfer === 'ht';
 
-    let shippingFee: number;
-    if (resFee?.result) {
-      shippingFee = resFee.result;
-    } else {
-      showNotification('Không thể ước tính phí ship');
+    // Ưu tiên numeric ID từ ShippingInfo (set bởi VTP cascade dropdowns)
+    const vtpProvinceId = (formData.shippingInfo as any)?.vtpProvinceId as
+      | number
+      | undefined;
+    const vtpDistrictId = (formData.shippingInfo as any)?.vtpDistrictId as
+      | number
+      | undefined;
+    const vtpWardId = (formData.shippingInfo as any)?.vtpWardId as
+      | number
+      | undefined;
+
+    if (!vtpProvinceId || !vtpDistrictId || !vtpWardId) {
+      showNotification(
+        'Thiếu thông tin địa chỉ VTP. Vui lòng chọn lại tỉnh/quận/phường.'
+      );
       return false;
     }
 
     const body: Record<string, any> = {
-      service: 'giaohangtietkiem',
+      service: 'viettelpost',
       action: 'CREATE_ORDER',
       data: {
         from: {
-          province: ADDRESS_GET_ORDER_ARRAY[0],
-          district: ADDRESS_GET_ORDER_ARRAY[1],
-          address: '1 Phó Đức Chính',
-          ward: ADDRESS_GET_ORDER_ARRAY[2],
-          name: 'Giveaway Premium store',
-          phone: '0703334443',
+          province: VTP_SENDER_ADDRESS.province,
+          district: VTP_SENDER_ADDRESS.district,
+          ward: VTP_SENDER_ADDRESS.ward,
+          address: VTP_SENDER_ADDRESS.address,
+          name: VTP_SENDER_ADDRESS.name,
+          phone: VTP_SENDER_ADDRESS.phone,
         },
         to: {
-          email: formData.clientInfo.mail || formData.shippingInfo?.mail,
-          province:
-            formData.shippingInfo?.orderAdressProvince ||
-            formData.shippingInfo?.province,
-          district:
-            formData.shippingInfo?.orderAdressDistrict ||
-            formData.shippingInfo?.district,
+          province: vtpProvinceId,
+          district: vtpDistrictId,
+          ward: vtpWardId,
           address:
             formData.shippingInfo?.orderAdressStreet ||
-            formData.shippingInfo?.address,
-          ward:
-            formData.shippingInfo?.orderAdressWard ||
-            formData.shippingInfo?.ward,
-          name: formData.clientInfo.fullName || formData.shippingInfo?.name,
+            formData.shippingInfo?.address ||
+            '',
+          name:
+            formData.clientInfo.fullName || formData.shippingInfo?.name || '',
           phone:
-            formData.clientInfo.phoneNumber || formData.shippingInfo?.phone,
+            formData.clientInfo.phoneNumber ||
+            formData.shippingInfo?.phone ||
+            '',
         },
         orderId: orderId || formData.objectId,
         codMoney: 0,
-        pick_option: 'cod',
-        serviceLevel: 'road',
+        serviceLevel:
+          (formData.shippingInfo as any)?.optionTransfer ||
+          (isXteam ? 'VHT' : 'VCN'),
         value:
           Number(formData.totalMoneyForSale) * 1000 >= 2000000
             ? 2000000
             : Number(formData.totalMoneyForSale || 0) * 1000,
         items: [] as any[],
-        orderRequest: {
-          email: formData.clientInfo.mail || formData.shippingInfo?.mail,
-          pick_money: Number(shippingFee),
-          is_freeship: 1,
-        },
       },
     };
 
@@ -1919,23 +2074,21 @@ export class GapService {
       formData.productList.forEach((item: any) => {
         body.data.items.push({
           name: item.name,
-          weight: 0.2,
-          quantity: Number(item.numberOfProductForSale),
+          weight: 500,
+          quantity: Number(item.numberOfProductForSale) || 1,
         });
       });
-    }
-
-    if (formData.shippingInfo?.optionTransfer === 'ht') {
-      body.data.pick_option = 'cod';
-      body.data.deliver_option = 'xteam';
-      body.data.pick_session = 2;
     }
 
     return this.fetchData(
       '/functions/transporter',
       REQUEST_TYPE.POST,
       null,
-      body
+      body,
+      null,
+      null,
+      null,
+      true // gửi X-Parse-Session-Token — CREATE_ORDER yêu cầu đăng nhập
     );
   }
 
@@ -1985,7 +2138,7 @@ export class GapService {
   static async deleteNote(objectId: string): Promise<any> {
     try {
       const body = {
-        deletedAt: { __type: 'Date', iso: moment().toISOString() },
+        deletedAt: { __type: 'Date', iso: new Date().toISOString() },
       };
       return this.fetchData(
         `/classes/Note/${objectId}`,

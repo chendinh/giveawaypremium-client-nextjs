@@ -136,7 +136,7 @@ const Consignment: React.FC<ConsignmentProps> = () => {
     },
   ]);
   const [formData, setFormData] = useState<FormDataType>({
-    consigneeName: userData?.name || '',
+    consigneeName: userData?.fullName || userData?.username || '',
     consignerName: '',
     phoneNumber: '',
     consignerIdCard: '',
@@ -514,7 +514,7 @@ const Consignment: React.FC<ConsignmentProps> = () => {
       },
     ]);
     setFormData({
-      consigneeName: userData?.name || '',
+      consigneeName: userData?.fullName || userData?.username || '',
       consignerName: '',
       phoneNumber: '',
       consignerIdCard: '',

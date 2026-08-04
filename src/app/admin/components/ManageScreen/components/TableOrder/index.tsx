@@ -52,8 +52,9 @@ import {
 
 import GapService from '@/app/actions/GapServices';
 import { useAppStore } from '@/store/useAppStore';
-import moment from 'moment';
+import { format, startOfMonth, addMonths, parseISO, isValid } from 'date-fns';
 
+import { DatePickerInput } from '@/components/ui/date-picker-input';
 import TagPrintBox from './components/TagPrintBox/index';
 import BillOrderGHTK from './components/BillOrderGHTK/index';
 
@@ -64,21 +65,38 @@ const numberWithCommas = (x: number | string): string =>
   x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
 const convertPriceAfterFee = (productPrice: number = 0): number => {
-  let moneyBackForFullSold = productPrice;
-  if (productPrice > 0) {
-    if (productPrice < 1000) {
-      moneyBackForFullSold = (productPrice * 74) / 100;
-    } else if (productPrice >= 1000 && productPrice <= 10000) {
-      moneyBackForFullSold = (productPrice * 77) / 100;
-    } else if (productPrice > 10000) {
-      moneyBackForFullSold = (productPrice * 80) / 100;
-    }
-    return moneyBackForFullSold;
-  }
-  return 0;
+  if (productPrice <= 0) return 0;
+  if (productPrice < 1000) return Math.round((productPrice * 74) / 100);
+  if (productPrice <= 10000) return Math.round((productPrice * 77) / 100);
+  return Math.round((productPrice * 80) / 100);
 };
 
-const translateStatusName = (transporter: TransporterInfo | undefined): string => {
+/** Format a date string or ISO date safely. Returns '---' on invalid input. */
+const formatDate = (
+  value: string | undefined,
+  fmt = 'dd-MM-yyyy HH:mm'
+): string => {
+  if (!value) return '---';
+  try {
+    const d = parseISO(value);
+    return isValid(d) ? format(d, fmt) : value;
+  } catch {
+    return value;
+  }
+};
+
+/** Get YYYY-MM-DD bounds for current month */
+const currentMonthRange = (): { from: string; to: string } => {
+  const now = new Date();
+  return {
+    from: format(startOfMonth(now), 'yyyy-MM-dd'),
+    to: format(addMonths(startOfMonth(now), 1), 'yyyy-MM-dd'),
+  };
+};
+
+const translateStatusName = (
+  transporter: TransporterInfo | undefined
+): string => {
   if (!transporter) return '';
   switch (transporter.status) {
     case 'WAITING_PICK_UP':
@@ -105,6 +123,15 @@ interface TransporterInfo {
   success?: boolean;
   status?: string;
   res?: {
+    // ViettelPost response fields
+    ORDER_NUMBER?: string;
+    MONEY_TOTAL?: number;
+    ORDER_STATUS?: number;
+    RECEIVER_FULLNAME?: string;
+    RECEIVER_PHONE?: string;
+    RECEIVER_ADDRESS?: string;
+    EXPECTED_DELIVERY?: string;
+    // Legacy GHTK fields (kept for backward compat, not displayed)
     order?: {
       label_id?: string;
       partner_id?: string;
@@ -227,18 +254,17 @@ const TableOrderScreen: React.FC = () => {
 
   // Money confirm
   const [moneyConfirmOpen, setMoneyConfirmOpen] = useState<boolean>(false);
-  const [moneyConfirmItem, setMoneyConfirmItem] = useState<OrderItem | null>(null);
+  const [moneyConfirmItem, setMoneyConfirmItem] = useState<OrderItem | null>(
+    null
+  );
 
-  // GHTK detail modal
-  const [ghtkDetailOpen, setGhtkDetailOpen] = useState<boolean>(false);
-  const [ghtkDetailItem, setGhtkDetailItem] = useState<OrderItem | null>(null);
+  // VTP detail modal
+  const [vtpDetailOpen, setVtpDetailOpen] = useState<boolean>(false);
+  const [vtpDetailItem, setVtpDetailItem] = useState<OrderItem | null>(null);
 
   // ── Initialize date range to current month ──
   useEffect(() => {
-    const thisMonth = moment().month() + 1;
-    const thisYear = moment().year();
-    const from = moment(`${thisYear}-${thisMonth}-01`, 'YYYY-M-DD').format('YYYY-MM-DD');
-    const to = moment(`${thisYear}-${thisMonth}-01`, 'YYYY-M-DD').add(1, 'month').format('YYYY-MM-DD');
+    const { from, to } = currentMonthRange();
     setFromDate(from);
     setToDate(to);
   }, []);
@@ -248,8 +274,10 @@ const TableOrderScreen: React.FC = () => {
     const keys: Record<string, string> = {};
     if (searchFilters.objectId) keys.objectId = searchFilters.objectId;
     if (searchFilters.phoneNumber) keys.phoneNumber = searchFilters.phoneNumber;
-    if (searchFilters.isTransferMoneyWithBank) keys.isTransferMoneyWithBank = searchFilters.isTransferMoneyWithBank;
-    if (searchFilters.isOnlineSale) keys.isOnlineSale = searchFilters.isOnlineSale;
+    if (searchFilters.isTransferMoneyWithBank)
+      keys.isTransferMoneyWithBank = searchFilters.isTransferMoneyWithBank;
+    if (searchFilters.isOnlineSale)
+      keys.isOnlineSale = searchFilters.isOnlineSale;
     return Object.keys(keys).length > 0 ? keys : null;
   }, [searchFilters]);
 
@@ -260,7 +288,13 @@ const TableOrderScreen: React.FC = () => {
       setIsLoading(true);
       try {
         const selectedKeys = buildSelectedKeys();
-        let res = await GapService.getOrder(page, selectedKeys, 100, fromDate, toDate);
+        let res = await GapService.getOrder(
+          page,
+          selectedKeys,
+          100,
+          fromDate,
+          toDate
+        );
 
         if (selectedKeys?.objectId && res && !res.results) {
           res = { ...res, results: [res], count: 1 };
@@ -277,25 +311,32 @@ const TableOrderScreen: React.FC = () => {
               consigneeName: item.consigneeName,
               phoneNumber: item.phoneNumber,
               totalNumberOfProductForSale: `${Number(item.totalNumberOfProductForSale)}`,
-              isTransferMoneyWithBank: item.isTransferMoneyWithBank ? 'Chuyển khoản' : 'Trực tiếp',
+              isTransferMoneyWithBank: item.isTransferMoneyWithBank
+                ? 'Chuyển khoản'
+                : 'Trực tiếp',
               transferBankMoneyAmount: item.transferBankMoneyAmount || '---',
-              transferOfflineMoneyAmount: item.transferOfflineMoneyAmount || '---',
-              totalMoneyForSale: item.totalMoneyForSale ? `${item.totalMoneyForSale}` : 0,
+              transferOfflineMoneyAmount:
+                item.transferOfflineMoneyAmount || '---',
+              totalMoneyForSale: item.totalMoneyForSale
+                ? `${item.totalMoneyForSale}`
+                : 0,
               totalMoneyForSaleAfterFee:
                 (item.totalMoneyForSaleAfterFee
                   ? `${item.totalMoneyForSaleAfterFee}`
-                  : `${convertPriceAfterFee(item.totalMoneyForSaleAfterFee)}`) || 0,
-              createdAt: moment(item.createdAt).format('DD-MM-YYYY HH:mm'),
+                  : `${convertPriceAfterFee(item.totalMoneyForSaleAfterFee)}`) ||
+                0,
+              createdAt: formatDate(item.createdAt),
               note: item.note || '---',
               isOnlineSale: item.isOnlineSale ? 'Online' : 'Offline',
               shippingInfo: item.shippingInfo,
               clientInfo: item.clientInfo || item.client,
               transporter: item.transporter,
-              moneyBackForFullSold: item.moneyBackForFullSold ? `${item.moneyBackForFullSold}` : 0,
-              timeConfirmGetMoney:
-                item.timeConfirmGetMoney || moment(item.timeConfirmGetMoney).format('DD-MM-YYYY HH:mm'),
+              moneyBackForFullSold: item.moneyBackForFullSold
+                ? `${item.moneyBackForFullSold}`
+                : 0,
+              timeConfirmGetMoney: formatDate(item.timeConfirmGetMoney),
               productList: item.productList,
-              isGetMoney: item.isOnlineSale ? (item.isGetMoney || false) : true,
+              isGetMoney: item.isOnlineSale ? item.isGetMoney || false : true,
             })
           );
           setOrderData(items);
@@ -373,7 +414,8 @@ const TableOrderScreen: React.FC = () => {
       priceAfterFee: Number(p.priceAfterFee) || 0,
       soldNumberProduct: Number(p.soldNumberProduct) || 0,
       remainNumberProduct: Number(p.count) - Number(p.soldNumberProduct || 0),
-      moneyBackProduct: Number(p.soldNumberProduct || 0) * Number(p.priceAfterFee),
+      moneyBackProduct:
+        Number(p.soldNumberProduct || 0) * Number(p.priceAfterFee),
       totalMoney: (Number(p.count) || 0) * (Number(p.price) || 0),
       shippingInfo: p.shippingInfo,
       transporter: p.transporter,
@@ -391,7 +433,9 @@ const TableOrderScreen: React.FC = () => {
     try {
       const res = await GapService.deleteOrder(deletingItem.objectId);
       if (res) {
-        setOrderData(prev => prev.filter(o => o.objectId !== deletingItem.objectId));
+        setOrderData(prev =>
+          prev.filter(o => o.objectId !== deletingItem.objectId)
+        );
         toast.success('Xoá thành công');
       } else {
         toast.error('Xoá chưa được');
@@ -413,14 +457,16 @@ const TableOrderScreen: React.FC = () => {
   const handleMoneyConfirm = async () => {
     if (!moneyConfirmItem) return;
     const newData = [...orderData];
-    const index = newData.findIndex(o => o.objectId === moneyConfirmItem.objectId);
+    const index = newData.findIndex(
+      o => o.objectId === moneyConfirmItem.objectId
+    );
     if (index === -1) return;
 
     const item = newData[index];
-    let newItem: OrderItem = { ...item, isGetMoney: !item.isGetMoney };
+    const newItem: OrderItem = { ...item, isGetMoney: !item.isGetMoney };
 
     if (newItem.isGetMoney) {
-      newItem = { ...newItem, timeConfirmGetMoney: moment().format('DD-MM-YYYY HH:mm') };
+      newItem.timeConfirmGetMoney = format(new Date(), 'dd-MM-yyyy HH:mm');
     }
 
     newData.splice(index, 1, newItem);
@@ -441,8 +487,8 @@ const TableOrderScreen: React.FC = () => {
     setMoneyConfirmItem(null);
   };
 
-  // ── GHTK: push order ──
-  const handlePushOrderToGHTK = async (row: OrderItem) => {
+  // ── VTP: push order ──
+  const handlePushOrderToVTP = async (row: OrderItem) => {
     if (row && !row.isGetMoney) {
       toast.error('Vui lòng xác nhận Nhận Tiền trước');
       return;
@@ -451,12 +497,12 @@ const TableOrderScreen: React.FC = () => {
       const res = await GapService.pushOrderToGHTK(row as any, row.objectId);
       if (res) {
         if (res.error) {
-          toast.error(res.error || 'Cập nhật GHTK chưa được');
+          toast.error(res.error || 'Tạo vận đơn VTP chưa được');
           return;
         }
         handleRefresh();
       } else {
-        toast.error('Cập nhật GHTK chưa được');
+        toast.error('Tạo vận đơn VTP chưa được');
       }
     } catch (err) {
       console.error(err);
@@ -464,24 +510,24 @@ const TableOrderScreen: React.FC = () => {
     }
   };
 
-  // ── GHTK: view detail ──
-  const openGHTKDetail = (item: OrderItem) => {
-    if (item?.transporter?.res?.order) {
-      setGhtkDetailItem(item);
-      setGhtkDetailOpen(true);
+  // ── VTP: view detail ──
+  const openVTPDetail = (item: OrderItem) => {
+    if (item?.transporter) {
+      setVtpDetailItem(item);
+      setVtpDetailOpen(true);
     }
   };
 
-  // ── GHTK: cancel order ──
+  // ── VTP: cancel order ──
   const handleCancelTransport = async (orderId: string) => {
     try {
       const res = await GapService.deleteTransport(orderId);
       if (res?.result?.success) {
-        toast.success('Xoá đơn thành công');
-        setGhtkDetailOpen(false);
+        toast.success('Huỷ vận đơn thành công');
+        setVtpDetailOpen(false);
         handleRefresh();
       } else {
-        toast.error('Xoá đơn không thành công');
+        toast.error('Huỷ vận đơn không thành công');
       }
     } catch (err) {
       console.error(err);
@@ -489,17 +535,17 @@ const TableOrderScreen: React.FC = () => {
     }
   };
 
-  // ── GHTK: tracking ──
-  const trackingOrder = (labelId: string) => {
-    window.open(`https://i.ghtk.vn/${labelId}`, '_blank');
+  // ── VTP: tracking ──
+  const trackingOrder = (orderNumber: string) => {
+    window.open(
+      `https://www.viettelpost.vn/tra-cuu-hanh-trinh-don/?orderNumber=${orderNumber}`,
+      '_blank'
+    );
   };
 
   // ── Refresh ──
   const handleRefresh = () => {
-    const thisMonth = moment().month() + 1;
-    const thisYear = moment().year();
-    const from = moment(`${thisYear}-${thisMonth}-01`, 'YYYY-M-DD').format('YYYY-MM-DD');
-    const to = moment(`${thisYear}-${thisMonth}-01`, 'YYYY-M-DD').add(1, 'month').format('YYYY-MM-DD');
+    const { from, to } = currentMonthRange();
     setFromDate(from);
     setToDate(to);
     setCurrentPage(1);
@@ -507,7 +553,10 @@ const TableOrderScreen: React.FC = () => {
   };
 
   // ── Nest table: save ──
-  const handleSaveNestTable = async (productRow: ProductRow, record: OrderItem) => {
+  const handleSaveNestTable = async (
+    productRow: ProductRow,
+    record: OrderItem
+  ) => {
     const newData = [...orderData];
     const index = newData.findIndex(o => o.key === record.key);
     if (index === -1) return;
@@ -566,8 +615,8 @@ const TableOrderScreen: React.FC = () => {
     }
   };
 
-  // ── GHTK action column render ──
-  const renderGhtkAction = (item: OrderItem) => {
+  // ── VTP action column render ──
+  const renderVTPAction = (item: OrderItem) => {
     if (item.isOnlineSale !== 'Online') return null;
     if (!item.transporter) {
       return (
@@ -575,31 +624,28 @@ const TableOrderScreen: React.FC = () => {
           variant="outline"
           size="sm"
           className="h-7 text-xs w-full"
-          onClick={() => handlePushOrderToGHTK(item)}
+          onClick={() => handlePushOrderToVTP(item)}
         >
           <Truck className="h-3 w-3 mr-1" />
           Tạo đơn
         </Button>
       );
     }
-    if (item.transporter.success) {
-      return (
-        <div className="space-y-1">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs w-full"
-            onClick={() => openGHTKDetail(item)}
-          >
-            Xem GHTK
-          </Button>
-          <p className="text-xs text-muted-foreground truncate">
-            {translateStatusName(item.transporter)}
-          </p>
-        </div>
-      );
-    }
-    return null;
+    return (
+      <div className="space-y-1">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs w-full"
+          onClick={() => openVTPDetail(item)}
+        >
+          Xem VTP
+        </Button>
+        <p className="text-xs text-muted-foreground truncate">
+          {translateStatusName(item.transporter)}
+        </p>
+      </div>
+    );
   };
 
   // ── Render ──
@@ -607,11 +653,7 @@ const TableOrderScreen: React.FC = () => {
     <div className="tableConsignemntScreen-container space-y-4">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-        >
+        <Button variant="outline" size="sm" onClick={handleRefresh}>
           <RefreshCw
             className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`}
           />
@@ -624,7 +666,7 @@ const TableOrderScreen: React.FC = () => {
       </div>
 
       {/* Search filters */}
-      <div className="flex flex-wrap items-end gap-3 p-3 border rounded-lg bg-muted/30">
+      <div className="flex flex-wrap items-end gap-3 p-3 border rounded-lg bg-muted/30 overflow-visible">
         <div className="space-y-1">
           <Label className="text-xs">Mã đơn hàng</Label>
           <Input
@@ -642,7 +684,10 @@ const TableOrderScreen: React.FC = () => {
             className="w-[160px] h-8 text-sm"
             value={searchFilters.phoneNumber}
             onChange={e =>
-              setSearchFilters(prev => ({ ...prev, phoneNumber: e.target.value }))
+              setSearchFilters(prev => ({
+                ...prev,
+                phoneNumber: e.target.value,
+              }))
             }
             placeholder="Tìm số điện thoại"
           />
@@ -689,22 +734,20 @@ const TableOrderScreen: React.FC = () => {
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1 flex flex-col">
           <Label className="text-xs">Từ ngày</Label>
-          <Input
-            type="date"
-            className="w-[150px] h-8 text-sm"
+          <DatePickerInput
             value={fromDate}
-            onChange={e => setFromDate(e.target.value)}
+            onChange={setFromDate}
+            placeholder="Từ ngày"
           />
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1 flex flex-col">
           <Label className="text-xs">Đến ngày</Label>
-          <Input
-            type="date"
-            className="w-[150px] h-8 text-sm"
+          <DatePickerInput
             value={toDate}
-            onChange={e => setToDate(e.target.value)}
+            onChange={setToDate}
+            placeholder="Đến ngày"
           />
         </div>
         <Button size="sm" className="h-8" onClick={handleSearch}>
@@ -725,51 +768,45 @@ const TableOrderScreen: React.FC = () => {
       <div className="border rounded-lg overflow-x-auto">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead className="w-[40px]" />
-              <TableHead className="w-[140px]">Mã đơn hàng</TableHead>
-              <TableHead>Tên khách hàng</TableHead>
-              <TableHead>SĐT</TableHead>
-              <TableHead className="text-right">Số lượng</TableHead>
-              <TableHead className="text-right">Tổng tiền</TableHead>
-              <TableHead className="text-right">Tiền mặt</TableHead>
-              <TableHead className="text-right">Chuyển khoản</TableHead>
-              <TableHead>Thanh toán</TableHead>
-              <TableHead>Hình thức</TableHead>
-              <TableHead>Ngày tạo</TableHead>
-              <TableHead>Ngày nhận tiền</TableHead>
-              <TableHead className="w-[70px]">Xoá</TableHead>
-              <TableHead className="w-[120px]">GHTK</TableHead>
-              <TableHead className="w-[100px]">Bill</TableHead>
-              <TableHead className="w-[90px]">Nhận tiền</TableHead>
+            <TableRow className="text-sm">
+              <TableHead className="w-8 p-1" />
+              <TableHead className="min-w-[120px]">Mã đơn</TableHead>
+              <TableHead className="min-w-[170px]">Khách hàng</TableHead>
+              <TableHead className="min-w-[180px] text-right">Tiền</TableHead>
+              <TableHead className="min-w-[110px]">Thanh toán</TableHead>
+              <TableHead className="min-w-[150px]">Ngày</TableHead>
+              <TableHead className="min-w-[120px]">VTP</TableHead>
+              <TableHead className="min-w-[130px] text-center">
+                Thao tác
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={16} className="text-center py-10">
+                <TableCell colSpan={8} className="text-center py-10">
                   <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                 </TableCell>
               </TableRow>
             ) : orderData.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={16}
+                  colSpan={8}
                   className="text-center py-10 text-muted-foreground"
                 >
                   Không có dữ liệu
                 </TableCell>
               </TableRow>
             ) : (
-              orderData.map((item) => {
+              orderData.map(item => {
                 const isExpanded = expandedRows.has(item.objectId);
                 const productRows = isExpanded ? buildProductRows(item) : [];
 
                 return (
                   <React.Fragment key={item.objectId}>
-                    {/* Main row */}
-                    <TableRow>
-                      <TableCell className="p-1">
+                    <TableRow className="align-top">
+                      {/* Expand toggle */}
+                      <TableCell className="p-1 pt-2">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -783,99 +820,145 @@ const TableOrderScreen: React.FC = () => {
                           )}
                         </Button>
                       </TableCell>
-                      <TableCell className="text-xs font-mono">
-                        {item.objectId}
-                      </TableCell>
-                      <TableCell className="text-sm max-w-[150px] truncate">
-                        {item.fullName || '---'}
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        {item.phoneNumber || '---'}
-                      </TableCell>
-                      <TableCell className="text-right text-sm">
-                        {item.totalNumberOfProductForSale}
-                      </TableCell>
-                      <TableCell className="text-right text-sm font-medium">
-                        {item.totalMoneyForSale
-                          ? `${numberWithCommas(Number(item.totalMoneyForSale) * 1000)} đ`
-                          : '0 đ'}
-                      </TableCell>
-                      <TableCell className="text-right text-sm">
-                        {item.transferOfflineMoneyAmount !== '---'
-                          ? `${numberWithCommas(Number(item.transferOfflineMoneyAmount) * 1000)} đ`
-                          : '---'}
-                      </TableCell>
-                      <TableCell className="text-right text-sm">
-                        {item.transferBankMoneyAmount !== '---'
-                          ? `${numberWithCommas(Number(item.transferBankMoneyAmount) * 1000)} đ`
-                          : '---'}
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        <Badge variant={item.isTransferMoneyWithBank === 'Chuyển khoản' ? 'default' : 'secondary'}>
-                          {item.isTransferMoneyWithBank}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        <Badge variant={item.isOnlineSale === 'Online' ? 'default' : 'outline'}>
+
+                      {/* Mã đơn + badge hình thức */}
+                      <TableCell className="py-2">
+                        <p className="text-xs font-mono text-muted-foreground leading-tight truncate max-w-[110px]">
+                          {item.objectId}
+                        </p>
+                        <Badge
+                          variant={
+                            item.isOnlineSale === 'Online'
+                              ? 'default'
+                              : 'outline'
+                          }
+                          className="mt-1 text-xs px-1.5 h-5"
+                        >
                           {item.isOnlineSale}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-xs">
-                        {item.createdAt}
+
+                      {/* Khách hàng */}
+                      <TableCell className="py-2">
+                        <p className="text-sm font-medium leading-tight truncate max-w-[160px]">
+                          {item.fullName || '---'}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {item.phoneNumber || '---'}
+                        </p>
                       </TableCell>
-                      <TableCell className="text-xs">
-                        {item.timeConfirmGetMoney || '---'}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="h-7 w-7 p-0"
-                          onClick={() => openDeleteDialog(item)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </TableCell>
-                      <TableCell>
-                        {renderGhtkAction(item)}
-                      </TableCell>
-                      <TableCell>
-                        <TagPrintBox
-                          data={{
-                            code: item.objectId,
-                            objectIdOrder: item.objectId,
-                            productList: item.productList?.map(p => ({
-                              name: p.name,
-                              price: p.price,
-                              count: typeof p.count === 'string' ? parseInt(p.count, 10) : p.count,
-                            })),
-                            totalNumberOfProductForSale: item.totalNumberOfProductForSale,
-                            totalMoneyForSale: item.totalMoneyForSale,
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {item.isOnlineSale === 'Offline' ? null : (
-                          <Button
-                            variant={item.isGetMoney ? 'default' : 'outline'}
-                            size="sm"
-                            className={`h-7 text-xs w-full ${
-                              item.isGetMoney
-                                ? 'bg-green-600 hover:bg-green-700'
-                                : 'border-orange-400 text-orange-600 hover:bg-orange-50'
-                            }`}
-                            onClick={() => openMoneyConfirm(item)}
-                          >
-                            {item.isGetMoney ? 'Rồi' : 'Chưa'}
-                          </Button>
+
+                      {/* Tiền — stacked */}
+                      <TableCell className="py-2 text-right">
+                        <p className="text-sm font-semibold leading-tight">
+                          {item.totalMoneyForSale
+                            ? `${numberWithCommas(Number(item.totalMoneyForSale) * 1000)}đ`
+                            : '0đ'}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          SL: {item.totalNumberOfProductForSale}
+                        </p>
+                        {item.transferOfflineMoneyAmount !== '---' && (
+                          <p className="text-xs text-muted-foreground">
+                            TM:{' '}
+                            {numberWithCommas(
+                              Number(item.transferOfflineMoneyAmount) * 1000
+                            )}
+                            đ
+                          </p>
                         )}
+                        {item.transferBankMoneyAmount !== '---' && (
+                          <p className="text-xs text-muted-foreground">
+                            CK:{' '}
+                            {numberWithCommas(
+                              Number(item.transferBankMoneyAmount) * 1000
+                            )}
+                            đ
+                          </p>
+                        )}
+                      </TableCell>
+
+                      {/* Thanh toán */}
+                      <TableCell className="py-2">
+                        <Badge
+                          variant={
+                            item.isTransferMoneyWithBank === 'Chuyển khoản'
+                              ? 'default'
+                              : 'secondary'
+                          }
+                          className="text-xs px-2 h-6 whitespace-nowrap"
+                        >
+                          {item.isTransferMoneyWithBank}
+                        </Badge>
+                      </TableCell>
+
+                      {/* Ngày tạo + ngày nhận tiền */}
+                      <TableCell className="py-2">
+                        <p className="text-xs leading-tight">
+                          {item.createdAt}
+                        </p>
+                        {item.timeConfirmGetMoney !== '---' && (
+                          <p className="text-xs text-green-600 mt-0.5">
+                            ✓ {item.timeConfirmGetMoney}
+                          </p>
+                        )}
+                      </TableCell>
+
+                      {/* VTP */}
+                      <TableCell className="py-2">
+                        {renderVTPAction(item)}
+                      </TableCell>
+
+                      {/* Thao tác — nhận tiền + bill + xoá */}
+                      <TableCell className="py-2">
+                        <div className="flex items-center gap-1 justify-center flex-wrap">
+                          {item.isOnlineSale !== 'Offline' && (
+                            <Button
+                              variant={item.isGetMoney ? 'default' : 'outline'}
+                              size="sm"
+                              className={`h-7 text-xs px-2 ${
+                                item.isGetMoney
+                                  ? 'bg-green-600 hover:bg-green-700'
+                                  : 'border-orange-400 text-orange-600 hover:bg-orange-50'
+                              }`}
+                              onClick={() => openMoneyConfirm(item)}
+                            >
+                              {item.isGetMoney ? 'Đã nhận' : 'Chưa nhận'}
+                            </Button>
+                          )}
+                          <TagPrintBox
+                            data={{
+                              code: item.objectId,
+                              objectIdOrder: item.objectId,
+                              productList: item.productList?.map(p => ({
+                                name: p.name,
+                                price: p.price,
+                                count:
+                                  typeof p.count === 'string'
+                                    ? parseInt(p.count, 10)
+                                    : p.count,
+                              })),
+                              totalNumberOfProductForSale:
+                                item.totalNumberOfProductForSale,
+                              totalMoneyForSale: item.totalMoneyForSale,
+                            }}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => openDeleteDialog(item)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
 
                     {/* Expanded product rows */}
                     {isExpanded && (
                       <TableRow>
-                        <TableCell colSpan={16} className="bg-muted/20 p-2">
+                        <TableCell colSpan={8} className="bg-muted/20 p-2">
                           <div className="border rounded-md overflow-x-auto">
                             <Table>
                               <TableHeader>
@@ -883,9 +966,15 @@ const TableOrderScreen: React.FC = () => {
                                   <TableHead>Mã SP</TableHead>
                                   <TableHead>Mã ký gửi</TableHead>
                                   <TableHead>Tên SP</TableHead>
-                                  <TableHead className="text-right">Giá</TableHead>
-                                  <TableHead className="text-right">Số lượng</TableHead>
-                                  <TableHead className="text-right">Tổng tiền</TableHead>
+                                  <TableHead className="text-right">
+                                    Giá
+                                  </TableHead>
+                                  <TableHead className="text-right">
+                                    Số lượng
+                                  </TableHead>
+                                  <TableHead className="text-right">
+                                    Tổng tiền
+                                  </TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
@@ -901,15 +990,27 @@ const TableOrderScreen: React.FC = () => {
                                 ) : (
                                   productRows.map(p => (
                                     <TableRow key={p.key}>
-                                      <TableCell className="text-xs">{p.code || '---'}</TableCell>
-                                      <TableCell className="text-xs">{p.consignmentId || '---'}</TableCell>
-                                      <TableCell className="text-sm">{p.name || '---'}</TableCell>
-                                      <TableCell className="text-right text-sm">
-                                        {p.price ? `${numberWithCommas(p.price * 1000)} đ` : '0 đ'}
+                                      <TableCell className="text-xs">
+                                        {p.code || '---'}
                                       </TableCell>
-                                      <TableCell className="text-right text-sm">{p.count}</TableCell>
+                                      <TableCell className="text-xs">
+                                        {p.consignmentId || '---'}
+                                      </TableCell>
+                                      <TableCell className="text-sm">
+                                        {p.name || '---'}
+                                      </TableCell>
+                                      <TableCell className="text-right text-sm">
+                                        {p.price
+                                          ? `${numberWithCommas(p.price * 1000)} đ`
+                                          : '0 đ'}
+                                      </TableCell>
+                                      <TableCell className="text-right text-sm">
+                                        {p.count}
+                                      </TableCell>
                                       <TableCell className="text-right text-sm font-medium">
-                                        {p.totalMoney ? `${numberWithCommas(p.totalMoney * 1000)} đ` : '0 đ'}
+                                        {p.totalMoney
+                                          ? `${numberWithCommas(p.totalMoney * 1000)} đ`
+                                          : '0 đ'}
                                       </TableCell>
                                     </TableRow>
                                   ))
@@ -961,12 +1062,17 @@ const TableOrderScreen: React.FC = () => {
             <AlertDialogDescription>
               Bạn có chắc chắn muốn xoá đơn hàng{' '}
               <strong>{deletingItem?.objectId}</strong> của{' '}
-              <strong>{deletingItem?.fullName || deletingItem?.phoneNumber}</strong>?
+              <strong>
+                {deletingItem?.fullName || deletingItem?.phoneNumber}
+              </strong>
+              ?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Huỷ</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteOrder}>Xoá</AlertDialogAction>
+            <AlertDialogAction onClick={handleDeleteOrder}>
+              Xoá
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -984,89 +1090,93 @@ const TableOrderScreen: React.FC = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Huỷ</AlertDialogCancel>
-            <AlertDialogAction onClick={handleMoneyConfirm}>Xác nhận</AlertDialogAction>
+            <AlertDialogAction onClick={handleMoneyConfirm}>
+              Xác nhận
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* GHTK Detail Modal */}
-      <Dialog open={ghtkDetailOpen} onOpenChange={setGhtkDetailOpen}>
+      {/* VTP Detail Modal */}
+      <Dialog open={vtpDetailOpen} onOpenChange={setVtpDetailOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Giao hàng tiết kiệm</DialogTitle>
+            <DialogTitle>ViettelPost — Chi tiết vận đơn</DialogTitle>
           </DialogHeader>
-          {ghtkDetailItem?.transporter?.res?.order && (() => {
-            const shipData = ghtkDetailItem.transporter!.res!.order!;
-            return (
-              <div className="space-y-2 text-sm">
-                <p>
-                  <span className="text-muted-foreground">ID đơn GHTK:</span>{' '}
-                  {shipData.label_id}
-                </p>
-                <p>
-                  <span className="text-muted-foreground">ID đơn kho GAP:</span>{' '}
-                  {shipData.partner_id}
-                </p>
-                <p>
-                  <span className="text-muted-foreground">Tình trạng:</span>{' '}
-                  {shipData.status_text}
-                </p>
-                <p>
-                  <span className="text-muted-foreground">Tên KH:</span>{' '}
-                  {shipData.customer_fullname}
-                </p>
-                <p>
-                  <span className="text-muted-foreground">SĐT KH:</span>{' '}
-                  {shipData.customer_tel}
-                </p>
-                <p>
-                  <span className="text-muted-foreground">Ngày dự kiến:</span>{' '}
-                  {shipData.deliver_date}
-                </p>
-                <p>
-                  <span className="text-muted-foreground">Ngày nhận hàng:</span>{' '}
-                  {shipData.pick_date}
-                </p>
-                <p>
-                  <span className="text-muted-foreground">Phí giao hàng:</span>{' '}
-                  {shipData.ship_money != null
-                    ? `${numberWithCommas(shipData.ship_money)} vnđ`
-                    : '---'}
-                </p>
-                <p>
-                  <span className="text-muted-foreground">Địa chỉ:</span>{' '}
-                  {shipData.address}
-                </p>
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() =>
-                      handleCancelTransport(
-                        ghtkDetailItem?.transporter?.order?.objectId || ''
-                      )
-                    }
-                  >
-                    Huỷ Đơn Hàng
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      trackingOrder(shipData.label_id || '')
-                    }
-                  >
-                    <ExternalLink className="h-3 w-3 mr-1" />
-                    Tra cứu GHTK
-                  </Button>
+          {vtpDetailItem?.transporter &&
+            (() => {
+              const vtp = vtpDetailItem.transporter!.res || {};
+              const orderNumber = vtp.ORDER_NUMBER;
+              return (
+                <div className="space-y-2 text-sm">
+                  <p>
+                    <span className="text-muted-foreground">
+                      Mã vận đơn VTP:
+                    </span>{' '}
+                    <span className="font-mono font-medium">
+                      {orderNumber || '---'}
+                    </span>
+                  </p>
+                  <p>
+                    <span className="text-muted-foreground">Tình trạng:</span>{' '}
+                    {translateStatusName(vtpDetailItem.transporter)}
+                  </p>
+                  {vtp.RECEIVER_FULLNAME && (
+                    <p>
+                      <span className="text-muted-foreground">Tên KH:</span>{' '}
+                      {vtp.RECEIVER_FULLNAME}
+                    </p>
+                  )}
+                  {vtp.RECEIVER_PHONE && (
+                    <p>
+                      <span className="text-muted-foreground">SĐT KH:</span>{' '}
+                      {vtp.RECEIVER_PHONE}
+                    </p>
+                  )}
+                  {vtp.RECEIVER_ADDRESS && (
+                    <p>
+                      <span className="text-muted-foreground">Địa chỉ:</span>{' '}
+                      {vtp.RECEIVER_ADDRESS}
+                    </p>
+                  )}
+                  {vtp.MONEY_TOTAL != null && (
+                    <p>
+                      <span className="text-muted-foreground">
+                        Phí giao hàng:
+                      </span>{' '}
+                      {numberWithCommas(vtp.MONEY_TOTAL)} vnđ
+                    </p>
+                  )}
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() =>
+                        handleCancelTransport(
+                          vtpDetailItem?.transporter?.order?.objectId || ''
+                        )
+                      }
+                    >
+                      Huỷ vận đơn
+                    </Button>
+                    {orderNumber && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => trackingOrder(orderNumber)}
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Tra cứu VTP
+                      </Button>
+                    )}
+                  </div>
+                  <div className="border-t pt-3 mt-3">
+                    <p className="text-sm font-medium mb-2">Nhãn đơn hàng</p>
+                    <BillOrderGHTK orderId={vtpDetailItem.objectId} />
+                  </div>
                 </div>
-                <div className="border-t pt-3 mt-3">
-                  <p className="text-sm font-medium mb-2">Nhãn đơn hàng</p>
-                  <BillOrderGHTK orderId={ghtkDetailItem.objectId} />
-                </div>
-              </div>
-            );
-          })()}
+              );
+            })()}
         </DialogContent>
       </Dialog>
     </div>
