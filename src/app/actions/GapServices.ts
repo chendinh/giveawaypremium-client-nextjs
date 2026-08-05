@@ -183,7 +183,8 @@ const ADDRESS_GET_ORDER_ARRAY = [
 
 // ViettelPost dùng numeric ID — địa chỉ cửa hàng GiveAwayPremium Q1
 // Ref: GET /categories/listProvinceById, listDistrict, listWards
-const VTP_SENDER_ADDRESS = {
+// Có thể thay đổi trong màn hình Cài đặt → tab "Địa chỉ shop (VTP)"
+const VTP_SENDER_ADDRESS_DEFAULT = {
   province: 2, // Hồ Chí Minh
   district: 43, // Quận 1
   ward: 773, // Phường Nguyễn Thái Bình
@@ -191,6 +192,25 @@ const VTP_SENDER_ADDRESS = {
   name: 'Giveaway Premium Store',
   phone: '0703334443',
 };
+
+/** Lấy địa chỉ gửi hàng VTP — ưu tiên từ Setting store, fallback về hardcode */
+const getVtpSenderAddress = () => {
+  const saved = getSettings()?.VTP_SENDER_ADDRESS;
+  if (saved && saved.province) {
+    return {
+      province: Number(saved.province),
+      district: Number(saved.district),
+      ward: Number(saved.ward),
+      address: saved.address || VTP_SENDER_ADDRESS_DEFAULT.address,
+      name: saved.name || VTP_SENDER_ADDRESS_DEFAULT.name,
+      phone: saved.phone || VTP_SENDER_ADDRESS_DEFAULT.phone,
+    };
+  }
+  return VTP_SENDER_ADDRESS_DEFAULT;
+};
+
+// Alias để tương thích với code cũ đang dùng trực tiếp
+const VTP_SENDER_ADDRESS = VTP_SENDER_ADDRESS_DEFAULT;
 
 // ============ HELPER FUNCTIONS ============
 
@@ -1078,10 +1098,10 @@ export class GapService {
         weight: 500,
         serviceLevel: serviceCode,
         from: {
-          province: VTP_SENDER_ADDRESS.province,
-          district: VTP_SENDER_ADDRESS.district,
-          ward: VTP_SENDER_ADDRESS.ward,
-          address: VTP_SENDER_ADDRESS.address,
+          province: getVtpSenderAddress().province,
+          district: getVtpSenderAddress().district,
+          ward: getVtpSenderAddress().ward,
+          address: getVtpSenderAddress().address,
         },
         to: {
           province: provinceId,
@@ -1731,6 +1751,57 @@ export class GapService {
   }
 
   // ── Consignment extra ──
+  static async getConsignmentWithFilters(
+    page: number = 1,
+    filters: {
+      phoneNumber?: string;
+      consignerName?: string;
+      consignmentId?: string;
+      isGetMoney?: boolean | null;
+      groupId?: string;
+    },
+    limit: number = 20
+  ): Promise<any> {
+    const skip = limit * page - limit;
+    const whereObj: any = { deletedAt: null };
+
+    if (filters.groupId) {
+      whereObj.group = {
+        __type: 'Pointer',
+        className: 'ConsignmentGroup',
+        objectId: filters.groupId,
+      };
+    }
+    if (filters.phoneNumber) {
+      whereObj.phoneNumber = { $regex: filters.phoneNumber, $options: 'i' };
+    }
+    if (filters.consignerName) {
+      whereObj.consignerName = {
+        $regex: filters.consignerName,
+        $options: 'i',
+      };
+    }
+    if (filters.consignmentId) {
+      whereObj.consignmentId = {
+        $regex: filters.consignmentId,
+        $options: 'i',
+      };
+    }
+    if (filters.isGetMoney === true) whereObj.isGetMoney = true;
+    else if (filters.isGetMoney === false) whereObj.isGetMoney = { $ne: true };
+
+    const customQuery = `order=-createdAt&include=group&skip=${skip}&limit=${limit}&count=1&where=${JSON.stringify(whereObj)}`;
+    return this.fetchData(
+      '/classes/Consignment',
+      REQUEST_TYPE.GET,
+      null,
+      null,
+      null,
+      null,
+      customQuery
+    );
+  }
+
   static async getConsignmentWithPhoneIncludeText(
     page: number = 1,
     keyword: string | null = null,
@@ -1779,25 +1850,73 @@ export class GapService {
           Number(productListTemp[itemIndex].price) || 0;
         productListTemp[itemIndex].count =
           Number(productListTemp[itemIndex].count) || 0;
-        if (productListTemp[itemIndex].priceAfterFee !== undefined) {
-          productListTemp[itemIndex].priceAfterFee =
-            Number(productListTemp[itemIndex].priceAfterFee) || 0;
+        const price = productListTemp[itemIndex].price;
+        let priceAfterFee = 0;
+        if (price > 0) {
+          if (price < 1000) priceAfterFee = Math.round((price * 74) / 100);
+          else if (price <= 10000)
+            priceAfterFee = Math.round((price * 77) / 100);
+          else priceAfterFee = Math.round((price * 80) / 100);
         }
+        productListTemp[itemIndex].priceAfterFee = priceAfterFee;
+        const sold = Number(productListTemp[itemIndex].soldNumberProduct) || 0;
+        const count = productListTemp[itemIndex].count;
+        productListTemp[itemIndex].soldNumberProduct = sold;
+        productListTemp[itemIndex].remainNumberProduct = count - sold;
+        productListTemp[itemIndex].totalPriceAfterFee = Math.round(
+          sold * priceAfterFee
+        );
+        productListTemp[itemIndex].moneyBackProduct = Math.round(
+          sold * priceAfterFee
+        );
       });
+
+      // Tính lại các giá trị tổng hợp từ productListTemp đã chuẩn hoá
+      const numberOfProducts = productListTemp.reduce(
+        (acc: number, p: any) => acc + (Number(p.count) || 0),
+        0
+      );
+      const numSoldConsignment = productListTemp.reduce(
+        (acc: number, p: any) => acc + (Number(p.soldNumberProduct) || 0),
+        0
+      );
+      const remainNumConsignment = productListTemp.reduce(
+        (acc: number, p: any) => acc + (Number(p.remainNumberProduct) || 0),
+        0
+      );
+      const totalMoney = productListTemp.reduce(
+        (acc: number, p: any) =>
+          acc + (Number(p.price) || 0) * (Number(p.count) || 0),
+        0
+      );
+      const moneyBack = productListTemp.reduce(
+        (acc: number, p: any) =>
+          acc +
+          (Number(p.priceAfterFee) || 0) * (Number(p.soldNumberProduct) || 0),
+        0
+      );
+      const moneyBackForFullSold = productListTemp.reduce(
+        (acc: number, p: any) =>
+          acc + (Number(p.priceAfterFee) || 0) * (Number(p.count) || 0),
+        0
+      );
+
       const body = {
         consignmentId: item.consignmentId,
-        numberOfProducts: Number(item.numberOfProducts),
-        numSoldConsignment: Number(item.numSoldConsignment || 0),
-        remainNumConsignment:
-          Number(item.numberOfProducts) - Number(item.numSoldConsignment || 0),
-        moneyBack: Number(item.moneyBack) || 0,
-        moneyBackForFullSold: Number(item.moneyBackForFullSold) || 0,
+        numberOfProducts,
+        numSoldConsignment,
+        remainNumConsignment,
+        totalMoney,
+        moneyBack,
+        moneyBackForFullSold,
         isGetMoney: item.isGetMoney || false,
         productList: productListTemp,
         timeConfirmGetMoney: item.timeConfirmGetMoney,
         note: item.note || '',
       };
-      return this.fetchData(
+
+      // PUT Consignment trước
+      const consignmentRes = await this.fetchData(
         `/classes/Consignment/${item.objectId}`,
         REQUEST_TYPE.PUT,
         null,
@@ -1807,6 +1926,73 @@ export class GapService {
         null,
         true
       );
+
+      // Sync từng Product record riêng lẻ để trang quản lý sản phẩm thấy đúng data.
+      // productList trong Consignment không chắc có objectId (data cũ), nên
+      // fetch tất cả Products thuộc consignment này bằng 1 GET, rồi map theo code.
+      const productQueryWhere = JSON.stringify({
+        consignment: {
+          __type: 'Pointer',
+          className: 'Consignment',
+          objectId: item.objectId,
+        },
+        deletedAt: { $exists: false },
+      });
+      const existingProductsRes = await this.fetchData(
+        '/classes/Product',
+        REQUEST_TYPE.GET,
+        null,
+        null,
+        null,
+        null,
+        `where=${productQueryWhere}&limit=200`,
+        true
+      );
+
+      const existingProducts: any[] = existingProductsRes?.results || [];
+
+      if (existingProducts.length > 0) {
+        // build map: code → objectId
+        const codeToObjectId: Record<string, string> = {};
+        existingProducts.forEach((p: any) => {
+          if (p.code) codeToObjectId[p.code] = p.objectId;
+        });
+
+        const productUpdatePromises = productListTemp
+          .filter((p: any) => p.code && codeToObjectId[p.code])
+          .map((p: any) => {
+            const productObjectId = codeToObjectId[p.code];
+            return this.fetchData(
+              `/classes/Product/${productObjectId}`,
+              REQUEST_TYPE.PUT,
+              null,
+              {
+                name: p.name,
+                price: p.price,
+                priceAfterFee: p.priceAfterFee,
+                count: p.count,
+                soldNumberProduct: p.soldNumberProduct,
+                remainNumberProduct: p.remainNumberProduct,
+                totalPriceAfterFee: p.totalPriceAfterFee,
+                moneyBackProduct: p.moneyBackProduct,
+                ...(p.note && p.note !== '---' ? { note: p.note } : {}),
+              },
+              null,
+              null,
+              null,
+              true
+            ).catch((err: any) => {
+              console.error(
+                `[updateConsignment] Failed to update product ${productObjectId} (${p.code}):`,
+                err
+              );
+            });
+          });
+
+        await Promise.all(productUpdatePromises);
+      }
+
+      return consignmentRes;
     } catch (e) {
       console.log(e);
       return false;
@@ -2044,12 +2230,12 @@ export class GapService {
       action: 'CREATE_ORDER',
       data: {
         from: {
-          province: VTP_SENDER_ADDRESS.province,
-          district: VTP_SENDER_ADDRESS.district,
-          ward: VTP_SENDER_ADDRESS.ward,
-          address: VTP_SENDER_ADDRESS.address,
-          name: VTP_SENDER_ADDRESS.name,
-          phone: VTP_SENDER_ADDRESS.phone,
+          province: getVtpSenderAddress().province,
+          district: getVtpSenderAddress().district,
+          ward: getVtpSenderAddress().ward,
+          address: getVtpSenderAddress().address,
+          name: getVtpSenderAddress().name,
+          phone: getVtpSenderAddress().phone,
         },
         to: {
           province: vtpProvinceId,
@@ -2076,6 +2262,13 @@ export class GapService {
             ? 2000000
             : Number(formData.totalMoneyForSale || 0) * 1000,
         items: [] as any[],
+        // Override VTP fields từ shippingInfo
+        orderRequest: {
+          ORDER_PAYMENT: Number(
+            (formData.shippingInfo as any)?.orderPayment ?? 3
+          ) as 1 | 2 | 3 | 4,
+          ORDER_TYPE: Number((formData.shippingInfo as any)?.pickupType ?? 2),
+        },
       },
     };
 

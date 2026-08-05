@@ -79,6 +79,18 @@ interface ShippingInfo {
   vtpDistrictId?: number;
   vtpWardId?: number;
   shippingFee?: number;
+  /**
+   * Ai trả phí ship:
+   * '3' = shop trả cước, khách trả tiền hàng (mặc định)
+   * '2' = khách trả cả tiền hàng + cước
+   */
+  orderPayment?: '2' | '3';
+  /**
+   * Hình thức lấy hàng:
+   * '2' = shipper đến lấy tại shop (mặc định)
+   * '1' = shop gửi bưu cục
+   */
+  pickupType?: '1' | '2';
 }
 
 interface ProductItem {
@@ -148,6 +160,8 @@ const DEFAULT_CLIENT_INFO: ClientInfo = {
 
 const DEFAULT_SHIPPING_INFO: ShippingInfo = {
   optionTransfer: 'tk',
+  orderPayment: '2',
+  pickupType: '2',
 };
 
 // ─── Component ────────────────────────────────────────
@@ -175,6 +189,7 @@ const SaleScreen: React.FC = () => {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const numPaneTempRef = useRef<number>(0);
   const receiptRef = useRef<HTMLDivElement>(null);
+  const didInitRef = useRef<boolean>(false);
 
   const handlePrintBill = useReactToPrint({
     contentRef: receiptRef,
@@ -182,10 +197,10 @@ const SaleScreen: React.FC = () => {
 
   // ── Init ──
   useEffect(() => {
+    // Guard chống React 18 Strict Mode double-invoke useEffect
+    if (didInitRef.current) return;
+    didInitRef.current = true;
     addPane();
-    return () => {
-      numPaneTempRef.current = 0;
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1618,6 +1633,64 @@ const SaleScreen: React.FC = () => {
                           ? `${numberWithCommas(roundUpTo1000(currentPane.shippingInfo.shippingFee))} vnđ`
                           : '---'}
                       </span>
+                    </div>
+
+                    <Separator />
+
+                    {/* Người trả phí ship */}
+                    <div className="space-y-2">
+                      <Label className="text-xs">Người trả phí ship</Label>
+                      <Select
+                        value={currentPane.shippingInfo.orderPayment ?? '3'}
+                        onValueChange={(value: '2' | '3') =>
+                          updateCurrentPane(pane => ({
+                            ...pane,
+                            shippingInfo: {
+                              ...pane.shippingInfo,
+                              orderPayment: value,
+                            },
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="3">
+                            Shop trả cước — khách trả tiền hàng
+                          </SelectItem>
+                          <SelectItem value="2">
+                            Khách trả cả tiền hàng + cước
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Hình thức lấy hàng */}
+                    <div className="space-y-2">
+                      <Label className="text-xs">Hình thức lấy hàng</Label>
+                      <Select
+                        value={currentPane.shippingInfo.pickupType ?? '2'}
+                        onValueChange={(value: '1' | '2') =>
+                          updateCurrentPane(pane => ({
+                            ...pane,
+                            shippingInfo: {
+                              ...pane.shippingInfo,
+                              pickupType: value,
+                            },
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="2">
+                            Shipper đến lấy tại shop
+                          </SelectItem>
+                          <SelectItem value="1">Shop gửi bưu cục</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </CardContent>
                 </Card>

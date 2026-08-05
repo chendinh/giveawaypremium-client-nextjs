@@ -327,36 +327,37 @@ const TableConsignmentScreen: React.FC = () => {
       if (!groupId) return;
       setIsLoading(true);
       try {
+        const hasFilters =
+          searchFilters.phoneNumber ||
+          searchFilters.consignerName ||
+          searchFilters.consignmentId ||
+          searchFilters.isGetMoney !== '';
+
         let res: any;
-        if (searchFilters.phoneNumber) {
-          res = await GapService.getConsignmentWithPhoneIncludeText(
+        if (hasFilters) {
+          res = await GapService.getConsignmentWithFilters(
             page,
-            searchFilters.phoneNumber,
+            {
+              phoneNumber: searchFilters.phoneNumber || undefined,
+              consignerName: searchFilters.consignerName || undefined,
+              consignmentId: searchFilters.consignmentId || undefined,
+              isGetMoney:
+                searchFilters.isGetMoney === 'true'
+                  ? true
+                  : searchFilters.isGetMoney === 'false'
+                    ? false
+                    : null,
+              groupId,
+            },
             pageSize
           );
         } else {
           res = await GapService.getConsignment(page, null, pageSize, groupId);
         }
+
         if (res?.results) {
-          let filtered: ConsignmentItem[] = res.results;
-          if (searchFilters.consignerName) {
-            const kw = searchFilters.consignerName.toLowerCase();
-            filtered = filtered.filter(i =>
-              i.consignerName?.toLowerCase().includes(kw)
-            );
-          }
-          if (searchFilters.consignmentId) {
-            const kw = searchFilters.consignmentId.toLowerCase();
-            filtered = filtered.filter(i =>
-              i.consignmentId?.toLowerCase().includes(kw)
-            );
-          }
-          if (searchFilters.isGetMoney === 'true')
-            filtered = filtered.filter(i => i.isGetMoney);
-          else if (searchFilters.isGetMoney === 'false')
-            filtered = filtered.filter(i => !i.isGetMoney);
-          setDataSource(filtered);
-          setTotalCount(res.count || filtered.length);
+          setDataSource(res.results);
+          setTotalCount(res.count || res.results.length);
         } else {
           setDataSource([]);
           setTotalCount(0);
@@ -554,8 +555,32 @@ const TableConsignmentScreen: React.FC = () => {
       const res = await GapService.updateConsignment(finalDraft);
       if (res) {
         toast.success('Cập nhật thành công');
+        // Tính lại các giá trị tổng từ productList đã cập nhật
+        const updatedProducts = finalDraft.productList || [];
+        const recalcedNumberOfProducts = updatedProducts.reduce(
+          (acc: number, p: ProductItem) => acc + (Number(p.count) || 0),
+          0
+        );
+        const recalcedNumSold = updatedProducts.reduce(
+          (acc: number, p: ProductItem) =>
+            acc + (Number(p.soldNumberProduct) || 0),
+          0
+        );
+        const recalcedMoneyBack = updatedProducts.reduce(
+          (acc: number, p: ProductItem) =>
+            acc +
+            (Number(p.priceAfterFee) || calcPriceAfterFee(Number(p.price))) *
+              (Number(p.soldNumberProduct) || 0),
+          0
+        );
+        const mergedItem: ConsignmentItem = {
+          ...finalDraft,
+          numberOfProducts: recalcedNumberOfProducts,
+          numSoldConsignment: recalcedNumSold,
+          moneyBack: recalcedMoneyBack,
+        };
         setDataSource(prev =>
-          prev.map(i => (i.objectId === objectId ? { ...i, ...finalDraft } : i))
+          prev.map(i => (i.objectId === objectId ? mergedItem : i))
         );
         setExpandedRows(prev => {
           const n = new Set(prev);
@@ -768,7 +793,7 @@ const TableConsignmentScreen: React.FC = () => {
               <TableHead>Ngân hàng</TableHead>
               <TableHead>ID NH</TableHead>
               <TableHead className="text-center">Trả tiền</TableHead>
-              <TableHead>CK/TT</TableHead>
+              <TableHead>Thời gian TT</TableHead>
               <TableHead className="w-[90px] text-right">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
@@ -866,8 +891,8 @@ const TableConsignmentScreen: React.FC = () => {
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell className="text-xs">
-                        {item.isTransferMoneyWithBank ? 'CK' : 'TT'}
+                      <TableCell className="text-xs whitespace-nowrap">
+                        {item.timeConfirmGetMoney || '---'}
                       </TableCell>
                       <TableCell
                         className="text-right"

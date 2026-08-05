@@ -2,10 +2,11 @@
 
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Settings, Monitor } from 'lucide-react';
+import { Calendar, Settings, Monitor, Truck } from 'lucide-react';
 
 import BookingSetting from './Components/BookingSetting';
 import ConfigConsignmentId from './Components/ConfigConsignmentId';
+import VtpSenderSetting from './Components/VtpSenderSetting';
 // import MonitorList from './Components/MonitorList';
 
 import './style.scss';
@@ -16,7 +17,7 @@ const SettingScreen: React.FC = () => {
   return (
     <div className="setting-screen-container p-4">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-6">
+        <TabsList className="grid w-full grid-cols-4 mb-6">
           <TabsTrigger value="booking" className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
             <span className="hidden sm:inline">Cài đặt Booking</span>
@@ -24,6 +25,10 @@ const SettingScreen: React.FC = () => {
           <TabsTrigger value="consignment" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
             <span className="hidden sm:inline">Cài đặt Đợt KG</span>
+          </TabsTrigger>
+          <TabsTrigger value="vtp-sender" className="flex items-center gap-2">
+            <Truck className="h-4 w-4" />
+            <span className="hidden sm:inline">Địa chỉ shop (VTP)</span>
           </TabsTrigger>
           <TabsTrigger value="monitor" className="flex items-center gap-2">
             <Monitor className="h-4 w-4" />
@@ -37,6 +42,10 @@ const SettingScreen: React.FC = () => {
 
         <TabsContent value="consignment">
           <ConfigConsignmentId />
+        </TabsContent>
+
+        <TabsContent value="vtp-sender">
+          <VtpSenderSetting />
         </TabsContent>
 
         {/* <TabsContent value="monitor">
