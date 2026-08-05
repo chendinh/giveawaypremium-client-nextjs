@@ -38,7 +38,7 @@ import {
 } from 'lucide-react';
 
 import GapService from '@/app/actions/GapServices';
-import { useAppStore } from '@/store/useAppStore';
+import { useAppStore, StoreServices } from '@/store/useAppStore';
 
 import TagPrintBox from './components/TagPrintBox';
 import TagPrintBoxMulti from './components/TagPrintBoxMulti';
@@ -159,15 +159,14 @@ const TableProductScreen: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadTargetKey, setUploadTargetKey] = useState<string>('');
 
-  // ── Fetch consignment tags ──
+  // ── Fetch consignment tags — dùng store cache ──
   const fetchAllTags = useCallback(async () => {
     setIsLoadingTags(true);
     try {
-      const res = await GapService.getConsignmentID();
-      if (res?.results?.length > 0) {
-        const tempArray = [...res.results].reverse();
-        setAllInfoTag(tempArray);
-        setCurrentTag(tempArray[0].objectId);
+      const tags = await StoreServices.getConsignmentTags();
+      if (tags.length > 0) {
+        setAllInfoTag(tags);
+        setCurrentTag(tags[0].objectId);
       }
     } catch (err) {
       console.error('Error fetching tags:', err);

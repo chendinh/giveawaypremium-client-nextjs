@@ -57,6 +57,8 @@ export interface AppState {
   tempConsignmentRedux: any | null;
   unitAddressRedux: any | null;
   eventsRedux: any[] | null;
+  consignmentTags: any[] | null;
+  isConsignmentTagsLoaded: boolean;
 }
 
 export interface AppActions {
@@ -93,6 +95,8 @@ export interface AppActions {
   setTempConsignment: (data: any) => void;
   setUnitAddressRedux: (data: any) => void;
   setEventsRedux: (data: any[]) => void;
+  setConsignmentTags: (data: any[]) => void;
+  fetchConsignmentTags: () => Promise<any[]>;
 }
 
 type AppStore = AppState & AppActions;
@@ -118,6 +122,8 @@ const initialState: AppState = {
   tempConsignmentRedux: null,
   unitAddressRedux: null,
   eventsRedux: null,
+  consignmentTags: null,
+  isConsignmentTagsLoaded: false,
 };
 
 // ============ STORE ============
@@ -256,6 +262,37 @@ export const useAppStore = create<AppStore>()(
       setTempConsignment: data => set({ tempConsignmentRedux: data }),
       setUnitAddressRedux: data => set({ unitAddressRedux: data }),
       setEventsRedux: data => set({ eventsRedux: data }),
+
+      setConsignmentTags: data =>
+        set({ consignmentTags: data, isConsignmentTagsLoaded: true }),
+
+      fetchConsignmentTags: async () => {
+        const state = get();
+        // Return cache nếu đã có
+        if (state.isConsignmentTagsLoaded && state.consignmentTags) {
+          return state.consignmentTags;
+        }
+        try {
+          const HOST = process.env.NEXT_PUBLIC_SERVER_URL || '';
+          const response = await fetch(
+            `${HOST}/classes/ConsignmentGroup?where=${encodeURIComponent(JSON.stringify({ deletedAt: null }))}`,
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Parse-Application-Id': process.env.NEXT_PUBLIC_APP_ID || '',
+                'X-Parse-REST-API-Key':
+                  process.env.NEXT_PUBLIC_REST_API_KEY || '',
+              },
+            }
+          );
+          const data = await response.json();
+          const tags = data?.results ? [...data.results].reverse() : [];
+          set({ consignmentTags: tags, isConsignmentTagsLoaded: true });
+          return tags;
+        } catch {
+          return get().consignmentTags || [];
+        }
+      },
     }),
     {
       name: 'gap-app-storage',
@@ -336,6 +373,15 @@ export const StoreServices = {
 
   logout: (): void => {
     useAppStore.getState().logout();
+  },
+
+  getConsignmentTags: async (): Promise<any[]> => {
+    return useAppStore.getState().fetchConsignmentTags();
+  },
+
+  invalidateConsignmentTags: (): void => {
+    useAppStore.getState().setConsignmentTags([]);
+    useAppStore.setState({ isConsignmentTagsLoaded: false });
   },
 };
 
