@@ -96,6 +96,9 @@ interface ConsignmentItem {
   note?: string;
   productList?: ProductItem[];
   group?: { objectId: string; code?: string };
+  banks?: Array<{ type?: string; accNumber?: string }>;
+  bankName?: string;
+  bankId?: string;
 }
 
 interface TagItem {
@@ -548,6 +551,9 @@ const TableConsignmentScreen: React.FC = () => {
               <TableHead className="text-right">SL</TableHead>
               <TableHead className="text-right">Đã bán</TableHead>
               <TableHead className="text-right">Còn lại</TableHead>
+              <TableHead className="text-right">Tiền trả KH</TableHead>
+              <TableHead>Ngân hàng</TableHead>
+              <TableHead>ID NH</TableHead>
               <TableHead className="text-center">Trả tiền</TableHead>
               <TableHead>CK/TT</TableHead>
               <TableHead className="w-[90px] text-right">Thao tác</TableHead>
@@ -556,14 +562,14 @@ const TableConsignmentScreen: React.FC = () => {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-10">
+                <TableCell colSpan={14} className="text-center py-10">
                   <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                 </TableCell>
               </TableRow>
             ) : dataSource.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={11}
+                  colSpan={14}
                   className="text-center py-10 text-muted-foreground"
                 >
                   Không có dữ liệu
@@ -619,6 +625,17 @@ const TableConsignmentScreen: React.FC = () => {
                       </TableCell>
                       <TableCell className="text-right text-sm">
                         {remain}
+                      </TableCell>
+                      <TableCell className="text-right text-sm font-medium">
+                        {item.moneyBack
+                          ? `${numberWithCommas(item.moneyBack * 1000)}đ`
+                          : '---'}
+                      </TableCell>
+                      <TableCell className="text-xs max-w-[100px] truncate">
+                        {item.banks?.[0]?.type || item.bankName || '---'}
+                      </TableCell>
+                      <TableCell className="text-xs font-mono">
+                        {item.banks?.[0]?.accNumber || item.bankId || '---'}
                       </TableCell>
                       <TableCell className="text-center">
                         {item.isGetMoney ? (
@@ -684,7 +701,7 @@ const TableConsignmentScreen: React.FC = () => {
                     {isExpanded && (
                       <TableRow>
                         <TableCell
-                          colSpan={11}
+                          colSpan={14}
                           className="p-0 border-b"
                           onClick={e => e.stopPropagation()}
                         >
