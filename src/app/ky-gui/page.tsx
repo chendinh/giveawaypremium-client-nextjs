@@ -49,20 +49,35 @@ function BookingAlertModal({ onClose }: BookingAlertModalProps) {
 function ZaloModal({
   isShowBookingOnline,
   onClose,
-  onOpenBookingAlert,
+  // _onOpenBookingAlert không còn dùng — dead-end đã được xử lý inline
+  onOpenBookingAlert: _onOpenBookingAlert,
 }: ZaloModalProps) {
-  const handleContinue = () => {
-    if (isShowBookingOnline) {
-      window.open(
-        'https://zalo.me/1278273211257849348',
-        '_blank',
-        'noopener,noreferrer'
-      );
-    } else {
-      onClose();
-      onOpenBookingAlert();
-    }
-  };
+  // Tính năng tắt → hiển thị hotline ngay, không mở modal thứ 2
+  if (!isShowBookingOnline) {
+    return (
+      <div className="p-6 bg-white rounded-xl max-w-md w-full mx-4 text-center space-y-4">
+        <h3 className="text-xl font-bold">Ký Gửi Online</h3>
+        <p className="text-gray-600">
+          Tính năng đang tạm ngưng. Để ký gửi, vui lòng liên hệ trực tiếp:
+        </p>
+        <a
+          href="tel:0703334443"
+          className="inline-block bg-black text-white px-8 py-3 rounded-lg font-medium text-lg hover:bg-gray-800 transition"
+        >
+          📞 0703 334 443
+        </a>
+        <p className="text-xs text-gray-400">
+          Hoặc nhắn tin Zalo cùng số trên để được hỗ trợ nhanh nhất.
+        </p>
+        <button
+          onClick={onClose}
+          className="w-full border border-gray-200 text-gray-500 py-2.5 rounded-lg hover:bg-gray-50 transition text-sm"
+        >
+          Đóng
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 bg-white rounded-xl max-w-lg w-full mx-4">
@@ -77,20 +92,33 @@ function ZaloModal({
           alt="QR Zalo Ký gửi"
           width={500}
           height={660}
+          placeholder="blur"
           className="w-full max-w-xs mx-auto object-contain rounded-lg shadow-md"
         />
       </div>
       <button
-        onClick={handleContinue}
+        onClick={() =>
+          window.open(
+            'https://zalo.me/1278273211257849348',
+            '_blank',
+            'noopener,noreferrer'
+          )
+        }
         className="w-full bg-black text-white py-3 rounded-lg hover:bg-gray-700 transition font-medium"
       >
-        Tiếp tục
+        Mở Zalo
+      </button>
+      <button
+        onClick={onClose}
+        className="mt-2 w-full text-gray-400 py-2 text-sm hover:text-gray-700 transition"
+      >
+        Đóng
       </button>
     </div>
   );
 }
 
-type ModalType = 'zalo' | 'bookingAlert' | null;
+type ModalType = 'zalo' | null;
 
 export default function ConsignmentPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('menu');
@@ -217,11 +245,8 @@ export default function ConsignmentPage() {
               <ZaloModal
                 isShowBookingOnline={isShowBookingOnline}
                 onClose={closeModal}
-                onOpenBookingAlert={() => setModal('bookingAlert')}
+                onOpenBookingAlert={closeModal}
               />
-            )}
-            {modal === 'bookingAlert' && (
-              <BookingAlertModal onClose={closeModal} />
             )}
           </div>
         </div>

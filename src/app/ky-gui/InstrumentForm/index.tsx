@@ -3,174 +3,216 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
-import './style.scss';
+// Helper
+const numberWithCommas = (x: number | string): string =>
+  x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
-// Helper function
-const numberWithCommas = (x: number | string): string => {
-  return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-};
+// ─── Data ────────────────────────────────────────────
+const FEE_TIERS = [
+  { range: 'Dưới 1 triệu', fee: '26%', highlight: false },
+  { range: 'Từ 1 – 10 triệu', fee: '23%', highlight: false },
+  { range: 'Trên 10 triệu', fee: '20%', highlight: true },
+  { range: 'Luxury / chủ Brand', fee: 'Thoả thuận', highlight: false },
+];
+
+const CRITERIA = [
+  'Giá ký gửi là giá thanh lý — dựa trên chất liệu, kiểu dáng, thương hiệu.',
+  'Chỉ nhận sản phẩm có thương hiệu (global / local), authentic, tình trạng mới từ 80% trở lên.',
+  'Mỹ phẩm còn hạn dùng tối thiểu 6 tháng (GAP hỗ trợ check date).',
+  'Không nhận: hàng Quảng Châu, hàng không thương hiệu, hàng fake, mỹ phẩm hết date.',
+];
+
+const NOTES = [
+  'Sau khi được double-check bởi CTV chuyên viên trong và ngoài nước, nếu phát hiện fake, GAP sẽ lưu kho và hoàn trả khi đến hẹn ghi trên biên nhận.',
+  'GAP.Q1 hỗ trợ dịch vụ chuyển khoản tất toán (có phí) và ship hàng tồn tận nhà (khách thanh toán phí ship).',
+];
+
+// ─── Fee calc ────────────────────────────────────────
+function calcFee(amount: number): number {
+  if (amount <= 0) return 0;
+  if (amount < 1_000_000) return (amount * 74) / 100;
+  if (amount <= 10_000_000) return (amount * 77) / 100;
+  return (amount * 80) / 100;
+}
 
 interface InstrumentFormProps {
   backConsignment: () => void;
 }
 
 const InstrumentForm: React.FC<InstrumentFormProps> = ({ backConsignment }) => {
-  // States
-  const [isShowSectionOne, setIsShowSectionOne] = useState<boolean>(false);
-  const [moneyBack, setMoneyBack] = useState<number | string>('');
-  const [moneySold, setMoneySold] = useState<string>('');
+  const [visible, setVisible] = useState(false);
+  const [rawInput, setRawInput] = useState('');
+  const [moneyBack, setMoneyBack] = useState<number | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsShowSectionOne(true);
-    }, 100);
-
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => setVisible(true), 80);
+    return () => clearTimeout(t);
   }, []);
 
-  const changeData = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    const numValue = parseFloat(value) || 0;
-
-    setMoneySold(value);
-
-    if (numValue > 0) {
-      let calculatedMoneyBack = 0;
-
-      if (numValue < 1000000) {
-        calculatedMoneyBack = (numValue * 74) / 100;
-      } else if (numValue >= 1000000 && numValue <= 10000000) {
-        calculatedMoneyBack = (numValue * 77) / 100;
-      } else if (numValue > 10000000) {
-        calculatedMoneyBack = (numValue * 80) / 100;
-      }
-
-      setMoneyBack(calculatedMoneyBack);
-    } else {
-      setMoneyBack('');
-    }
-  };
-
-  const backPageProps = () => {
-    backConsignment();
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setRawInput(val);
+    const num = parseFloat(val) || 0;
+    setMoneyBack(num > 0 ? calcFee(num) : null);
   };
 
   return (
-    <div className="instrument-container">
-      <div className="home-page-wrapper">
-        <div className="main-content-instrument radius-bottom">
-          <div className="wrapper">
-            <div
-              className={
-                'box-content-introduce' + (isShowSectionOne ? ' show' : '')
-              }
-            >
-              <h2 className="text text-center text-color-0 txt-big-intro MB60 text-xl sm:text-2xl md:text-3xl font-bold">
-                PHƯƠNG THỨC KÝ GỬI
-              </h2>
+    <div className="w-full min-h-screen py-10 px-4 flex justify-center">
+      <div
+        className={cn(
+          'w-full max-w-2xl transition-all duration-700 ease-out',
+          visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+        )}
+      >
+        {/* ── Header ── */}
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-center mb-8">
+          Phương Thức Ký Gửi
+        </h1>
 
-              <div className="info-fee-box MB30">
-                <div className="info-fee-box-left">
-                  <h2
-                    style={{ opacity: 0, pointerEvents: 'none' }}
-                    className="text text-left text-color-10 txt-small-intro MB15 text-sm sm:text-base"
-                  >
-                    {'Danh mục'}
-                  </h2>
-                  <h2 className="text text-left text-color-10 txt-small-intro MB15 text-sm sm:text-base">
-                    {'Dưới 1 triệu'}
-                  </h2>
-                  <h2 className="text text-left text-color-10 txt-small-intro MB15 text-sm sm:text-base">
-                    {'Từ 1 đến 10 triệu'}
-                  </h2>
-                  <h2 className="text text-left text-color-10 txt-small-intro MB15 text-sm sm:text-base">
-                    {'Trên 10 triệu'}
-                  </h2>
-                  <h2 className="text text-left text-color-10 txt-small-intro text-sm sm:text-base">
-                    {'Luxury / chủ Brand'}
-                  </h2>
-                </div>
-
-                <div className="info-fee-box-right">
-                  <h2 className="text text-left text-color-10 txt-small-intro MB15 text-sm sm:text-base font-semibold">
-                    {'Phí Ký gửi:'}
-                  </h2>
-                  <h2 className="text text-left text-color-10 txt-small-intro MB15 text-sm sm:text-base">
-                    {'26%'}
-                  </h2>
-                  <h2 className="text text-left text-color-10 txt-small-intro MB15 text-sm sm:text-base">
-                    {'23%'}
-                  </h2>
-                  <h2 className="text text-left text-color-10 txt-small-intro MB15 text-sm sm:text-base">
-                    {'20%'}
-                  </h2>
-                  <h2 className="text text-left text-color-10 txt-small-intro text-sm sm:text-base">
-                    {'Thoả thuận'}
-                  </h2>
-                </div>
-              </div>
-
-              <div className="w-full sm:w-3/4 md:w-2/5 my-6 px-2 sm:px-0">
-                <div className="relative">
-                  <Input
-                    value={moneySold}
-                    type="number"
-                    onChange={changeData}
-                    placeholder="Nhập giá dự định ký gửi"
-                    className="pr-12 text-base"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
-                    vnđ
-                  </span>
-                </div>
-              </div>
-
-              <p className="MT10 text-sm sm:text-base px-2 sm:px-0">
-                Số tiền sau khi đã trừ phí là:{' '}
-                <span className="font-semibold">
-                  {moneyBack ? numberWithCommas(moneyBack) : '---'}
-                </span>
-              </p>
-
-              <Separator className="my-4 sm:my-6" />
-
-              <h2 className="text text-left text-color-10 txt-small-intro MB15 text-sm sm:text-base px-2 sm:px-0">
-                {'Thời gian ký gửi: Từ 50-70 ngày và tuỳ đợt ký gửi.'}
-              </h2>
-
-              <h2 className="text text-left text-color-10 txt-small-intro MB15 text-sm sm:text-base px-2 sm:px-0">
-                {
-                  'Quy định nhận ký gửi: Số lượng tối thiểu 5 món hoặc tuỳ giá trị đơn hàng (sản phẩm cao cấp).'
-                }
-              </h2>
-
-              <h2 className="text text-left text-color-10 txt-small-intro MB15 whitespace-pre-line text-sm sm:text-base px-2 sm:px-0 leading-relaxed">
-                {`*Tiêu chí ký gửi:
-⁃ Giá ký gửi là giá thanh lý. Lấy sức hút, tình trạng của sản phẩm tại thời điểm bán để làm tiêu chuẩn định giá thanh lý. Dựa trên 3 yếu tố chính: chất liệu, kiểu dáng, thương hiệu. 
-⁃ GAP chỉ nhận sản phẩm có thương hiệu (global/ local), authentic/ no fake, tình trạng mới từ 80%. 
-⁃ Mỹ phẩm còn date từ 6 tháng (GAP sẽ giúp bạn check date). 
-⁃ Không nhận: quần áo Quảng Châu, hàng không thương hiệu, hàng fake, mỹ phẩm hết date,…`}
-              </h2>
-
-              <h2 className="text text-left text-color-10 txt-small-intro MB15 whitespace-pre-line text-sm sm:text-base px-2 sm:px-0 leading-relaxed">
-                {`*Lưu ý khác:
-⁃ Sau khi được double check auth bởi CTV là chuyên viên đang làm việc tại Việt Nam và quốc tế, nếu phát hiện fake, GAP sẽ lưu kho và hoàn trả lại khi đến hẹn được ghi trên biên nhận ký gửi.
-⁃ GAP.Q1 có hỗ trợ dịch vụ chuyển khoản tiền tất toán (có phí) và ship hàng tồn tận nhà cho khách (khách thanh toán phí ship).`}
-              </h2>
+        {/* ── Bảng phí ── */}
+        <section className="mb-8">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
+            Phí dịch vụ
+          </h2>
+          <div className="rounded-xl border border-gray-200 overflow-hidden">
+            {/* Header row */}
+            <div className="grid grid-cols-2 bg-gray-50 px-4 py-2.5 border-b border-gray-200">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                Giá trị sản phẩm
+              </span>
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-right">
+                Phí ký gửi
+              </span>
             </div>
-
-            <div className="flex justify-center mt-4 sm:mt-6 pb-4">
-              <Button
-                variant="secondary"
-                onClick={backPageProps}
-                className="min-w-[120px]"
+            {FEE_TIERS.map((tier, i) => (
+              <div
+                key={i}
+                className={cn(
+                  'grid grid-cols-2 px-4 py-3.5 border-b border-gray-100 last:border-0',
+                  tier.highlight && 'bg-green-50'
+                )}
               >
-                Quay lại
-              </Button>
+                <span className="text-sm text-gray-700">{tier.range}</span>
+                <span
+                  className={cn(
+                    'text-sm font-semibold text-right',
+                    tier.highlight ? 'text-green-700' : 'text-gray-800'
+                  )}
+                >
+                  {tier.fee}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── Calculator ── */}
+        <section className="mb-8">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
+            Tính nhanh tiền nhận về
+          </h2>
+          <div className="rounded-xl border border-gray-200 p-4 space-y-3">
+            <div className="relative">
+              <Input
+                value={rawInput}
+                type="number"
+                onChange={handleInput}
+                placeholder="Nhập giá dự định ký gửi..."
+                className="pr-12 text-base"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
+                vnđ
+              </span>
+            </div>
+            <div
+              className={cn(
+                'flex items-center justify-between rounded-lg px-4 py-3 transition-all duration-300',
+                moneyBack !== null
+                  ? 'bg-green-50 border border-green-200'
+                  : 'bg-gray-50 border border-transparent'
+              )}
+            >
+              <span className="text-sm text-gray-500">Bạn nhận về</span>
+              <span className="text-base font-bold text-green-700">
+                {moneyBack !== null
+                  ? `${numberWithCommas(Math.round(moneyBack))} vnđ`
+                  : '---'}
+              </span>
             </div>
           </div>
+        </section>
+
+        {/* ── Thời gian & Số lượng ── */}
+        <section className="mb-8">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
+            Điều kiện
+          </h2>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="rounded-xl border border-gray-200 px-4 py-3.5">
+              <p className="text-xs text-gray-400 mb-1">Thời gian ký gửi</p>
+              <p className="text-sm font-medium text-gray-800">
+                50 – 70 ngày, tuỳ đợt
+              </p>
+            </div>
+            <div className="rounded-xl border border-gray-200 px-4 py-3.5">
+              <p className="text-xs text-gray-400 mb-1">Số lượng tối thiểu</p>
+              <p className="text-sm font-medium text-gray-800">
+                5 món / đơn (hoặc theo giá trị)
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Tiêu chí ── */}
+        <section className="mb-8">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
+            Tiêu chí nhận hàng
+          </h2>
+          <ul className="space-y-2.5">
+            {CRITERIA.map((item, i) => (
+              <li key={i} className="flex gap-3 items-start">
+                <span className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-black text-white text-[11px] font-bold flex items-center justify-center">
+                  {i + 1}
+                </span>
+                <span className="text-sm text-gray-700 leading-relaxed">
+                  {item}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        {/* ── Lưu ý ── */}
+        <section className="mb-10">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
+            Lưu ý khác
+          </h2>
+          <div className="space-y-2.5">
+            {NOTES.map((note, i) => (
+              <div
+                key={i}
+                className="flex gap-3 items-start rounded-lg bg-gray-50 border border-gray-100 px-4 py-3"
+              >
+                <span className="text-gray-400 mt-0.5 flex-shrink-0">ℹ︎</span>
+                <span className="text-sm text-gray-600 leading-relaxed">
+                  {note}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── Back ── */}
+        <div className="flex justify-center pb-6">
+          <Button
+            variant="outline"
+            onClick={backConsignment}
+            className="min-w-[140px]"
+          >
+            ← Quay lại
+          </Button>
         </div>
       </div>
     </div>

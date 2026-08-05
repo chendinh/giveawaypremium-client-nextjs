@@ -13,7 +13,6 @@ import { toast } from 'sonner';
 import {
   Loader2,
   Users,
-  Package,
   DollarSign,
   Banknote,
   CreditCard,
@@ -259,11 +258,35 @@ const SummaryScreen: React.FC = () => {
       title: { display: true, text: 'Tổng quan doanh thu' },
     },
     scales: {
+      x: {
+        ticks: {
+          maxRotation: 45,
+          minRotation: 0,
+          font: { size: 11 },
+          // Rút ngắn label trên màn hình nhỏ
+          callback: function (this: unknown, _val: unknown, index: number) {
+            const labels = [
+              'Doanh thu',
+              'Trả khách',
+              'Lợi nhuận',
+              'Tiền mặt',
+              'CK',
+            ];
+            return labels[index] ?? '';
+          },
+        },
+      },
       y: {
         beginAtZero: true,
         ticks: {
-          callback: (value: string | number) =>
-            numberWithCommas(Number(value)) + 'đ',
+          maxTicksLimit: 6,
+          callback: (value: string | number) => {
+            const n = Number(value);
+            if (n >= 1_000_000_000)
+              return (n / 1_000_000_000).toFixed(1) + 'tỷ';
+            if (n >= 1_000_000) return (n / 1_000_000).toFixed(0) + 'tr';
+            return numberWithCommas(n) + 'đ';
+          },
         },
       },
     },
@@ -434,75 +457,92 @@ const SummaryScreen: React.FC = () => {
       {/* Stats & Charts — chỉ hiển thị sau khi có data */}
       {hasFetched && !isLoading && (
         <>
-          {/* Stat Cards Row 1 */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              title="Tổng đơn hàng"
-              value={summary.totalOrder}
-              icon={<Users className="h-5 w-5 text-blue-500" />}
-            />
-            <StatCard
-              title="SL Sản phẩm"
-              value={summary.totalProduct}
-              icon={<Package className="h-5 w-5 text-purple-500" />}
-            />
-            <StatCard
-              title="Doanh thu"
-              value={`${numberWithCommas(summary.moneyForSale * 1000)} đ`}
-              icon={<DollarSign className="h-5 w-5 text-green-500" />}
-            />
-            <StatCard
-              title="Lợi nhuận"
-              value={`${numberWithCommas(summary.moneyFromFee * 1000)} đ`}
-              icon={<TrendingUp className="h-5 w-5 text-emerald-500" />}
-            />
+          {/* Hero row — 2 chỉ số quan trọng nhất */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Card className="border-green-200 bg-green-50/50">
+              <div className="flex flex-row items-center justify-between p-5 pb-2">
+                <p className="text-sm font-medium text-green-700">Doanh thu</p>
+                <DollarSign className="h-6 w-6 text-green-600" />
+              </div>
+              <CardContent className="pt-0 pb-5 px-5">
+                <div className="text-3xl font-bold text-green-800">
+                  {numberWithCommas(summary.moneyForSale * 1000)}
+                  <span className="text-lg font-normal text-green-600 ml-1">
+                    đ
+                  </span>
+                </div>
+                <p className="text-xs text-green-600 mt-1">
+                  Lợi nhuận: {numberWithCommas(summary.moneyFromFee * 1000)}đ
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-blue-200 bg-blue-50/50">
+              <div className="flex flex-row items-center justify-between p-5 pb-2">
+                <p className="text-sm font-medium text-blue-700">Đơn hàng</p>
+                <ShoppingCart className="h-6 w-6 text-blue-600" />
+              </div>
+              <CardContent className="pt-0 pb-5 px-5">
+                <div className="text-3xl font-bold text-blue-800">
+                  {summary.totalOrder}
+                  <span className="text-lg font-normal text-blue-600 ml-1">
+                    đơn
+                  </span>
+                </div>
+                <p className="text-xs text-blue-600 mt-1">
+                  {summary.totalProduct} sản phẩm · Online{' '}
+                  {summary.numberOnlineSale} / Offline{' '}
+                  {summary.numberOfflineSale}
+                </p>
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Stat Cards Row 2 */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Secondary row — thanh toán */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatCard
               title="Tiền mặt"
-              value={`${numberWithCommas(summary.transferOfflineMoneyAmount * 1000)} đ`}
-              icon={<Banknote className="h-5 w-5 text-yellow-500" />}
+              value={`${numberWithCommas(summary.transferOfflineMoneyAmount * 1000)}đ`}
+              icon={<Banknote className="h-4 w-4 text-yellow-500" />}
             />
             <StatCard
               title="Chuyển khoản"
-              value={`${numberWithCommas(summary.transferBankMoneyAmount * 1000)} đ`}
-              icon={<CreditCard className="h-5 w-5 text-sky-500" />}
+              value={`${numberWithCommas(summary.transferBankMoneyAmount * 1000)}đ`}
+              icon={<CreditCard className="h-4 w-4 text-sky-500" />}
             />
             <StatCard
               title="Trả khách"
-              value={`${numberWithCommas(summary.moneyAfterFee * 1000)} đ`}
-              icon={<ShoppingCart className="h-5 w-5 text-orange-500" />}
+              value={`${numberWithCommas(summary.moneyAfterFee * 1000)}đ`}
+              icon={<Users className="h-4 w-4 text-orange-500" />}
             />
             <StatCard
               title="Phí dịch vụ"
-              value={`${numberWithCommas(summary.moneyFromFee * 1000)} đ`}
-              icon={<TrendingUp className="h-5 w-5 text-indigo-500" />}
+              value={`${numberWithCommas(summary.moneyFromFee * 1000)}đ`}
+              icon={<TrendingUp className="h-4 w-4 text-indigo-500" />}
             />
           </div>
 
-          {/* Stat Cards Row 3 - Online/Offline */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Online / Offline detail row */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatCard
-              title="SL đơn online"
+              title="Đơn online"
               value={summary.numberOnlineSale}
-              icon={<Globe className="h-5 w-5 text-blue-500" />}
+              icon={<Globe className="h-4 w-4 text-blue-500" />}
             />
             <StatCard
-              title="Doanh thu online"
-              value={`${numberWithCommas(summary.moneyForOnlineSale * 1000)} đ`}
-              icon={<Globe className="h-5 w-5 text-green-500" />}
+              title="DT online"
+              value={`${numberWithCommas(summary.moneyForOnlineSale * 1000)}đ`}
+              icon={<Globe className="h-4 w-4 text-green-500" />}
             />
             <StatCard
-              title="SL đơn offline"
+              title="Đơn offline"
               value={summary.numberOfflineSale}
-              icon={<Store className="h-5 w-5 text-orange-500" />}
+              icon={<Store className="h-4 w-4 text-orange-500" />}
             />
             <StatCard
-              title="Doanh thu offline"
-              value={`${numberWithCommas(summary.moneyForOfflineSale * 1000)} đ`}
-              icon={<Store className="h-5 w-5 text-red-500" />}
+              title="DT offline"
+              value={`${numberWithCommas(summary.moneyForOfflineSale * 1000)}đ`}
+              icon={<Store className="h-4 w-4 text-red-500" />}
             />
           </div>
 

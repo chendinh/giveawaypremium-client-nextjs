@@ -431,6 +431,21 @@ export class GapService {
     );
   }
 
+  /** Lịch hẹn hôm nay — dùng cho notification badge admin */
+  static async getAppointmentToday(): Promise<any> {
+    const today = format(new Date(), 'dd-MM-yyyy');
+    const customQuery = `count=1&limit=0&where={"deletedAt":${null},"date":"${today}"}`;
+    return this.fetchData(
+      '/classes/AppointmentSchedule',
+      REQUEST_TYPE.GET,
+      null,
+      null,
+      null,
+      null,
+      customQuery
+    );
+  }
+
   static async getAppointmentWithSlotId(
     slotID: string
   ): Promise<AppointmentResult> {
@@ -1322,6 +1337,20 @@ export class GapService {
       };
     }
     const customQuery = `order=-createdAt&skip=${skip}&limit=${lim}&count=1&where=${JSON.stringify(whereObj)}`;
+    return this.fetchData(
+      '/classes/Consignment',
+      REQUEST_TYPE.GET,
+      null,
+      null,
+      null,
+      null,
+      customQuery
+    );
+  }
+
+  /** Ký gửi chưa trả tiền — dùng cho notification badge admin */
+  static async getConsignmentUnpaid(): Promise<any> {
+    const customQuery = `count=1&limit=0&where={"deletedAt":${null},"isGetMoney":{"$ne":true}}`;
     return this.fetchData(
       '/classes/Consignment',
       REQUEST_TYPE.GET,

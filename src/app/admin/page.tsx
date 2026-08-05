@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils';
 
 import GapService from '@/app/actions/GapServices';
 import { useAppStore } from '@/store/useAppStore';
+import { useAdminNotifications } from '@/hooks/useAdminNotifications';
 
 import Consignment from './components/Consignment';
 import ManageScreen from './components/ManageScreen';
@@ -44,6 +45,8 @@ interface MenuItemType {
   icon: React.ReactNode;
   label: string;
   isFullScreen: boolean;
+  /** key trong AdminNotificationCounts để hiển thị badge */
+  notifKey?: 'pendingAppointments' | 'pendingOrders' | 'pendingPayouts';
 }
 
 const menuItems: MenuItemType[] = [
@@ -70,6 +73,7 @@ const menuItems: MenuItemType[] = [
     icon: <Mail className="h-5 w-5" />,
     label: 'Ký gửi',
     isFullScreen: false,
+    notifKey: 'pendingPayouts',
   },
   {
     key: 5,
@@ -105,6 +109,9 @@ const DashBoard: React.FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [showLoginDialog, setShowLoginDialog] = useState<boolean>(false);
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
+
+  const { counts: notifCounts, refresh: refreshNotifs } =
+    useAdminNotifications(isLogin);
 
   // ── Check signed ──
   const checkIsSigned = useCallback(() => {
@@ -183,6 +190,8 @@ const DashBoard: React.FC = () => {
   const handleChoosePage = (item: MenuItemType) => {
     setNumberPage(item.key);
     setIsFullScreen(item.isFullScreen);
+    // Khi vào tab có badge → refresh để cập nhật count
+    if (item.notifKey) refreshNotifs();
   };
 
   const renderContent = () => {
@@ -288,20 +297,35 @@ const DashBoard: React.FC = () => {
 
           {/* Nav */}
           <nav className="sidebar-nav">
-            {menuItems.map(item => (
-              <button
-                key={item.key}
-                title={item.label}
-                onClick={() => handleChoosePage(item)}
-                className={cn(
-                  'sidebar-nav-btn',
-                  numberPage === item.key && 'sidebar-nav-btn--active'
-                )}
-              >
-                <span className="sidebar-nav-icon">{item.icon}</span>
-                <span className="sidebar-label">{item.label}</span>
-              </button>
-            ))}
+            {menuItems.map(item => {
+              const badgeCount = item.notifKey ? notifCounts[item.notifKey] : 0;
+              return (
+                <button
+                  key={item.key}
+                  title={item.label}
+                  onClick={() => handleChoosePage(item)}
+                  className={cn(
+                    'sidebar-nav-btn',
+                    numberPage === item.key && 'sidebar-nav-btn--active'
+                  )}
+                >
+                  <span className="sidebar-nav-icon relative">
+                    {item.icon}
+                    {badgeCount > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white leading-none">
+                        {badgeCount > 99 ? '99+' : badgeCount}
+                      </span>
+                    )}
+                  </span>
+                  <span className="sidebar-label">{item.label}</span>
+                  {!sidebarCollapsed && badgeCount > 0 && (
+                    <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
+                      {badgeCount > 99 ? '99+' : badgeCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </nav>
 
           {/* Bottom */}

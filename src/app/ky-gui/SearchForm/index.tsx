@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Search, Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 import './style.scss';
 
@@ -153,21 +154,65 @@ const SearchForm: React.FC<SearchFormProps> = ({ backConsignment }) => {
     const numberOfProducts = Number(item.numberOfProducts) || 0;
     const numSoldConsignment = Number(item.numSoldConsignment) || 0;
     const remainNum = numberOfProducts - numSoldConsignment;
+    const soldPercent =
+      numberOfProducts > 0
+        ? Math.round((numSoldConsignment / numberOfProducts) * 100)
+        : 0;
+
+    // Xác định trạng thái hiện tại của đơn ký gửi
+    const isFullySold = remainNum === 0 && numberOfProducts > 0;
+    const isPaidOut = !!item.isGetMoney;
+
+    type StageKey = 'received' | 'selling' | 'summary' | 'paidout';
+    const stages: {
+      key: StageKey;
+      label: string;
+      done: boolean;
+      active: boolean;
+    }[] = [
+      {
+        key: 'received',
+        label: '✅ Đã tiếp nhận',
+        done: true,
+        active: false,
+      },
+      {
+        key: 'selling',
+        label: isFullySold ? '🎉 Bán hết' : `🏷️ Đang bán (${soldPercent}%)`,
+        done: isFullySold,
+        active: !isFullySold && !isPaidOut,
+      },
+      {
+        key: 'summary',
+        label: item.group?.timeGetMoney ? '📋 Đã tổng kết' : '📋 Chờ tổng kết',
+        done: !!item.group?.timeGetMoney,
+        active: isFullySold && !isPaidOut,
+      },
+      {
+        key: 'paidout',
+        label: isPaidOut ? '💰 Đã nhận tiền' : '💰 Chờ nhận tiền',
+        done: isPaidOut,
+        active: false,
+      },
+    ];
 
     return (
       <div
         key={item.objectId || index}
         className="note-box"
         style={
-          item.isGetMoney
+          isPaidOut
             ? { border: '1px solid #09e486', background: '#d2e8c9' }
             : {}
         }
       >
         <div className="note-box-content">
+          {/* Header */}
           <div className="note-item">
             <span className="note-label">Mã ký gửi:</span>
-            <span className="note-value">{item.consignmentId || '---'}</span>
+            <span className="note-value font-mono">
+              {item.consignmentId || '---'}
+            </span>
           </div>
 
           <div className="note-item">
@@ -175,42 +220,82 @@ const SearchForm: React.FC<SearchFormProps> = ({ backConsignment }) => {
             <span className="note-value">{item.consignerName || '---'}</span>
           </div>
 
-          <div className="note-item">
-            <span className="note-label">Số điện thoại:</span>
-            <span className="note-value">{item.phoneNumber || '---'}</span>
+          {/* Timeline trạng thái */}
+          <div className="mt-3 mb-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {stages.map((stage, i) => (
+                <React.Fragment key={stage.key}>
+                  <span
+                    className={cn(
+                      'text-xs px-2 py-0.5 rounded-full font-medium',
+                      stage.done
+                        ? 'bg-green-100 text-green-800'
+                        : stage.active
+                          ? 'bg-blue-100 text-blue-800 ring-1 ring-blue-400'
+                          : 'bg-gray-100 text-gray-400'
+                    )}
+                  >
+                    {stage.label}
+                  </span>
+                  {i < stages.length - 1 && (
+                    <span className="text-gray-300 text-xs">›</span>
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div className="mt-2 mb-3">
+            <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <span>
+                Đã bán: {numSoldConsignment}/{numberOfProducts} món
+              </span>
+              <span className="font-medium">{soldPercent}%</span>
+            </div>
+            <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className={cn(
+                  'h-full rounded-full transition-all duration-500',
+                  soldPercent === 100
+                    ? 'bg-green-500'
+                    : soldPercent >= 50
+                      ? 'bg-blue-500'
+                      : 'bg-yellow-400'
+                )}
+                style={{ width: `${soldPercent}%` }}
+              />
+            </div>
           </div>
 
           <div className="note-item">
-            <span className="note-label">Số lượng hàng hoá:</span>
-            <span className="note-value">{numberOfProducts}</span>
+            <span className="note-label">Còn lại:</span>
+            <span
+              className={cn(
+                'note-value',
+                remainNum === 0 && 'text-green-600 font-semibold'
+              )}
+            >
+              {remainNum === 0 ? 'Bán hết rồi 🎉' : `${remainNum} món`}
+            </span>
           </div>
 
           <div className="note-item">
-            <span className="note-label">Số lượng đã bán:</span>
-            <span className="note-value">{numSoldConsignment}</span>
-          </div>
-
-          <div className="note-item">
-            <span className="note-label">Số lượng còn lại:</span>
-            <span className="note-value">{remainNum}</span>
-          </div>
-
-          <div className="note-item">
-            <span className="note-label">Ngân hàng đăng ký:</span>
+            <span className="note-label">Ngân hàng:</span>
             <span className="note-value">
               {item.banks?.[0]?.type || item.bankName || '---'}
             </span>
           </div>
 
           <div className="note-item">
-            <span className="note-label">ID ngân hàng:</span>
-            <span className="note-value">
+            <span className="note-label">Số TK:</span>
+            <span className="note-value font-mono">
               {item.banks?.[0]?.accNumber || item.bankId || '---'}
             </span>
           </div>
 
           <div className="note-item">
-            <span className="note-label">Hình thức ký gửi:</span>
+            <span className="note-label">Hình thức:</span>
             <span className="note-value">
               {item.isTransferMoneyWithBank ? 'Chuyển khoản' : 'Trực tiếp'}
             </span>
@@ -228,24 +313,23 @@ const SearchForm: React.FC<SearchFormProps> = ({ backConsignment }) => {
             <span className="note-label">Ngày tổng kết:</span>
             <span className="note-value">
               {item.group?.timeGetMoney
-                ? `${format(parseISO(item.group.timeGetMoney), 'dd-MM-yyyy')} -> ${format(addDays(parseISO(item.group.timeGetMoney), 10), 'dd-MM-yyyy')}`
-                : '---'}
+                ? `${format(parseISO(item.group.timeGetMoney), 'dd/MM/yyyy')} → ${format(addDays(parseISO(item.group.timeGetMoney), 10), 'dd/MM/yyyy')}`
+                : 'Chưa xác định'}
             </span>
           </div>
 
-          {!item.isGetMoney ? (
+          {isPaidOut ? (
             <div className="note-item">
-              <span className="note-label">Đã nhận tiền:</span>
-              <span className="note-value note-value-pending">Chưa</span>
-            </div>
-          ) : (
-            <div className="note-item">
-              <span className="note-label">Ngày khách đã nhận tiền:</span>
+              <span className="note-label">Ngày nhận tiền:</span>
               <span className="note-value note-value-done">
                 {item.timeConfirmGetMoney
-                  ? format(parseISO(item.timeConfirmGetMoney), 'dd-MM-yyyy')
+                  ? format(parseISO(item.timeConfirmGetMoney), 'dd/MM/yyyy')
                   : '---'}
               </span>
+            </div>
+          ) : (
+            <div className="mt-2 p-2 rounded-lg bg-yellow-50 border border-yellow-200 text-xs text-yellow-700">
+              Tiền chưa được chuyển. Vui lòng liên hệ khi đến ngày tổng kết.
             </div>
           )}
         </div>
