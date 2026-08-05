@@ -882,24 +882,36 @@ const SaleScreen: React.FC = () => {
       toast.error('Chưa nhập tên Khách hàng');
       return;
     }
-    if (
-      currentPane.isOnlineSale === 'true' &&
-      (!currentPane.shippingInfo.orderAdressStreet ||
-        currentPane.shippingInfo.orderAdressStreet.length === 0)
-    ) {
-      toast.error('Vui lòng nhập thêm thông tin số nhà/tên đường');
-      return;
-    }
-    if (
-      currentPane.isOnlineSale === 'true' &&
-      (!currentPane.shippingInfo.orderAdressWard ||
-        !currentPane.shippingInfo.orderAdressDistrict ||
-        !currentPane.shippingInfo.orderAdressProvince)
-    ) {
-      toast.error(
-        'Vui nhập thông tin: xã.phường / quận.huyện / tỉnh.thành phố'
-      );
-      return;
+    if (currentPane.isOnlineSale === 'true') {
+      if (
+        !currentPane.shippingInfo.orderAdressStreet ||
+        currentPane.shippingInfo.orderAdressStreet.trim().length === 0
+      ) {
+        toast.error('Vui lòng nhập số nhà / tên đường');
+        return;
+      }
+      if (!currentPane.shippingInfo.vtpProvinceId) {
+        toast.error('Vui lòng chọn Tỉnh/Thành phố');
+        return;
+      }
+      if (!currentPane.shippingInfo.vtpDistrictId) {
+        toast.error('Vui lòng chọn Quận/Huyện');
+        return;
+      }
+      if (!currentPane.shippingInfo.vtpWardId) {
+        toast.error('Vui lòng chọn Xã/Phường');
+        return;
+      }
+      if (
+        !currentPane.shippingInfo.optionTransfer ||
+        currentPane.shippingInfo.optionTransfer === ''
+      ) {
+        toast.error(
+          'Không có dịch vụ vận chuyển cho địa chỉ này. ' +
+            'Vui lòng chọn lại địa chỉ hoặc liên hệ hỗ trợ.'
+        );
+        return;
+      }
     }
 
     setIsCreatingOrder(true);
@@ -1127,7 +1139,16 @@ const SaleScreen: React.FC = () => {
               </SelectContent>
             </Select>
 
-            <Button onClick={onHandleCreateOrder} disabled={isCreatingOrder}>
+            <Button
+              onClick={onHandleCreateOrder}
+              disabled={
+                isCreatingOrder ||
+                (currentPane.isOnlineSale === 'true' &&
+                  !!currentPane.shippingInfo.vtpWardId &&
+                  !isLoadingServices &&
+                  vtpServices.length === 0)
+              }
+            >
               {isCreatingOrder ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
@@ -1506,6 +1527,7 @@ const SaleScreen: React.FC = () => {
                     <div className="space-y-1">
                       <Label className="text-xs">
                         Địa chỉ giao hàng (số nhà - đường)
+                        <span className="text-destructive ml-0.5">*</span>
                       </Label>
                       <Input
                         disabled={
@@ -1519,7 +1541,10 @@ const SaleScreen: React.FC = () => {
 
                     <div className="grid grid-cols-3 gap-2">
                       <div className="space-y-1">
-                        <Label className="text-xs">Tỉnh/Thành phố</Label>
+                        <Label className="text-xs">
+                          Tỉnh/Thành phố
+                          <span className="text-destructive ml-0.5">*</span>
+                        </Label>
                         <SearchableSelect
                           options={vtpProvinces.map(p => ({
                             value: `${p.PROVINCE_ID}|${p.PROVINCE_NAME}`,
@@ -1539,7 +1564,10 @@ const SaleScreen: React.FC = () => {
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Quận/Huyện</Label>
+                        <Label className="text-xs">
+                          Quận/Huyện
+                          <span className="text-destructive ml-0.5">*</span>
+                        </Label>
                         <SearchableSelect
                           options={vtpDistricts.map(d => ({
                             value: `${d.DISTRICT_ID}|${d.DISTRICT_NAME}`,
@@ -1563,7 +1591,10 @@ const SaleScreen: React.FC = () => {
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Xã/Phường</Label>
+                        <Label className="text-xs">
+                          Xã/Phường
+                          <span className="text-destructive ml-0.5">*</span>
+                        </Label>
                         <SearchableSelect
                           options={vtpWards.map(w => ({
                             value: `${w.WARDS_ID}|${w.WARDS_NAME}`,
@@ -1616,11 +1647,25 @@ const SaleScreen: React.FC = () => {
                           </SelectContent>
                         </Select>
                       ) : (
-                        <p className="text-xs text-muted-foreground">
-                          {currentPane.shippingInfo.vtpWardId
-                            ? 'Không có dịch vụ cho địa chỉ này'
-                            : 'Chọn tỉnh/quận/phường để xem dịch vụ'}
-                        </p>
+                        <div>
+                          {currentPane.shippingInfo.vtpWardId &&
+                          !isLoadingServices ? (
+                            <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2">
+                              <span className="text-destructive text-sm">
+                                ⚠️
+                              </span>
+                              <p className="text-xs text-destructive leading-relaxed">
+                                ViettelPost chưa phục vụ địa chỉ này. Vui lòng
+                                kiểm tra lại địa chỉ hoặc liên hệ khách hàng
+                                chọn địa chỉ khác.
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">
+                              Chọn đầy đủ Tỉnh → Quận → Phường để xem dịch vụ
+                            </p>
+                          )}
+                        </div>
                       )}
                     </div>
 

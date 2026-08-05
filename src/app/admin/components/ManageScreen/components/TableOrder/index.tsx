@@ -493,6 +493,21 @@ const TableOrderScreen: React.FC = () => {
       toast.error('Vui lòng xác nhận Nhận Tiền trước');
       return;
     }
+
+    // Kiểm tra địa chỉ VTP trước khi gọi API
+    const shippingInfo = row.shippingInfo as any;
+    if (
+      !shippingInfo?.vtpProvinceId ||
+      !shippingInfo?.vtpDistrictId ||
+      !shippingInfo?.vtpWardId
+    ) {
+      toast.error(
+        'Đơn hàng này thiếu thông tin địa chỉ VTP (tỉnh/quận/phường). ' +
+          'Vui lòng tạo lại đơn từ màn hình Bán hàng và chọn đầy đủ địa chỉ.'
+      );
+      return;
+    }
+
     try {
       const res = await GapService.pushOrderToGHTK(row as any, row.objectId);
       if (res) {
@@ -500,13 +515,21 @@ const TableOrderScreen: React.FC = () => {
           toast.error(res.error || 'Tạo vận đơn VTP chưa được');
           return;
         }
+        // Kiểm tra lỗi trong result (VTP trả về lỗi trong result.data)
+        if (res.result?.status && res.result.status !== 200) {
+          toast.error(res.result?.message || 'Tạo vận đơn VTP chưa được');
+          return;
+        }
+        toast.success('Tạo vận đơn thành công');
         handleRefresh();
       } else {
-        toast.error('Tạo vận đơn VTP chưa được');
+        toast.error(
+          'Tạo vận đơn VTP chưa được. Kiểm tra lại địa chỉ người nhận.'
+        );
       }
     } catch (err) {
       console.error(err);
-      toast.error('Có lỗi xảy ra');
+      toast.error('Có lỗi xảy ra khi tạo vận đơn');
     }
   };
 
