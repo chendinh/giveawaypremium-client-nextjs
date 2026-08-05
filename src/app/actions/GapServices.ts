@@ -2354,6 +2354,24 @@ export class GapService {
     }
   }
 
+  /**
+   * Gọi Cloud Function getOrderSummary — aggregate trên server, không kéo raw data về FE.
+   * @param fromDate - ISO string, đầu ngày (00:00:00)
+   * @param toDate   - ISO string, cuối ngày (23:59:59.999)
+   */
+  static async getOrderSummary(fromDate: string, toDate: string): Promise<any> {
+    return this.fetchData(
+      '/functions/getOrderSummary',
+      REQUEST_TYPE.POST,
+      null,
+      { fromDate, toDate },
+      null,
+      null,
+      null,
+      true // requireUser — cần sessionToken
+    );
+  }
+
   // Core Fetch Function
   static async fetchData(
     apiUrl: string,

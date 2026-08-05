@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import {
   Popover,
@@ -25,7 +25,13 @@ import {
   Store,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  startOfDay,
+  endOfDay,
+} from 'date-fns';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -42,7 +48,6 @@ import GapService from '@/app/actions/GapServices';
 
 import './style.scss';
 
-// Register Chart.js components
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -54,36 +59,12 @@ ChartJS.register(
 );
 
 // ─── Helpers ──────────────────────────────────────────
-const numberWithCommas = (x: number | string): string =>
-  x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-
-const convertPriceAfterFee = (productPrice: number = 0): number => {
-  let moneyBackForFullSold = Number(productPrice);
-  if (productPrice > 0) {
-    if (productPrice < 1000) {
-      moneyBackForFullSold = (productPrice * 74) / 100;
-    } else if (productPrice >= 1000 && productPrice <= 10000) {
-      moneyBackForFullSold = (productPrice * 77) / 100;
-    } else if (productPrice > 10000) {
-      moneyBackForFullSold = (productPrice * 80) / 100;
-    }
-    return moneyBackForFullSold;
-  }
-  return 0;
-};
+const numberWithCommas = (x: number): string =>
+  Math.round(x)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
 // ─── Types ────────────────────────────────────────────
-interface OrderItem {
-  objectId: string;
-  totalMoneyForSale?: number | string;
-  totalMoneyForSaleAfterFee?: number | string;
-  totalNumberOfProductForSale?: number | string;
-  isOnlineSale?: boolean;
-  transferBankMoneyAmount?: number | string;
-  transferOfflineMoneyAmount?: number | string;
-  createdAt?: string;
-}
-
 interface SummaryData {
   totalOrder: number;
   totalProduct: number;
@@ -96,7 +77,6 @@ interface SummaryData {
   numberOfflineSale: number;
   moneyForOnlineSale: number;
   moneyForOfflineSale: number;
-  dataOrderList: OrderItem[];
 }
 
 const initialSummary: SummaryData = {
@@ -111,8 +91,34 @@ const initialSummary: SummaryData = {
   numberOfflineSale: 0,
   moneyForOnlineSale: 0,
   moneyForOfflineSale: 0,
-  dataOrderList: [],
 };
+
+// ─── Quick range shortcuts ─────────────────────────────
+const now = new Date();
+const QUICK_RANGES = [
+  {
+    label: 'Tháng này',
+    from: startOfMonth(now),
+    to: endOfMonth(now),
+  },
+  {
+    label: 'Tháng trước',
+    from: startOfMonth(new Date(now.getFullYear(), now.getMonth() - 1, 1)),
+    to: endOfMonth(new Date(now.getFullYear(), now.getMonth() - 1, 1)),
+  },
+  {
+    label: 'Quý này',
+    from: new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1),
+    to: endOfMonth(
+      new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 + 2, 1)
+    ),
+  },
+  {
+    label: 'Năm nay',
+    from: new Date(now.getFullYear(), 0, 1),
+    to: new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999),
+  },
+] as const;
 
 // ─── Stat Card Component ──────────────────────────────
 interface StatCardProps {
@@ -129,13 +135,11 @@ const StatCard: React.FC<StatCardProps> = ({
   className,
 }) => (
   <Card className={cn('flex-1 min-w-[200px]', className)}>
-    <CardHeader className="flex flex-row items-center justify-between pb-2">
-      <CardTitle className="text-sm font-medium text-muted-foreground">
-        {title}
-      </CardTitle>
+    <div className="flex flex-row items-center justify-between p-4 pb-2">
+      <p className="text-sm font-medium text-muted-foreground">{title}</p>
       {icon}
-    </CardHeader>
-    <CardContent>
+    </div>
+    <CardContent className="pt-0">
       <div className="text-xl font-bold">{value}</div>
     </CardContent>
   </Card>
@@ -143,100 +147,49 @@ const StatCard: React.FC<StatCardProps> = ({
 
 // ─── Component ────────────────────────────────────────
 const SummaryScreen: React.FC = () => {
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
-  const [toDate, setToDate] = useState<Date | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [hasFetched, setHasFetched] = useState<boolean>(false);
+
+  // Default: tháng hiện tại
+  const [fromDate, setFromDate] = useState<Date>(() =>
+    startOfMonth(new Date())
+  );
+  const [toDate, setToDate] = useState<Date>(() => endOfMonth(new Date()));
+
+  // Lưu pending selection — chỉ apply khi bấm "Cập nhật"
+  const [pendingFrom, setPendingFrom] = useState<Date>(() =>
+    startOfMonth(new Date())
+  );
+  const [pendingTo, setPendingTo] = useState<Date>(() =>
+    endOfMonth(new Date())
+  );
+
   const [summary, setSummary] = useState<SummaryData>(initialSummary);
   const [fromOpen, setFromOpen] = useState(false);
   const [toOpen, setToOpen] = useState(false);
 
-  // Initialize dates to current month
-  useEffect(() => {
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    setFromDate(firstDay);
-    setToDate(lastDay);
-  }, []);
+  const abortRef = useRef<AbortController | null>(null);
 
-  // Fetch data when dates are set
-  const fetchSummaryData = useCallback(async () => {
-    if (!fromDate || !toDate) return;
+  const fetchSummaryData = useCallback(async (from: Date, to: Date) => {
+    // Huỷ request cũ nếu có
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
 
     setIsLoading(true);
     try {
-      const fromStr = format(fromDate, 'yyyy-MM-dd');
-      const toStr = format(toDate, 'yyyy-MM-dd');
-      const orderList = await GapService.getOrder(
-        1,
-        null,
-        100000,
-        fromStr,
-        toStr
-      );
+      // Đảm bảo toDate là cuối ngày 23:59:59.999
+      const fromISO = startOfDay(from).toISOString();
+      const toISO = endOfDay(to).toISOString();
 
-      let moneyForSale = 0;
-      let moneyAfterFee = 0;
-      let totalProduct = 0;
-      let transferBankMoneyAmount = 0;
-      let transferOfflineMoneyAmount = 0;
-      let numberOnlineSale = 0;
-      let numberOfflineSale = 0;
-      let moneyForOnlineSale = 0;
-      let moneyForOfflineSale = 0;
+      const res = await GapService.getOrderSummary(fromISO, toISO);
 
-      if (orderList?.results?.length > 0) {
-        orderList.results.forEach((item: OrderItem) => {
-          const total = Number(item.totalMoneyForSale) || 0;
-          const totalAfterFee = Number(item.totalMoneyForSaleAfterFee) || 0;
-
-          // Ưu tiên dùng totalMoneyForSaleAfterFee được lưu sẵn trên đơn hàng
-          // (đã tính đúng per-product khi tạo đơn), fallback mới tính lại
-          const afterFee =
-            totalAfterFee > 0 ? totalAfterFee : convertPriceAfterFee(total);
-
-          moneyForSale += total;
-          moneyAfterFee += afterFee;
-          totalProduct += Number(item.totalNumberOfProductForSale) || 0;
-
-          // Guard NaN: transferBankMoneyAmount có thể là '---' string từ API
-          const bankAmt = Number(item.transferBankMoneyAmount);
-          const offlineAmt = Number(item.transferOfflineMoneyAmount);
-          transferBankMoneyAmount += isNaN(bankAmt) ? 0 : bankAmt;
-          transferOfflineMoneyAmount += isNaN(offlineAmt) ? 0 : offlineAmt;
-
-          if (item.isOnlineSale) {
-            numberOnlineSale += 1;
-            moneyForOnlineSale += total;
-          } else {
-            numberOfflineSale += 1;
-            moneyForOfflineSale += total;
-          }
-        });
-
-        // Lợi nhuận = doanh thu - tiền trả lại cho người ký gửi
-        const moneyFromFee = moneyForSale - moneyAfterFee;
-
-        setSummary({
-          moneyForSale: Math.round(moneyForSale),
-          moneyAfterFee: Math.round(moneyAfterFee),
-          moneyFromFee: Math.round(moneyFromFee),
-          totalProduct,
-          dataOrderList: orderList.results,
-          totalOrder: orderList.count || orderList.results.length,
-          transferBankMoneyAmount: Math.round(transferBankMoneyAmount),
-          transferOfflineMoneyAmount: Math.round(transferOfflineMoneyAmount),
-          numberOnlineSale,
-          numberOfflineSale,
-          moneyForOnlineSale: Math.round(moneyForOnlineSale),
-          moneyForOfflineSale: Math.round(moneyForOfflineSale),
-        });
+      if (res?.result) {
+        setSummary(res.result);
+        setHasFetched(true);
+      } else if (res?.error) {
+        toast.error(`Lỗi từ server: ${res.error}`);
       } else {
-        setSummary({
-          ...initialSummary,
-          totalOrder: orderList?.count || 0,
-          dataOrderList: orderList?.results || [],
-        });
+        toast.error('Không thể tải dữ liệu thống kê');
       }
     } catch (err) {
       console.error('Error fetching summary data:', err);
@@ -244,13 +197,21 @@ const SummaryScreen: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [fromDate, toDate]);
+  }, []);
 
-  useEffect(() => {
-    if (fromDate && toDate) {
-      fetchSummaryData();
-    }
-  }, [fromDate, toDate, fetchSummaryData]);
+  const handleApply = () => {
+    setFromDate(pendingFrom);
+    setToDate(pendingTo);
+    fetchSummaryData(pendingFrom, pendingTo);
+  };
+
+  const handleQuickRange = (from: Date, to: Date) => {
+    setPendingFrom(from);
+    setPendingTo(to);
+    setFromDate(from);
+    setToDate(to);
+    fetchSummaryData(from, to);
+  };
 
   // ─── Chart Data ─────────────────────────────────────
   const revenueBarData = {
@@ -348,182 +309,229 @@ const SummaryScreen: React.FC = () => {
   };
 
   // ─── Render ─────────────────────────────────────────
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
   return (
     <div className="summary-screen-container p-4 space-y-6">
-      {/* Date Picker & Refresh */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Popover open={fromOpen} onOpenChange={setFromOpen}>
-          <PopoverTrigger asChild>
+      {/* Date Picker & Controls */}
+      <div className="space-y-3">
+        {/* Quick ranges */}
+        <div className="flex flex-wrap gap-2">
+          {QUICK_RANGES.map(r => (
             <Button
+              key={r.label}
               variant="outline"
+              size="sm"
+              onClick={() => handleQuickRange(r.from, r.to)}
               className={cn(
-                'w-[180px] justify-start text-left font-normal',
-                !fromDate && 'text-muted-foreground'
+                'text-xs',
+                format(fromDate, 'yyyy-MM-dd') ===
+                  format(r.from, 'yyyy-MM-dd') &&
+                  format(toDate, 'yyyy-MM-dd') === format(r.to, 'yyyy-MM-dd')
+                  ? 'bg-primary text-primary-foreground'
+                  : ''
               )}
             >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {fromDate ? format(fromDate, 'dd/MM/yyyy') : 'Từ ngày'}
+              {r.label}
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0">
-            <Calendar
-              mode="single"
-              selected={fromDate}
-              onSelect={d => {
-                setFromDate(d);
-                setFromOpen(false);
-              }}
-            />
-          </PopoverContent>
-        </Popover>
+          ))}
+        </div>
 
-        <span className="text-muted-foreground">—</span>
-
-        <Popover open={toOpen} onOpenChange={setToOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn(
-                'w-[180px] justify-start text-left font-normal',
-                !toDate && 'text-muted-foreground'
-              )}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {toDate ? format(toDate, 'dd/MM/yyyy') : 'Đến ngày'}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0">
-            <Calendar
-              mode="single"
-              selected={toDate}
-              onSelect={d => {
-                setToDate(d);
-                setToOpen(false);
-              }}
-            />
-          </PopoverContent>
-        </Popover>
-
-        <Button onClick={fetchSummaryData} variant="default" size="sm">
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Cập nhật
-        </Button>
-      </div>
-
-      {/* Stat Cards Row 1 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="SL Khách"
-          value={summary.totalOrder}
-          icon={<Users className="h-5 w-5 text-blue-500" />}
-        />
-        <StatCard
-          title="SL Sản phẩm"
-          value={summary.totalProduct}
-          icon={<Package className="h-5 w-5 text-purple-500" />}
-        />
-        <StatCard
-          title="Số tiền bán"
-          value={`${numberWithCommas(summary.moneyForSale * 1000)} vnđ`}
-          icon={<DollarSign className="h-5 w-5 text-green-500" />}
-        />
-        <StatCard
-          title="Lợi nhuận"
-          value={`${numberWithCommas(summary.moneyFromFee * 1000)} vnđ`}
-          icon={<TrendingUp className="h-5 w-5 text-emerald-500" />}
-        />
-      </div>
-
-      {/* Stat Cards Row 2 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Tiền mặt"
-          value={`${numberWithCommas(summary.transferOfflineMoneyAmount * 1000)} vnđ`}
-          icon={<Banknote className="h-5 w-5 text-yellow-500" />}
-        />
-        <StatCard
-          title="Tiền chuyển khoản"
-          value={`${numberWithCommas(summary.transferBankMoneyAmount * 1000)} vnđ`}
-          icon={<CreditCard className="h-5 w-5 text-sky-500" />}
-        />
-        <StatCard
-          title="Số tiền trả khách"
-          value={`${numberWithCommas(summary.moneyAfterFee * 1000)} vnđ`}
-          icon={<ShoppingCart className="h-5 w-5 text-orange-500" />}
-        />
-        <StatCard
-          title="Tổng đơn hàng"
-          value={summary.totalOrder}
-          icon={<ShoppingCart className="h-5 w-5 text-indigo-500" />}
-        />
-      </div>
-
-      {/* Stat Cards Row 3 - Online/Offline */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="SL đơn online"
-          value={summary.numberOnlineSale}
-          icon={<Globe className="h-5 w-5 text-blue-500" />}
-        />
-        <StatCard
-          title="Doanh thu online"
-          value={`${numberWithCommas(summary.moneyForOnlineSale * 1000)} vnđ`}
-          icon={<Globe className="h-5 w-5 text-green-500" />}
-        />
-        <StatCard
-          title="SL đơn offline"
-          value={summary.numberOfflineSale}
-          icon={<Store className="h-5 w-5 text-orange-500" />}
-        />
-        <StatCard
-          title="Doanh thu offline"
-          value={`${numberWithCommas(summary.moneyForOfflineSale * 1000)} vnđ`}
-          icon={<Store className="h-5 w-5 text-red-500" />}
-        />
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Revenue Bar Chart */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="h-[350px]">
-              <Bar data={revenueBarData} options={revenueBarOptions} />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Online vs Offline Order Count Pie */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="h-[350px]">
-              <Pie
-                data={onlineOfflinePieData}
-                options={onlineOfflinePieOptions}
+        {/* Custom date range */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* From date */}
+          <Popover open={fromOpen} onOpenChange={setFromOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn('w-[160px] justify-start text-left font-normal')}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {format(pendingFrom, 'dd/MM/yyyy')}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={pendingFrom}
+                onSelect={d => {
+                  if (d) {
+                    setPendingFrom(d);
+                    // Nếu from > to thì tự điều chỉnh to = from
+                    if (d > pendingTo) setPendingTo(d);
+                  }
+                  setFromOpen(false);
+                }}
+                disabled={d => d > new Date()}
               />
-            </div>
-          </CardContent>
-        </Card>
+            </PopoverContent>
+          </Popover>
+
+          <span className="text-muted-foreground">—</span>
+
+          {/* To date */}
+          <Popover open={toOpen} onOpenChange={setToOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn('w-[160px] justify-start text-left font-normal')}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {format(pendingTo, 'dd/MM/yyyy')}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={pendingTo}
+                onSelect={d => {
+                  if (d) setPendingTo(d);
+                  setToOpen(false);
+                }}
+                disabled={d => d < pendingFrom || d > new Date()}
+              />
+            </PopoverContent>
+          </Popover>
+
+          <Button
+            onClick={handleApply}
+            variant="default"
+            size="sm"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-4 w-4" />
+            )}
+            Cập nhật
+          </Button>
+        </div>
       </div>
 
-      {/* Revenue Pie Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="h-[350px]">
-              <Pie data={revenuePieData} options={revenuePieOptions} />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Empty state — chưa fetch lần nào */}
+      {!hasFetched && !isLoading && (
+        <div className="flex flex-col items-center justify-center p-16 text-muted-foreground gap-2">
+          <CalendarIcon className="h-10 w-10 opacity-30" />
+          <p className="text-sm">
+            Chọn khoảng thời gian và bấm <strong>Cập nhật</strong> để xem thống
+            kê.
+          </p>
+        </div>
+      )}
+
+      {/* Loading overlay */}
+      {isLoading && (
+        <div className="flex items-center justify-center p-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {/* Stats & Charts — chỉ hiển thị sau khi có data */}
+      {hasFetched && !isLoading && (
+        <>
+          {/* Stat Cards Row 1 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              title="Tổng đơn hàng"
+              value={summary.totalOrder}
+              icon={<Users className="h-5 w-5 text-blue-500" />}
+            />
+            <StatCard
+              title="SL Sản phẩm"
+              value={summary.totalProduct}
+              icon={<Package className="h-5 w-5 text-purple-500" />}
+            />
+            <StatCard
+              title="Doanh thu"
+              value={`${numberWithCommas(summary.moneyForSale * 1000)} đ`}
+              icon={<DollarSign className="h-5 w-5 text-green-500" />}
+            />
+            <StatCard
+              title="Lợi nhuận"
+              value={`${numberWithCommas(summary.moneyFromFee * 1000)} đ`}
+              icon={<TrendingUp className="h-5 w-5 text-emerald-500" />}
+            />
+          </div>
+
+          {/* Stat Cards Row 2 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              title="Tiền mặt"
+              value={`${numberWithCommas(summary.transferOfflineMoneyAmount * 1000)} đ`}
+              icon={<Banknote className="h-5 w-5 text-yellow-500" />}
+            />
+            <StatCard
+              title="Chuyển khoản"
+              value={`${numberWithCommas(summary.transferBankMoneyAmount * 1000)} đ`}
+              icon={<CreditCard className="h-5 w-5 text-sky-500" />}
+            />
+            <StatCard
+              title="Trả khách"
+              value={`${numberWithCommas(summary.moneyAfterFee * 1000)} đ`}
+              icon={<ShoppingCart className="h-5 w-5 text-orange-500" />}
+            />
+            <StatCard
+              title="Phí dịch vụ"
+              value={`${numberWithCommas(summary.moneyFromFee * 1000)} đ`}
+              icon={<TrendingUp className="h-5 w-5 text-indigo-500" />}
+            />
+          </div>
+
+          {/* Stat Cards Row 3 - Online/Offline */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              title="SL đơn online"
+              value={summary.numberOnlineSale}
+              icon={<Globe className="h-5 w-5 text-blue-500" />}
+            />
+            <StatCard
+              title="Doanh thu online"
+              value={`${numberWithCommas(summary.moneyForOnlineSale * 1000)} đ`}
+              icon={<Globe className="h-5 w-5 text-green-500" />}
+            />
+            <StatCard
+              title="SL đơn offline"
+              value={summary.numberOfflineSale}
+              icon={<Store className="h-5 w-5 text-orange-500" />}
+            />
+            <StatCard
+              title="Doanh thu offline"
+              value={`${numberWithCommas(summary.moneyForOfflineSale * 1000)} đ`}
+              icon={<Store className="h-5 w-5 text-red-500" />}
+            />
+          </div>
+
+          {/* Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="h-[350px]">
+                  <Bar data={revenueBarData} options={revenueBarOptions} />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="h-[350px]">
+                  <Pie
+                    data={onlineOfflinePieData}
+                    options={onlineOfflinePieOptions}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="h-[350px]">
+                  <Pie data={revenuePieData} options={revenuePieOptions} />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
     </div>
   );
 };
