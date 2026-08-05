@@ -1774,6 +1774,15 @@ export class GapService {
         if (!productListTemp[itemIndex].note) {
           productListTemp[itemIndex].note = '---';
         }
+        // Parse Server yêu cầu number — input HTML trả về string
+        productListTemp[itemIndex].price =
+          Number(productListTemp[itemIndex].price) || 0;
+        productListTemp[itemIndex].count =
+          Number(productListTemp[itemIndex].count) || 0;
+        if (productListTemp[itemIndex].priceAfterFee !== undefined) {
+          productListTemp[itemIndex].priceAfterFee =
+            Number(productListTemp[itemIndex].priceAfterFee) || 0;
+        }
       });
       const body = {
         consignmentId: item.consignmentId,

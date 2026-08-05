@@ -58,13 +58,21 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 import GapService from '@/app/actions/GapServices';
-import { StoreServices } from '@/store/useAppStore';
+import { StoreServices, useAppStore } from '@/store/useAppStore';
 
 import './style.scss';
 
 // ─── Helpers ──────────────────────────────────────────
 const numberWithCommas = (x: number | string): string =>
   x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+/** Tính giá sau phí theo bracket — đơn vị nghìn đồng */
+const calcPriceAfterFee = (price: number): number => {
+  if (price <= 0) return 0;
+  if (price < 1000) return Math.round((price * 74) / 100);
+  if (price <= 10000) return Math.round((price * 77) / 100);
+  return Math.round((price * 80) / 100);
+};
 
 // ─── Types ────────────────────────────────────────────
 interface ProductItem {
@@ -74,6 +82,9 @@ interface ProductItem {
   price: number | string;
   count: number;
   priceAfterFee?: number | string;
+  totalPriceAfterFee?: number | string;
+  soldNumberProduct?: number;
+  remainNumberProduct?: number;
   note?: string;
   isNew?: string;
   rateNew?: number;
@@ -114,45 +125,157 @@ interface SearchFilters {
   isGetMoney: string;
 }
 
+// ─── Sensitive fields — thay đổi sẽ tạo audit log ──────
+const SENSITIVE_PRODUCT_FIELDS: (keyof ProductItem)[] = [
+  'price',
+  'count',
+  'soldNumberProduct',
+];
+
+const isSensitiveField = (field: keyof ProductItem): boolean =>
+  SENSITIVE_PRODUCT_FIELDS.includes(field);
+/** Tạo audit note khi thay đổi field nhạy cảm */
+const buildAuditNote = (
+  staffName: string,
+  consignmentId: string,
+  changes: Array<{
+    productCode: string;
+    field: string;
+    oldVal: unknown;
+    newVal: unknown;
+  }>
+): string => {
+  if (changes.length === 0) return '';
+  const time = format(new Date(), 'dd/MM/yyyy HH:mm');
+  const fieldLabel: Record<string, string> = {
+    price: 'Giá',
+    count: 'Số lượng',
+    soldNumberProduct: 'Số lượng đã bán',
+  };
+  const lines = changes.map(
+    c =>
+      `  • SP [${c.productCode || '?'}]: ${fieldLabel[c.field] || c.field} ${c.oldVal} → ${c.newVal}`
+  );
+  return `[${time}] ${staffName} sửa đơn ${consignmentId}:\n${lines.join('\n')}`;
+};
+
 // ─── Inline editable product row ──────────────────────
 interface EditableProductRowProps {
   product: ProductItem;
+  originalProduct: ProductItem;
   index: number;
   onChange: (index: number, field: keyof ProductItem, value: string) => void;
 }
 
 const EditableProductRow: React.FC<EditableProductRowProps> = ({
   product,
+  originalProduct,
   index,
   onChange,
-}) => (
-  <TableRow>
-    <TableCell className="text-xs text-muted-foreground">{index + 1}</TableCell>
-    <TableCell>
-      <Input
-        className="h-7 text-xs w-full min-w-[120px]"
-        value={product.name || ''}
-        onChange={e => onChange(index, 'name', e.target.value)}
-        placeholder="Tên SP"
-      />
-    </TableCell>
-    <TableCell className="text-xs text-right whitespace-nowrap">
-      {numberWithCommas(Number(product.price) * 1000)}đ
-    </TableCell>
-    <TableCell className="text-xs text-right">{product.count}</TableCell>
-    <TableCell>
-      <Input
-        className="h-7 text-xs w-full min-w-[100px]"
-        value={product.note || ''}
-        onChange={e => onChange(index, 'note', e.target.value)}
-        placeholder="Ghi chú"
-      />
-    </TableCell>
-  </TableRow>
-);
+}) => {
+  const priceAfterFee = Number(product.priceAfterFee) || 0;
+  const sold = Number(product.soldNumberProduct) || 0;
+  const remain = Number(product.count) - sold;
+  const totalAfterFee = Math.round(sold * priceAfterFee);
+
+  return (
+    <TableRow>
+      <TableCell className="text-xs text-muted-foreground">
+        {index + 1}
+      </TableCell>
+      <TableCell>
+        <Input
+          className="h-7 text-xs w-full min-w-[120px]"
+          value={product.name || ''}
+          onChange={e => onChange(index, 'name', e.target.value)}
+          placeholder="Tên SP"
+        />
+      </TableCell>
+      {/* Giá — sensitive */}
+      <TableCell>
+        <div className="relative">
+          <Input
+            className={cn(
+              'h-7 text-xs w-[90px] pr-4',
+              String(product.price) !== String(originalProduct.price) &&
+                'border-orange-400 bg-orange-50'
+            )}
+            type="number"
+            value={product.price}
+            onChange={e => onChange(index, 'price', e.target.value)}
+            placeholder="Giá"
+          />
+          <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">
+            k
+          </span>
+        </div>
+      </TableCell>
+      {/* Giá sau phí — readonly, tính từ price */}
+      <TableCell className="text-xs text-right whitespace-nowrap text-muted-foreground">
+        {priceAfterFee > 0
+          ? `${numberWithCommas(priceAfterFee * 1000)}đ`
+          : '---'}
+      </TableCell>
+      {/* Số lượng — sensitive */}
+      <TableCell>
+        <Input
+          className={cn(
+            'h-7 text-xs w-16 text-center',
+            String(product.count) !== String(originalProduct.count) &&
+              'border-orange-400 bg-orange-50'
+          )}
+          type="number"
+          min={0}
+          value={product.count}
+          onChange={e => onChange(index, 'count', e.target.value)}
+        />
+      </TableCell>
+      {/* Đã bán — sensitive, editable */}
+      <TableCell>
+        <Input
+          className={cn(
+            'h-7 text-xs w-16 text-center',
+            String(product.soldNumberProduct) !==
+              String(originalProduct.soldNumberProduct) &&
+              'border-orange-400 bg-orange-50'
+          )}
+          type="number"
+          min={0}
+          max={Number(product.count)}
+          value={product.soldNumberProduct ?? 0}
+          onChange={e => onChange(index, 'soldNumberProduct', e.target.value)}
+        />
+      </TableCell>
+      {/* Còn lại — readonly */}
+      <TableCell
+        className={cn(
+          'text-xs text-right font-medium',
+          remain === 0 && 'text-red-500'
+        )}
+      >
+        {remain}
+      </TableCell>
+      {/* Tổng tiền sau phí — readonly */}
+      <TableCell className="text-xs text-right whitespace-nowrap font-medium text-green-700">
+        {totalAfterFee > 0
+          ? `${numberWithCommas(totalAfterFee * 1000)}đ`
+          : '---'}
+      </TableCell>
+      <TableCell>
+        <Input
+          className="h-7 text-xs w-full min-w-[100px]"
+          value={product.note || ''}
+          onChange={e => onChange(index, 'note', e.target.value)}
+          placeholder="Ghi chú"
+        />
+      </TableCell>
+    </TableRow>
+  );
+};
 
 // ─── Component ────────────────────────────────────────
 const TableConsignmentScreen: React.FC = () => {
+  const { userData } = useAppStore();
   const [dataSource, setDataSource] = useState<ConsignmentItem[]>([]);
   const [allInfoTag, setAllInfoTag] = useState<TagItem[]>([]);
   const [currentTagId, setCurrentTagId] = useState<string>('');
@@ -327,22 +450,112 @@ const TableConsignmentScreen: React.FC = () => {
     setRowDrafts(d => {
       const draft = { ...d[objectId] };
       const list = [...(draft.productList || [])];
-      list[pIdx] = { ...list[pIdx], [field]: value };
+      const current = { ...list[pIdx] };
+
+      // price và count cần là number để API không reject
+      const parsed = isSensitiveField(field) ? Number(value) || 0 : value;
+      current[field] = parsed;
+
+      // Khi giá thay đổi → recalc priceAfterFee và totalPriceAfterFee
+      if (field === 'price') {
+        const newPrice = Number(value) || 0;
+        const newPriceAfterFee = calcPriceAfterFee(newPrice);
+        const sold = Number(current.soldNumberProduct) || 0;
+        current.priceAfterFee = newPriceAfterFee;
+        current.totalPriceAfterFee = Math.round(sold * newPriceAfterFee);
+      }
+
+      // Khi count thay đổi → recalc remainNumberProduct và totalPriceAfterFee
+      if (field === 'count') {
+        const newCount = Number(value) || 0;
+        const sold = Number(current.soldNumberProduct) || 0;
+        const priceAfterFee = Number(current.priceAfterFee) || 0;
+        current.remainNumberProduct = newCount - sold;
+        current.totalPriceAfterFee = Math.round(sold * priceAfterFee);
+      }
+
+      // Khi soldNumberProduct thay đổi → recalc remainNumberProduct và totalPriceAfterFee
+      if (field === 'soldNumberProduct') {
+        const sold = Number(value) || 0;
+        const count = Number(current.count) || 0;
+        const priceAfterFee = Number(current.priceAfterFee) || 0;
+        current.remainNumberProduct = count - sold;
+        current.totalPriceAfterFee = Math.round(sold * priceAfterFee);
+      }
+
+      // Khi đã bán thay đổi → recalc remainNumberProduct và totalPriceAfterFee
+      if (field === 'soldNumberProduct') {
+        const newSold = Number(value) || 0;
+        const count = Number(current.count) || 0;
+        const priceAfterFee = Number(current.priceAfterFee) || 0;
+        current.remainNumberProduct = count - newSold;
+        current.totalPriceAfterFee = Math.round(newSold * priceAfterFee);
+      }
+
+      list[pIdx] = current;
       return { ...d, [objectId]: { ...draft, productList: list } };
     });
   };
 
-  // ── Save draft ──
+  // ── Save draft — detect sensitive changes & append audit note ──
   const handleSaveRow = async (objectId: string) => {
     const draft = rowDrafts[objectId];
-    if (!draft) return;
+    const original = dataSource.find(i => i.objectId === objectId);
+    if (!draft || !original) return;
+
     setSavingRows(prev => new Set(prev).add(objectId));
     try {
-      const res = await GapService.updateConsignment(draft);
+      // Detect sensitive product field changes
+      const sensitiveChanges: Array<{
+        productCode: string;
+        field: string;
+        oldVal: unknown;
+        newVal: unknown;
+      }> = [];
+
+      draft.productList?.forEach((draftP, idx) => {
+        const origP = original.productList?.[idx];
+        if (!origP) return;
+        SENSITIVE_PRODUCT_FIELDS.forEach(field => {
+          if (String(draftP[field]) !== String(origP[field])) {
+            const fieldStr = String(field);
+            sensitiveChanges.push({
+              productCode: draftP.code || origP.code || `#${idx + 1}`,
+              field: fieldStr,
+              oldVal:
+                fieldStr === 'price'
+                  ? `${numberWithCommas(Number(origP[field]) * 1000)}đ`
+                  : origP[field],
+              newVal:
+                fieldStr === 'price'
+                  ? `${numberWithCommas(Number(draftP[field]) * 1000)}đ`
+                  : (draftP[field] as unknown),
+            });
+          }
+        });
+      });
+
+      // Build audit note và append (không cho sửa, nên append vào cuối)
+      let finalNote = draft.note || '';
+      if (sensitiveChanges.length > 0) {
+        const staffName =
+          userData?.fullName || userData?.username || 'Nhân viên';
+        const auditNote = buildAuditNote(
+          staffName,
+          draft.consignmentId,
+          sensitiveChanges
+        );
+        // Append audit note với separator
+        finalNote = finalNote ? `${finalNote}\n---\n${auditNote}` : auditNote;
+      }
+
+      const finalDraft = { ...draft, note: finalNote };
+
+      const res = await GapService.updateConsignment(finalDraft);
       if (res) {
         toast.success('Cập nhật thành công');
         setDataSource(prev =>
-          prev.map(i => (i.objectId === objectId ? { ...i, ...draft } : i))
+          prev.map(i => (i.objectId === objectId ? { ...i, ...finalDraft } : i))
         );
         setExpandedRows(prev => {
           const n = new Set(prev);
@@ -742,17 +955,9 @@ const TableConsignmentScreen: React.FC = () => {
                                 <Label className="text-xs text-muted-foreground">
                                   Mã ký gửi
                                 </Label>
-                                <Input
-                                  className="h-8 text-sm"
-                                  value={draft.consignmentId || ''}
-                                  onChange={e =>
-                                    updateDraftField(
-                                      item.objectId,
-                                      'consignmentId',
-                                      e.target.value
-                                    )
-                                  }
-                                />
+                                <p className="h-8 flex items-center text-sm font-mono text-muted-foreground px-1">
+                                  {draft.consignmentId || '---'}
+                                </p>
                               </div>
                               <div className="space-y-1 col-span-2">
                                 <Label className="text-xs text-muted-foreground">
@@ -760,14 +965,24 @@ const TableConsignmentScreen: React.FC = () => {
                                 </Label>
                                 <Input
                                   className="h-8 text-sm"
-                                  value={draft.note || ''}
-                                  onChange={e =>
+                                  value={(draft.note || '')
+                                    .split('\n---\n')
+                                    .filter(s => !s.trim().startsWith('['))
+                                    .join('\n---\n')}
+                                  onChange={e => {
+                                    const auditParts = (draft.note || '')
+                                      .split('\n---\n')
+                                      .filter(s => s.trim().startsWith('['));
+                                    const newNote =
+                                      auditParts.length > 0
+                                        ? `${e.target.value}\n---\n${auditParts.join('\n---\n')}`
+                                        : e.target.value;
                                     updateDraftField(
                                       item.objectId,
                                       'note',
-                                      e.target.value
-                                    )
-                                  }
+                                      newNote
+                                    );
+                                  }}
                                   placeholder="Ghi chú đơn ký gửi..."
                                 />
                               </div>
@@ -808,6 +1023,10 @@ const TableConsignmentScreen: React.FC = () => {
                               <div>
                                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
                                   Sản phẩm ({draft.productList.length})
+                                  <span className="ml-2 normal-case font-normal text-orange-500">
+                                    — Giá/SL là trường nhạy cảm, thay đổi sẽ tự
+                                    ghi log
+                                  </span>
                                 </p>
                                 <div className="border rounded-md overflow-hidden">
                                   <Table>
@@ -819,33 +1038,61 @@ const TableConsignmentScreen: React.FC = () => {
                                         <TableHead className="text-xs h-8">
                                           Tên sản phẩm
                                         </TableHead>
-                                        <TableHead className="text-xs h-8 text-right">
-                                          Giá
+                                        <TableHead className="text-xs h-8 w-[110px]">
+                                          Giá (nghìn đ){' '}
+                                          <span className="text-orange-400">
+                                            ⚠
+                                          </span>
                                         </TableHead>
-                                        <TableHead className="text-xs h-8 text-center w-16">
-                                          SL
+                                        <TableHead className="text-xs h-8 text-right w-[110px]">
+                                          Giá sau phí
+                                        </TableHead>
+                                        <TableHead className="text-xs h-8 w-20 text-center">
+                                          SL{' '}
+                                          <span className="text-orange-400">
+                                            ⚠
+                                          </span>
+                                        </TableHead>
+                                        <TableHead className="text-xs h-8 text-right w-16">
+                                          Đã bán{' '}
+                                          <span className="text-orange-400">
+                                            ⚠
+                                          </span>
+                                        </TableHead>
+                                        <TableHead className="text-xs h-8 text-right w-16">
+                                          Còn lại
+                                        </TableHead>
+                                        <TableHead className="text-xs h-8 text-right w-[120px]">
+                                          Tổng tiền sau phí
                                         </TableHead>
                                         <TableHead className="text-xs h-8">
-                                          Ghi chú
+                                          Ghi chú SP
                                         </TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                      {draft.productList.map((p, pIdx) => (
-                                        <EditableProductRow
-                                          key={pIdx}
-                                          product={p}
-                                          index={pIdx}
-                                          onChange={(i, field, val) =>
-                                            updateDraftProduct(
-                                              item.objectId,
-                                              i,
-                                              field,
-                                              val
-                                            )
-                                          }
-                                        />
-                                      ))}
+                                      {draft.productList.map((p, pIdx) => {
+                                        const origP =
+                                          dataSource.find(
+                                            i => i.objectId === item.objectId
+                                          )?.productList?.[pIdx] ?? p;
+                                        return (
+                                          <EditableProductRow
+                                            key={pIdx}
+                                            product={p}
+                                            originalProduct={origP}
+                                            index={pIdx}
+                                            onChange={(i, field, val) =>
+                                              updateDraftProduct(
+                                                item.objectId,
+                                                i,
+                                                field,
+                                                val
+                                              )
+                                            }
+                                          />
+                                        );
+                                      })}
                                     </TableBody>
                                   </Table>
                                 </div>
@@ -854,6 +1101,21 @@ const TableConsignmentScreen: React.FC = () => {
                               <p className="text-xs text-muted-foreground italic">
                                 Chưa có sản phẩm
                               </p>
+                            )}
+
+                            {/* Audit log — readonly */}
+                            {draft.note?.includes('[') && (
+                              <div className="space-y-1">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                  Lịch sử thay đổi
+                                </p>
+                                <pre className="text-xs bg-amber-50 border border-amber-200 rounded p-3 whitespace-pre-wrap font-mono text-muted-foreground select-all cursor-default">
+                                  {draft.note
+                                    .split('\n---\n')
+                                    .filter(s => s.trim().startsWith('['))
+                                    .join('\n---\n')}
+                                </pre>
+                              </div>
                             )}
                           </div>
                         </TableCell>
