@@ -14,6 +14,7 @@ import 'reactflow/dist/style.css';
 import { ReactFlowProvider } from '@xyflow/react';
 import Header from '@/components/Header';
 import { UpdateNotification } from '@/components/UpdateNotification';
+import InitLoader from '@/components/InitLoader';
 import logoFavicon from '@images/favicon.ico';
 import ParallaxHome from '@/components/parallaxHome';
 // import homeLoadingJson from '@images/Lottie/homeLoadingBar.json';
@@ -56,6 +57,7 @@ export default async function RootLayout({
                   disableTransitionOnChange
                 >
                   <ParallaxHome />
+                  <InitLoader />
                   <Header />
                   <div className="!z-99 flex min-h-[calc(100vh-97px)]">
                     {/* <AppSidebar locale={locale} /> */}

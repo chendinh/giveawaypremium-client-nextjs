@@ -120,6 +120,64 @@
     opacity: 1;
     transform: translateX(0);
   }
+
+  /* ── Hướng B: Marquee strip ── */
+  .marquee-track {
+    display: flex;
+    width: max-content;
+    animation: marquee-scroll 40s linear infinite;
+    will-change: transform;
+  }
+  .marquee-track:hover {
+    animation-play-state: paused;
+  }
+  @keyframes marquee-scroll {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  /* ── Hướng C: Letter reveal clip ── */
+  /* padding-top để dành không gian cho dấu tiếng Việt bên trên */
+  .letter-clip {
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: bottom;
+    /* đủ cao để dấu huyền/ngã/hỏi/nặng/sắc không bị clip */
+    padding-top: 0.35em;
+    margin-top: -0.35em;
+    line-height: 1.25;
+  }
+  .letter-inner {
+    display: inline-block;
+    transform: translateY(115%);
+    transition: transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .letter-inner.revealed {
+    transform: translateY(0);
+  }
+
+  /* ── Hướng A: ambient background crossfade ── */
+  @keyframes ambient-fade {
+    0% {
+      opacity: 0;
+    }
+    8% {
+      opacity: 1;
+    }
+    92% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+  .ambient-img {
+    animation: ambient-fade 6s ease-in-out infinite;
+  }
 }
 
 @layer base {
