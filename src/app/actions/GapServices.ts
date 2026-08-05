@@ -2175,7 +2175,6 @@ export class GapService {
 
       if (isUseAuthKey && key) {
         header['X-Parse-Session-Token'] = key;
-        header['X-Parse-Master-Key'] = process.env.NEXT_PUBLIC_MASTER_KEY || '';
       }
 
       const params: RequestInit = {
