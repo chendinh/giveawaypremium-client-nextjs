@@ -2,59 +2,233 @@
   width: 100%;
   height: 100vh;
   overflow: hidden;
+  background-color: #111827;
 
   .dashboard-container-wrapper {
     display: flex;
-    justify-content: space-between;
-    transition: all;
     flex-direction: row;
     height: 100%;
 
+    // ─────────────────────────────────────────
+    // SIDEBAR
+    // ─────────────────────────────────────────
     .sider-container {
-      margin-top: 20px;
-      max-width: 180px;
-      padding: 20px 10px;
-      height: 85vh;
+      position: relative; // cần cho toggle-tab absolute
+      display: flex;
+      flex-direction: column;
+      width: 150px;
+      height: 100vh;
       background-color: #1f2937;
-      border-radius: 8px;
       flex-shrink: 0;
+      overflow: visible; // cho phép toggle-tab nhô ra ngoài
+      transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 
-      @media screen and (max-width: 567px) {
+      // ── Collapsed ──
+      &.sider-collapsed {
+        width: 56px;
+
+        .sidebar-label,
+        .sidebar-logo-text {
+          opacity: 0;
+          max-width: 0;
+          pointer-events: none;
+        }
+
+        .sidebar-logo {
+          justify-content: center;
+        }
+      }
+
+      // ── Logo ──
+      .sidebar-logo {
         display: flex;
-        justify-content: center;
-        flex-basis: 50px;
-        padding: 20px 4px;
-        max-width: 50px;
-        margin-right: 0px;
+        align-items: center;
+        gap: 10px;
+        padding: 20px 14px 16px;
+        flex-shrink: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        transition: padding 0.28s ease;
 
-        .sidebar-label {
-          display: none !important;
+        .sidebar-logo-icon {
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+        }
+
+        .sidebar-logo-text {
+          display: flex;
+          align-items: center;
+          overflow: hidden;
+          max-width: 120px;
+          opacity: 1;
+          transition:
+            opacity 0.18s ease,
+            max-width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+      }
+
+      // ── Divider ──
+      .sidebar-divider {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.08);
+        margin: 0 12px 6px;
+        flex-shrink: 0;
+      }
+
+      // ── Nav ──
+      .sidebar-nav {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 4px 8px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        scrollbar-width: none;
+        &::-webkit-scrollbar {
+          display: none;
+        }
+      }
+
+      // ── Nav button ──
+      .sidebar-nav-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        padding: 9px 10px;
+        border-radius: 8px;
+        border: none;
+        background: transparent;
+        color: #9ca3af;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        transition:
+          background-color 0.18s ease,
+          color 0.18s ease;
+
+        &:hover {
+          background-color: #374151;
+          color: #f3f4f6;
+        }
+
+        &--active {
+          background-color: #374151;
+          color: #ffffff;
+        }
+
+        &--logout {
+          color: #f87171;
+          &:hover {
+            background-color: rgba(239, 68, 68, 0.12);
+            color: #fca5a5;
+          }
+        }
+      }
+
+      .sidebar-nav-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 20px;
+        height: 20px;
+      }
+
+      // ── Label ──
+      .sidebar-label {
+        overflow: hidden;
+        max-width: 140px;
+        opacity: 1;
+        transition:
+          opacity 0.15s ease,
+          max-width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      // ── Bottom ──
+      .sidebar-bottom {
+        flex-shrink: 0;
+        padding: 0 8px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      // ── Toggle tab — nổi ở mép phải sidebar ──
+      .sidebar-toggle-tab {
+        position: absolute;
+        // Căn giữa theo chiều dọc
+        top: 50%;
+        right: -12px; // nhô ra ngoài 12px
+        transform: translateY(-50%);
+        z-index: 10;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 48px;
+        border-radius: 0 6px 6px 0;
+        border: none;
+        background-color: #374151;
+        color: #9ca3af;
+        cursor: pointer;
+        transition:
+          background-color 0.18s ease,
+          color 0.18s ease;
+
+        &:hover {
+          background-color: #4b5563;
+          color: #fff;
+        }
+      }
+
+      // ── Mobile ──
+      @media screen and (max-width: 567px) {
+        width: 52px !important;
+        overflow: hidden;
+
+        .sidebar-label,
+        .sidebar-logo-text {
+          opacity: 0 !important;
+          max-width: 0 !important;
+          pointer-events: none;
+        }
+
+        .sidebar-logo {
+          justify-content: center;
+          padding: 16px 0 12px;
+        }
+
+        .sidebar-toggle-tab {
+          display: none;
         }
       }
     }
 
+    // ─────────────────────────────────────────
+    // CONTENT
+    // ─────────────────────────────────────────
     .dashboard-content {
       flex: 1;
       min-width: 0;
-      margin: 16px 12px 16px 8px;
-      position: relative;
-      max-width: calc(100vw - 200px);
-      border-radius: 15px;
-      background-color: white;
-      box-shadow: 0 1px 20px rgba(0, 0, 0, 0.2);
-
-      /* Scroll nội bộ thay vì tràn viewport */
+      margin: 12px 12px 12px 8px;
+      border-radius: 14px;
+      background-color: #ffffff;
+      box-shadow: 0 1px 24px rgba(0, 0, 0, 0.2);
       overflow-y: auto;
       overflow-x: hidden;
-      max-height: calc(100vh - 32px);
+      max-height: calc(100vh - 24px);
+      transition: margin-left 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 
       @media screen and (max-width: 567px) {
-        display: flex;
         margin: 0;
-        justify-content: center;
-        flex-basis: calc(100vw - 55px);
-        padding: 0;
-        max-width: calc(100vw - 55px);
+        border-radius: 0;
         max-height: 100vh;
       }
     }

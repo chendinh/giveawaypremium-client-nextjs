@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +21,8 @@ import {
   Terminal,
   Settings,
   LogOut,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -85,11 +88,10 @@ const menuItems: MenuItemType[] = [
 // ── Component ──
 const DashBoard: React.FC = () => {
   const {
-    userData,
     login,
     logout,
+    userData,
     isAuthenticated,
-    categoryRedux,
     setCategoryRedux,
     setUnitAddressRedux,
     setEventsRedux,
@@ -100,6 +102,7 @@ const DashBoard: React.FC = () => {
   const [isLoadingLogin, setIsLoadingLogin] = useState<boolean>(false);
   const [numberPage, setNumberPage] = useState<number>(4);
   const [isFullScreen, setIsFullScreen] = useState<boolean>(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [showLoginDialog, setShowLoginDialog] = useState<boolean>(false);
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
 
@@ -118,33 +121,22 @@ const DashBoard: React.FC = () => {
     checkIsSigned();
   }, [checkIsSigned]);
 
-  // ── Fetch initial data (category + unitAddress + settings) ──
+  // ── Fetch initial data ──
   useEffect(() => {
     if (!isLogin) return;
-
     const fetchInitialData = async () => {
       try {
         await fetchSettings();
-
         const categoryRes = await GapService.getCategory();
-        if (categoryRes?.results) {
-          setCategoryRedux(categoryRes.results);
-        }
-
+        if (categoryRes?.results) setCategoryRedux(categoryRes.results);
         const unitAddressRes = await GapService.getUnitAddress();
-        if (unitAddressRes?.result) {
-          setUnitAddressRedux(unitAddressRes.result);
-        }
-
+        if (unitAddressRes?.result) setUnitAddressRedux(unitAddressRes.result);
         const eventsRes = await GapService.getEvents();
-        if (eventsRes?.results) {
-          setEventsRedux(eventsRes.results);
-        }
+        if (eventsRes?.results) setEventsRedux(eventsRes.results);
       } catch (err) {
         console.error('Error fetching initial data:', err);
       }
     };
-
     fetchInitialData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLogin]);
@@ -152,14 +144,11 @@ const DashBoard: React.FC = () => {
   // ── Login ──
   const onFinish = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!loginForm.username || !loginForm.password) {
       toast.error('Vui lòng nhập tên tài khoản và mật khẩu');
       return;
     }
-
     setIsLoadingLogin(true);
-
     try {
       const result = await GapService.logInAdmin(
         loginForm.username,
@@ -191,13 +180,11 @@ const DashBoard: React.FC = () => {
     toast.success('Đã đăng xuất');
   };
 
-  // ── Page navigation ──
   const handleChoosePage = (item: MenuItemType) => {
     setNumberPage(item.key);
     setIsFullScreen(item.isFullScreen);
   };
 
-  // ── Content render ──
   const renderContent = () => {
     switch (numberPage) {
       case 1:
@@ -219,7 +206,7 @@ const DashBoard: React.FC = () => {
 
   return (
     <div className="dashboard-container">
-      {/* Login Dialog */}
+      {/* ── Login Dialog ── */}
       <Dialog open={showLoginDialog} onOpenChange={() => {}}>
         <DialogContent
           className="max-w-sm"
@@ -266,46 +253,87 @@ const DashBoard: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dashboard */}
+      {/* ── Dashboard ── */}
       <div className="dashboard-container-wrapper">
-        {/* Sidebar */}
-        <div className="sider-container">
-          <nav className="flex flex-col gap-1">
+        {/* ── Sidebar ── */}
+        <div
+          className={cn(
+            'sider-container',
+            sidebarCollapsed && 'sider-collapsed'
+          )}
+        >
+          {/* Logo */}
+          <div className="sidebar-logo">
+            <div className="sidebar-logo-icon">
+              <Image
+                src="/images/Icon/ALogoWhite.svg"
+                alt="GA"
+                width={32}
+                height={32}
+              />
+            </div>
+            {!sidebarCollapsed && (
+              <span className="sidebar-logo-text">
+                <Image
+                  src="/images/Icon/giveawayTextWhite.svg"
+                  alt="GiveAway"
+                  width={70}
+                  height={15}
+                />
+              </span>
+            )}
+          </div>
+
+          <div className="sidebar-divider" />
+
+          {/* Nav */}
+          <nav className="sidebar-nav">
             {menuItems.map(item => (
               <button
                 key={item.key}
                 title={item.label}
                 onClick={() => handleChoosePage(item)}
                 className={cn(
-                  'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
-                  'hover:bg-gray-700 hover:text-white',
-                  numberPage === item.key
-                    ? 'bg-gray-700 text-white'
-                    : 'text-gray-300'
+                  'sidebar-nav-btn',
+                  numberPage === item.key && 'sidebar-nav-btn--active'
                 )}
               >
-                {item.icon}
-                <span className="sidebar-label hidden md:inline">
-                  {!isFullScreen && item.label}
-                </span>
+                <span className="sidebar-nav-icon">{item.icon}</span>
+                <span className="sidebar-label">{item.label}</span>
               </button>
             ))}
+          </nav>
 
-            {/* Sign out */}
+          {/* Bottom */}
+          <div className="sidebar-bottom">
+            <div className="sidebar-divider" />
             <button
               title="Đăng xuất"
               onClick={handleSignOut}
-              className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-300 transition-colors hover:bg-gray-700 hover:text-white mt-4"
+              className="sidebar-nav-btn sidebar-nav-btn--logout"
             >
-              <LogOut className="h-5 w-5" />
-              <span className="sidebar-label hidden md:inline">
-                {!isFullScreen && 'Đăng xuất'}
+              <span className="sidebar-nav-icon">
+                <LogOut className="h-5 w-5" />
               </span>
+              <span className="sidebar-label">Đăng xuất</span>
             </button>
-          </nav>
+          </div>
+
+          {/* Toggle tab — gắn vào mép phải sidebar */}
+          <button
+            title={sidebarCollapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar'}
+            onClick={() => setSidebarCollapsed(prev => !prev)}
+            className="sidebar-toggle-tab"
+          >
+            {sidebarCollapsed ? (
+              <ChevronRight className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronLeft className="h-3.5 w-3.5" />
+            )}
+          </button>
         </div>
 
-        {/* Content */}
+        {/* ── Content ── */}
         <div
           className="dashboard-content"
           style={isFullScreen ? { maxWidth: 'calc(100vw - 100px)' } : {}}
