@@ -32,22 +32,32 @@ async function fetchBuildTime(): Promise<string | null> {
 export function useUpdateNotifier() {
   const [hasUpdate, setHasUpdate] = useState(false);
   const baselineRef = useRef<string | null>(null);
+  // Giữ ref đến intervalId để có thể clear từ bất kỳ đâu
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    // Lấy baseline ngay khi mount
+    let cancelled = false;
+
+    // Lấy baseline trước, SAU ĐÓ mới bắt đầu poll
+    // Tránh race condition: poll chạy trước khi baseline được gán
     fetchBuildTime().then(time => {
+      if (cancelled) return;
       baselineRef.current = time;
+
+      intervalRef.current = setInterval(async () => {
+        const latest = await fetchBuildTime();
+        if (latest && baselineRef.current && latest !== baselineRef.current) {
+          setHasUpdate(true);
+          // Dừng poll sau khi phát hiện — chỉ thông báo 1 lần
+          if (intervalRef.current) clearInterval(intervalRef.current);
+        }
+      }, POLL_INTERVAL_MS);
     });
 
-    const interval = setInterval(async () => {
-      const latest = await fetchBuildTime();
-      if (latest && baselineRef.current && latest !== baselineRef.current) {
-        setHasUpdate(true);
-        clearInterval(interval); // Chỉ cần thông báo 1 lần
-      }
-    }, POLL_INTERVAL_MS);
-
-    return () => clearInterval(interval);
+    return () => {
+      cancelled = true;
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, []);
 
   const dismiss = () => setHasUpdate(false);

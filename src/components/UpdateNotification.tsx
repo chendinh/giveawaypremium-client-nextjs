@@ -13,10 +13,12 @@ export function UpdateNotification() {
   const { hasUpdate, dismiss, reload } = useUpdateNotifier();
   const bannerRef = useRef<HTMLDivElement>(null);
 
-  // Focus vào banner khi hiện ra (accessibility)
+  // Focus vào banner sau khi render (accessibility)
+  // bannerRef.current chỉ tồn tại sau khi component render ra DOM,
+  // nên useEffect này chạy sau khi hasUpdate=true và component đã mount xong
   useEffect(() => {
-    if (hasUpdate) {
-      bannerRef.current?.focus();
+    if (hasUpdate && bannerRef.current) {
+      bannerRef.current.focus();
     }
   }, [hasUpdate]);
 
@@ -26,8 +28,8 @@ export function UpdateNotification() {
     <div
       ref={bannerRef}
       tabIndex={-1}
+      // role="alert" đã tự có aria-live="assertive", không cần thêm aria-live
       role="alert"
-      aria-live="polite"
       className={cn(
         'fixed bottom-5 right-5 z-[9999]',
         'flex items-start gap-3 rounded-xl border border-border',
