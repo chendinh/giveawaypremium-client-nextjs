@@ -471,7 +471,7 @@ export class GapService {
     slotID: string,
     formatedTime: string,
     formatedDay: string
-  ): Promise<ApiResponse | false> {
+  ): Promise<ApiResponse | { serverError: string } | false> {
     const res = await this.getAppointmentWithSlotId(slotID);
 
     if (res && res.results && res.results.length === 0) {
@@ -488,15 +488,25 @@ export class GapService {
         phoneNumber: formData.phoneNumber,
         numberOfProduct: `${formData.numberOfProduct}`,
       };
-      return this.fetchData(
+      const createRes = await this.fetchData(
         '/classes/AppointmentSchedule',
         REQUEST_TYPE.POST,
         null,
         body
       );
+
+      // Parse Server beforeSave error: { code: number, error: string }
+      if (createRes && createRes.error && !createRes.objectId) {
+        return { serverError: createRes.error };
+      }
+
+      return createRes;
     } else {
-      showNotification('Đã có khách đặt slot này trước rồi');
-      return false;
+      // Slot đã bị chiếm theo check local — trả về dạng serverError để component handle
+      return {
+        serverError:
+          'Khung giờ này vừa được khách khác đặt. Vui lòng chọn khung giờ khác.',
+      };
     }
   }
 

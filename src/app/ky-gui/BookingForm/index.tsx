@@ -255,12 +255,14 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
     if (!choosenTimeCode || !choosenDayCode) return;
 
     setIsConsigning(true);
+    setErrorSlotInfo(null);
 
     const time = `${choosenTimeCode.substring(0, 2)}:${choosenTimeCode.substring(2, 4)}`;
     const day = `${choosenDayCode.substring(0, 2)}-${choosenDayCode.substring(2, 4)}-${choosenDayCode.substring(4, 8)}`;
     const slotID = choosenTimeCode + choosenDayCode;
     const newBookingDataCode = `${bookingDataCode}-${slotID}-`;
 
+    // Check trùng số điện thoại trong cùng ngày
     const resWithPhone = await GapService.getAppointmentWithPhone(
       values.phoneNumber
     );
@@ -281,8 +283,6 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
       }
     }
 
-    setErrorSlotInfo(null);
-
     const res = await GapService.setAppointment(values, slotID, time, day);
 
     if (res && typeof res === 'object' && 'objectId' in res && res.objectId) {
@@ -291,10 +291,47 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
       setIsConsigning(false);
       setStep(3);
       setIsHideDayColumn(true);
+    } else if (
+      res &&
+      typeof res === 'object' &&
+      'serverError' in res &&
+      res.serverError
+    ) {
+      // Lỗi từ BE beforeSave (slot đóng / ngày off / bị chiếm)
+      setIsConsigning(false);
+      toast.error(res.serverError as string, { duration: 6000 });
+      // Tự đồng bộ lại lịch hẹn để UI phản ánh trạng thái mới nhất
+      await fetchAppointment(dayBooking);
+      // Re-fetch settings để cập nhật option ngày (ngày off, custom slot)
+      const freshSettings = await GapService.getSetting();
+      if (freshSettings?.results?.[0]?.Setting) {
+        const newSetting = freshSettings.results[0].Setting;
+        const newOptionEachDay =
+          newSetting['BOOKING_OPTION_EACH_DAY'] ?? bookingOptionEachDay;
+        setBookingOptionEachDay(newOptionEachDay);
+
+        // Cập nhật lại option + timeBooking cho ngày đang chọn
+        if (choosenDayCode) {
+          const { option: newOption, timeBooking: newTimeBooking } =
+            checkDayCodeToBookingOption(
+              { dayName: '', date: day, dayCode: choosenDayCode },
+              newOptionEachDay
+            );
+          setBookingOptionValue(newOption);
+          setTimeBooking(newTimeBooking);
+          const newCustom =
+            newSetting['BOOKING_OPTION_CUSTOM_EACH_DAY']?.[choosenDayCode] ??
+            'default';
+          setBookingCustomOptionString(newCustom);
+        }
+      }
+      // Reset time đã chọn vì slot đó có thể không còn khả dụng
+      setChoosenTimeCode(null);
+      setStep(1);
     } else {
       setIsConsigning(false);
       await fetchAppointment(dayBooking);
-      toast.error('Đặt lịch thất bại!');
+      toast.error('Đặt lịch thất bại. Vui lòng thử lại.');
     }
   };
 
