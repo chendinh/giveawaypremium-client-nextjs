@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
@@ -204,6 +204,12 @@ const SummaryScreen: React.FC = () => {
     setToDate(pendingTo);
     fetchSummaryData(pendingFrom, pendingTo);
   };
+
+  // Tự động fetch tháng này khi vào màn hình lần đầu
+  useEffect(() => {
+    fetchSummaryData(startOfMonth(new Date()), endOfMonth(new Date()));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleQuickRange = (from: Date, to: Date) => {
     setPendingFrom(from);

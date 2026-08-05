@@ -13,6 +13,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import 'reactflow/dist/style.css';
 import { ReactFlowProvider } from '@xyflow/react';
 import Header from '@/components/Header';
+import { UpdateNotification } from '@/components/UpdateNotification';
 import logoFavicon from '@images/favicon.ico';
 import ParallaxHome from '@/components/parallaxHome';
 // import homeLoadingJson from '@images/Lottie/homeLoadingBar.json';
@@ -66,6 +67,7 @@ export default async function RootLayout({
                   {/* <Footer /> */}
                 </ThemeProvider>
                 <Toaster position="bottom-right" />
+                <UpdateNotification />
               </TooltipProvider>
             </body>
           </LocaleProvider>
