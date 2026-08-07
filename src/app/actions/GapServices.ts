@@ -1283,7 +1283,10 @@ export class GapService {
   }
 
   static async updateCustomer(formData: any, objectId: string): Promise<any> {
-    const body: Record<string, any> = {
+    // Gọi Cloud Function updateUserByAdmin thay vì PUT /users/:id trực tiếp.
+    // Parse ACL chỉ cho phép user tự update chính mình — admin cần dùng master key
+    // qua Cloud Function để bypass ACL (code 206 Insufficient auth).
+    const data: Record<string, any> = {
       fullName: formData.consignerName,
       phoneNumber: formData.phoneNumber,
       identityNumber: formData.consignerIdCard,
@@ -1298,25 +1301,32 @@ export class GapService {
     };
 
     if (formData.totalMoneyForSale) {
-      body.totalMoneyForSale = `${formData.totalMoneyForSale}`;
+      data.totalMoneyForSale = `${formData.totalMoneyForSale}`;
     }
     if (formData.numberOfSale) {
-      body.numberOfSale = `${formData.numberOfSale}`;
+      data.numberOfSale = `${formData.numberOfSale}`;
     }
     if (formData.totalProductForSale) {
-      body.totalProductForSale = `${formData.totalProductForSale}`;
+      data.totalProductForSale = `${formData.totalProductForSale}`;
     }
 
-    return this.fetchData(
-      `/users/${objectId}`,
-      REQUEST_TYPE.PUT,
+    const res = await this.fetchData(
+      '/functions/updateUserByAdmin',
+      REQUEST_TYPE.POST,
       null,
-      body,
+      { userId: objectId, data },
       null,
       null,
       null,
-      true
+      true // gửi X-Parse-Session-Token
     );
+
+    // Cloud Function trả về { result: { updatedAt } }
+    // Map về shape { updatedAt } để SaleScreen check res?.updatedAt
+    if (res?.result?.updatedAt) {
+      return { updatedAt: res.result.updatedAt };
+    }
+    return res;
   }
 
   // ── Consignment ──
@@ -2304,9 +2314,9 @@ export class GapService {
         // Override VTP fields từ shippingInfo
         orderRequest: {
           ORDER_PAYMENT: Number(
-            (formData.shippingInfo as any)?.orderPayment ?? 3
+            (formData.shippingInfo as any)?.orderPayment ?? 4
           ) as 1 | 2 | 3 | 4,
-          ORDER_TYPE: Number((formData.shippingInfo as any)?.pickupType ?? 2),
+          // ORDER_TYPE bị xóa — field này không hợp lệ với VTP createOrder (gây lỗi "Price does not apply")
         },
       },
     };

@@ -90,8 +90,8 @@ function ZaloModal({
         <Image
           src={kyguiZalo}
           alt="QR Zalo Ký gửi"
-          width={500}
-          height={660}
+          width={320}
+          height={159}
           placeholder="blur"
           className="w-full max-w-xs mx-auto object-contain rounded-lg shadow-md"
         />

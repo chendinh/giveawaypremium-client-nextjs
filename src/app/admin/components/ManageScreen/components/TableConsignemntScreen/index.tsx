@@ -302,7 +302,7 @@ const TableConsignmentScreen: React.FC = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
   const [deletingId, setDeletingId] = useState<string>('');
 
-  const pageSize = 20;
+  const pageSize = 100;
 
   // ── Fetch tags — dùng store cache, không gọi lại nếu đã có ──
   const fetchAllTags = useCallback(async () => {
@@ -367,7 +367,7 @@ const TableConsignmentScreen: React.FC = () => {
       }
       setIsLoading(false);
     },
-    [currentTagId, searchFilters]
+    [currentTagId]
   );
 
   useEffect(() => {

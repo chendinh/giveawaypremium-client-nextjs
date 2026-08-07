@@ -511,16 +511,26 @@ const TableOrderScreen: React.FC = () => {
     try {
       const res = await GapService.pushOrderToGHTK(row as any, row.objectId);
       if (res) {
-        if (res.error) {
-          toast.error(res.error || 'Tạo vận đơn VTP chưa được');
+        if (typeof res.error === 'string' && res.error) {
+          toast.error(res.error);
           return;
         }
-        // Kiểm tra lỗi trong result (VTP trả về lỗi trong result.data)
+        // Kiểm tra lỗi trong result (VTP trả về lỗi trong result.status)
         if (res.result?.status && res.result.status !== 200) {
           toast.error(res.result?.message || 'Tạo vận đơn VTP chưa được');
           return;
         }
-        toast.success('Tạo vận đơn thành công');
+        // Parse Cloud Function: { result: { data: { ORDER_NUMBER } } }
+        const orderNumber =
+          res?.result?.data?.ORDER_NUMBER ||
+          res?.data?.ORDER_NUMBER ||
+          res?.result?.ORDER_NUMBER ||
+          res?.ORDER_NUMBER;
+        toast.success(
+          orderNumber
+            ? `Tạo vận đơn thành công! Mã: ${orderNumber}`
+            : 'Tạo vận đơn thành công'
+        );
         handleRefresh();
       } else {
         toast.error(

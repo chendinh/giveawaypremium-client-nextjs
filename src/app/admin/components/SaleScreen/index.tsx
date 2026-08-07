@@ -83,8 +83,9 @@ interface ShippingInfo {
    * Ai trả phí ship:
    * '3' = shop trả cước, khách trả tiền hàng (mặc định)
    * '2' = khách trả cả tiền hàng + cước
+   * '4' = khách trả cước, shop trả tiền hàng (tiền hàng đã CK trước)
    */
-  orderPayment?: '2' | '3';
+  orderPayment?: '1' | '2' | '3' | '4';
   /**
    * Hình thức lấy hàng:
    * '2' = shipper đến lấy tại shop (mặc định)
@@ -129,6 +130,9 @@ interface OrderPane {
   objectIdOrder?: string;
   discountPercent: number;
   selectedEventId: string;
+  // Vận đơn VTP
+  vtpOrderNumber?: string; // ORDER_NUMBER sau khi tạo vận đơn thành công
+  isCreatingShipment?: boolean; // đang gọi API tạo vận đơn
 }
 
 interface AddressWard {
@@ -160,7 +164,7 @@ const DEFAULT_CLIENT_INFO: ClientInfo = {
 
 const DEFAULT_SHIPPING_INFO: ShippingInfo = {
   optionTransfer: 'tk',
-  orderPayment: '2',
+  orderPayment: '4', // khách trả cước, tiền hàng đã CK trước
   pickupType: '2',
 };
 
@@ -1059,6 +1063,52 @@ const SaleScreen: React.FC = () => {
     setIsCreatingOrder(false);
   }, [panes, currentPaneIndex, userData, updateCurrentPane]);
 
+  // ─── Tạo vận đơn VTP sau khi đơn hàng đã được tạo ──
+  const onCreateShipment = useCallback(async () => {
+    const currentPane = panes[currentPaneIndex];
+    if (!currentPane?.objectIdOrder) return;
+
+    updateCurrentPane(pane => ({ ...pane, isCreatingShipment: true }));
+    toast.loading('Đang tạo vận đơn ViettelPost...', { id: 'create-shipment' });
+
+    try {
+      const res = await GapService.pushOrderToGHTK(
+        currentPane as any,
+        currentPane.objectIdOrder
+      );
+
+      toast.dismiss('create-shipment');
+
+      // Parse Cloud Function wrap: { result: { status, data: { ORDER_NUMBER } } }
+      const orderNumber =
+        res?.result?.data?.ORDER_NUMBER || // ← chuẩn
+        res?.data?.ORDER_NUMBER ||
+        res?.result?.ORDER_NUMBER ||
+        res?.ORDER_NUMBER;
+
+      if (orderNumber) {
+        toast.success(`Tạo vận đơn thành công! Mã: ${orderNumber}`);
+        updateCurrentPane(pane => ({
+          ...pane,
+          vtpOrderNumber: orderNumber,
+          isCreatingShipment: false,
+        }));
+      } else {
+        const errMsg =
+          (typeof res?.error === 'string' ? res.error : undefined) ||
+          res?.result?.message ||
+          res?.message ||
+          'Tạo vận đơn thất bại';
+        toast.error(errMsg);
+        updateCurrentPane(pane => ({ ...pane, isCreatingShipment: false }));
+      }
+    } catch {
+      toast.dismiss('create-shipment');
+      toast.error('Lỗi khi tạo vận đơn');
+      updateCurrentPane(pane => ({ ...pane, isCreatingShipment: false }));
+    }
+  }, [panes, currentPaneIndex, updateCurrentPane]);
+
   const currentPane = panes[currentPaneIndex] ?? null;
 
   const currentPaymentValue =
@@ -1686,8 +1736,8 @@ const SaleScreen: React.FC = () => {
                     <div className="space-y-2">
                       <Label className="text-xs">Người trả phí ship</Label>
                       <Select
-                        value={currentPane.shippingInfo.orderPayment ?? '3'}
-                        onValueChange={(value: '2' | '3') =>
+                        value={currentPane.shippingInfo.orderPayment ?? '4'}
+                        onValueChange={(value: '1' | '2' | '3' | '4') =>
                           updateCurrentPane(pane => ({
                             ...pane,
                             shippingInfo: {
@@ -1701,11 +1751,17 @@ const SaleScreen: React.FC = () => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="4">
+                            Khách trả cước — tiền hàng đã CK
+                          </SelectItem>
                           <SelectItem value="3">
                             Shop trả cước — khách trả tiền hàng
                           </SelectItem>
                           <SelectItem value="2">
                             Khách trả cả tiền hàng + cước
+                          </SelectItem>
+                          <SelectItem value="1">
+                            Không thu hộ (shop trả cước + tiền hàng)
                           </SelectItem>
                         </SelectContent>
                       </Select>
@@ -1778,6 +1834,86 @@ const SaleScreen: React.FC = () => {
               <span className="text-muted-foreground">→</span>
               <Badge variant="default">Hoàn Thành ✓</Badge>
             </div>
+
+            {/* ── Tạo vận đơn VTP (chỉ khi online) ── */}
+            {currentPane.isOnlineSale === 'true' && (
+              <div className="border rounded-lg p-4 space-y-3 text-left bg-muted/30">
+                <div className="flex items-center gap-2 font-medium text-sm">
+                  <Truck className="h-4 w-4" />
+                  Vận đơn ViettelPost
+                </div>
+
+                {currentPane.vtpOrderNumber ? (
+                  /* Đã có vận đơn */
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                      <span className="text-sm text-green-700 font-medium">
+                        Vận đơn đã được tạo
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-muted-foreground">
+                        Mã vận đơn:
+                      </span>
+                      <Badge
+                        variant="secondary"
+                        className="font-mono text-sm select-all"
+                      >
+                        {currentPane.vtpOrderNumber}
+                      </Badge>
+                      <a
+                        href={`https://viettelpost.vn/tra-cuu-hanh-trinh-don/?peopleTracking=sender&orderNumber=${currentPane.vtpOrderNumber}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 underline underline-offset-2 hover:text-blue-800"
+                      >
+                        Tra cứu →
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  /* Chưa có vận đơn */
+                  <div className="space-y-3">
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      <p>
+                        Dịch vụ:{' '}
+                        <span className="font-medium">
+                          {currentPane.shippingInfo.optionTransfer || '—'}
+                        </span>
+                      </p>
+                      <p>
+                        Địa chỉ:{' '}
+                        <span className="font-medium">
+                          {[
+                            currentPane.shippingInfo.orderAdressStreet,
+                            currentPane.shippingInfo.orderAdressWard,
+                            currentPane.shippingInfo.orderAdressDistrict,
+                            currentPane.shippingInfo.orderAdressProvince,
+                          ]
+                            .filter(Boolean)
+                            .join(', ') || '—'}
+                        </span>
+                      </p>
+                    </div>
+                    <Button
+                      className="w-full"
+                      onClick={onCreateShipment}
+                      disabled={currentPane.isCreatingShipment}
+                    >
+                      {currentPane.isCreatingShipment ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Truck className="h-4 w-4 mr-2" />
+                      )}
+                      {currentPane.isCreatingShipment
+                        ? 'Đang tạo vận đơn...'
+                        : 'Tạo vận đơn ViettelPost'}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex items-center justify-center gap-3">
               <Button variant="outline" onClick={() => handlePrintBill()}>
