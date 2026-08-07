@@ -1164,6 +1164,24 @@ export class GapService {
     );
   }
 
+  static async getVtpOrderStatus(orderId: string): Promise<any> {
+    const body = {
+      service: 'viettelpost',
+      action: 'GET_ORDER_STATUS',
+      data: { orderId },
+    };
+    return this.fetchData(
+      '/functions/transporter',
+      REQUEST_TYPE.POST,
+      null,
+      body,
+      null,
+      null,
+      null,
+      true
+    );
+  }
+
   static async getLabelTransform(
     orderId: string,
     original: 'landscape' | 'portrait' = 'landscape',

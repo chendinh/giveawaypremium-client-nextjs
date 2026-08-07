@@ -48,6 +48,7 @@ import {
   Trash2,
   Truck,
   ExternalLink,
+  RotateCw,
 } from 'lucide-react';
 
 import GapService from '@/app/actions/GapServices';
@@ -122,27 +123,24 @@ const translateStatusName = (
 interface TransporterInfo {
   success?: boolean;
   status?: string;
+  vtpStatusName?: string; // tên trạng thái gốc từ VTP (lưu bởi webhook)
   res?: {
-    // ViettelPost response fields
+    // VTP envelope: { status, data: { ORDER_NUMBER, ... } }
+    status?: number;
+    message?: string;
+    data?: {
+      ORDER_NUMBER?: string;
+      MONEY_TOTAL?: number;
+      MONEY_COLLECTION?: number;
+      EXCHANGE_WEIGHT?: number;
+      ORDER_STATUS?: number;
+      RECEIVER_PROVINCE?: number;
+      RECEIVER_DISTRICT?: number;
+      SORT_CODE?: string;
+    };
+    // Legacy: một số đơn cũ lưu trực tiếp ORDER_NUMBER ở root
     ORDER_NUMBER?: string;
     MONEY_TOTAL?: number;
-    ORDER_STATUS?: number;
-    RECEIVER_FULLNAME?: string;
-    RECEIVER_PHONE?: string;
-    RECEIVER_ADDRESS?: string;
-    EXPECTED_DELIVERY?: string;
-    // Legacy GHTK fields (kept for backward compat, not displayed)
-    order?: {
-      label_id?: string;
-      partner_id?: string;
-      status_text?: string;
-      customer_fullname?: string;
-      customer_tel?: string;
-      deliver_date?: string;
-      pick_date?: string;
-      ship_money?: number;
-      address?: string;
-    };
   };
   order?: {
     objectId?: string;
@@ -261,6 +259,7 @@ const TableOrderScreen: React.FC = () => {
   // VTP detail modal
   const [vtpDetailOpen, setVtpDetailOpen] = useState<boolean>(false);
   const [vtpDetailItem, setVtpDetailItem] = useState<OrderItem | null>(null);
+  const [isRefreshingVtp, setIsRefreshingVtp] = useState<boolean>(false);
 
   // ── Initialize date range to current month ──
   useEffect(() => {
@@ -1138,46 +1137,103 @@ const TableOrderScreen: React.FC = () => {
           </DialogHeader>
           {vtpDetailItem?.transporter &&
             (() => {
-              const vtp = vtpDetailItem.transporter!.res || {};
-              const orderNumber = vtp.ORDER_NUMBER;
+              const res = vtpDetailItem.transporter!.res || {};
+              // res là VTP envelope: { status, data: { ORDER_NUMBER, ... } }
+              // Một số đơn cũ lưu ORDER_NUMBER trực tiếp ở root
+              const orderNumber = res.data?.ORDER_NUMBER || res.ORDER_NUMBER;
+              const moneyTotal = res.data?.MONEY_TOTAL ?? res.MONEY_TOTAL;
+              const sortCode = res.data?.SORT_CODE;
+              const vtpStatusName = vtpDetailItem.transporter!.vtpStatusName;
               return (
                 <div className="space-y-2 text-sm">
-                  <p>
-                    <span className="text-muted-foreground">
-                      Mã vận đơn VTP:
-                    </span>{' '}
-                    <span className="font-mono font-medium">
-                      {orderNumber || '---'}
-                    </span>
-                  </p>
-                  <p>
-                    <span className="text-muted-foreground">Tình trạng:</span>{' '}
-                    {translateStatusName(vtpDetailItem.transporter)}
-                  </p>
-                  {vtp.RECEIVER_FULLNAME && (
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2 flex-1">
+                      <p>
+                        <span className="text-muted-foreground">
+                          Mã vận đơn VTP:
+                        </span>{' '}
+                        <span className="font-mono font-medium">
+                          {orderNumber || '---'}
+                        </span>
+                      </p>
+                      <p>
+                        <span className="text-muted-foreground">
+                          Tình trạng:
+                        </span>{' '}
+                        <span className="font-medium">
+                          {translateStatusName(vtpDetailItem.transporter)}
+                        </span>
+                        {vtpStatusName && (
+                          <span className="text-muted-foreground ml-1 text-xs">
+                            ({vtpStatusName})
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    {/* <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        if (!vtpDetailItem.objectId) return;
+                        setIsRefreshingVtp(true);
+                        try {
+                          const result = await GapService.getVtpOrderStatus(
+                            vtpDetailItem.objectId
+                          );
+                          const detail = result?.result?.data || result?.data;
+                          if (detail?.ORDER_STATUS != null) {
+                            const VTP_STATUS_MAP: Record<number, string> = {
+                              101: 'VTP từ chối nhận',
+                              102: 'Chờ xử lý',
+                              103: 'Giao bưu cục — đang chờ lấy',
+                              104: 'Phân công bưu tá đi lấy',
+                              105: 'Bưu tá đã lấy hàng',
+                              200: 'VTP nhập doanh — đang vận chuyển',
+                              300: 'Khai thác đi',
+                              400: 'Khai thác đến',
+                              500: 'Bưu tá đang đi giao',
+                              501: 'Phát thành công ✓',
+                              503: 'Hủy theo yêu cầu KH',
+                              504: 'Hoàn thành công',
+                              505: 'Phát thất bại — chờ xử lý',
+                              506: 'Hẹn giao lại',
+                              507: 'KH đến bưu cục nhận',
+                            };
+                            const statusText =
+                              VTP_STATUS_MAP[detail.ORDER_STATUS] ||
+                              `Mã ${detail.ORDER_STATUS}`;
+                            toast.success(`Trạng thái VTP: ${statusText}`);
+                            handleRefresh();
+                          }
+                        } catch {
+                          toast.error('Không lấy được trạng thái từ VTP');
+                        } finally {
+                          setIsRefreshingVtp(false);
+                        }
+                      }}
+                      disabled={isRefreshingVtp}
+                      title="Lấy trạng thái mới nhất từ VTP"
+                    >
+                      {isRefreshingVtp ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <RotateCw className="h-3 w-3 mr-1" />
+                      )}
+                      Refresh
+                    </Button> */}
+                  </div>
+                  {sortCode && (
                     <p>
-                      <span className="text-muted-foreground">Tên KH:</span>{' '}
-                      {vtp.RECEIVER_FULLNAME}
+                      <span className="text-muted-foreground">Sort code:</span>{' '}
+                      <span className="font-mono text-xs">{sortCode}</span>
                     </p>
                   )}
-                  {vtp.RECEIVER_PHONE && (
-                    <p>
-                      <span className="text-muted-foreground">SĐT KH:</span>{' '}
-                      {vtp.RECEIVER_PHONE}
-                    </p>
-                  )}
-                  {vtp.RECEIVER_ADDRESS && (
-                    <p>
-                      <span className="text-muted-foreground">Địa chỉ:</span>{' '}
-                      {vtp.RECEIVER_ADDRESS}
-                    </p>
-                  )}
-                  {vtp.MONEY_TOTAL != null && (
+                  {moneyTotal != null && (
                     <p>
                       <span className="text-muted-foreground">
                         Phí giao hàng:
                       </span>{' '}
-                      {numberWithCommas(vtp.MONEY_TOTAL)} vnđ
+                      {numberWithCommas(moneyTotal)} vnđ
                     </p>
                   )}
                   <div className="flex gap-2 pt-2">
