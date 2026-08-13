@@ -158,6 +158,7 @@ function MarqueeStrip() {
               fill
               sizes="96px"
               className="object-cover"
+              priority={i < 3}
             />
           </div>
         ))}

@@ -228,6 +228,7 @@ export default function AboutUsPage() {
               fill
               className="object-contain"
               priority
+              sizes="(max-width: 768px) 65vw, 45vw"
             />
           </div>
         </div>
