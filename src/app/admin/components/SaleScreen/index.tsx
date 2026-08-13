@@ -361,8 +361,10 @@ const SaleScreen: React.FC = () => {
     });
     return {
       totalNumberOfProductForSale,
-      totalMoneyForSale,
-      totalMoneyForSaleAfterFee,
+      // Làm tròn để tránh floating point error (vd: 3 * 76.666... = 229.999...)
+      totalMoneyForSale: Math.round(totalMoneyForSale * 100) / 100,
+      totalMoneyForSaleAfterFee:
+        Math.round(totalMoneyForSaleAfterFee * 100) / 100,
     };
   }, []);
 

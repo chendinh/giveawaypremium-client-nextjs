@@ -62,8 +62,11 @@ import BillOrderGHTK from './components/BillOrderGHTK/index';
 import './style.scss';
 
 // ─── Helpers ──────────────────────────────────────────
-const numberWithCommas = (x: number | string): string =>
-  x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+const numberWithCommas = (x: number | string): string => {
+  // Làm tròn để tránh hiển thị floating point error (vd: "229.99999999999997")
+  const n = Math.round(Number(x));
+  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+};
 
 const convertPriceAfterFee = (productPrice: number = 0): number => {
   if (productPrice <= 0) return 0;
