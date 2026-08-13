@@ -32,6 +32,7 @@ import {
   BookingOptionEachDayType,
 } from '@/lib/constants';
 import { StoreServices } from '@/store/useAppStore';
+import useAppStore, { type SettingData } from '@/store/useAppStore';
 import Image from 'next/image';
 
 // Types
@@ -125,6 +126,8 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
   const [isConsigning, setIsConsigning] = useState<boolean>(false);
   const [bookingCustomOptionString, setBookingCustomOptionString] =
     useState<string>('default');
+  const [isInitLoading, setIsInitLoading] = useState<boolean>(true);
+  const [initError, setInitError] = useState<boolean>(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -183,38 +186,66 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
 
   useEffect(() => {
     const initData = async () => {
-      const settings = await StoreServices.getSetting();
-      const dayCount = settings.WORKING_DAY_COUNT ?? 14;
-      const optionEachDay =
-        settings.BOOKING_OPTION_EACH_DAY ??
-        BOOKING_OPTION_EACH_DAY_DATA_DEFAULT;
+      try {
+        // Force fetch settings mới nhất thay vì dùng cache
+        // Cache có thể stale hoặc thiếu data khi load trên device mới
+        let settings: SettingData;
+        try {
+          const store = useAppStore.getState();
+          settings = await store.fetchSettings();
+        } catch {
+          settings = {} as SettingData;
+        }
 
-      const days: DayBooking[] = Array.from({ length: dayCount }, (_, i) => {
-        const d = addDays(new Date(), i);
-        const dateStr = format(d, 'dd-MM-yyyy');
-        return {
-          dayName: format(d, 'EEEE'),
-          date: dateStr,
-          dayCode: dateStr.replaceAll('-', ''),
-        };
-      });
+        const dayCount = settings.WORKING_DAY_COUNT ?? 14;
+        const optionEachDay =
+          settings.BOOKING_OPTION_EACH_DAY ??
+          BOOKING_OPTION_EACH_DAY_DATA_DEFAULT;
 
-      const firstDay = days[0];
-      const firstDayCode = firstDay?.dayCode ?? '';
-      const { option, timeBooking: timeBookingData } =
-        checkDayCodeToBookingOption(firstDay, optionEachDay);
+        const days: DayBooking[] = Array.from({ length: dayCount }, (_, i) => {
+          const d = addDays(new Date(), i);
+          const dateStr = format(d, 'dd-MM-yyyy');
+          return {
+            dayName: format(d, 'EEEE'),
+            date: dateStr,
+            dayCode: dateStr.replaceAll('-', ''),
+          };
+        });
 
-      const customOption =
-        settings.BOOKING_OPTION_CUSTOM_EACH_DAY?.[firstDayCode] ?? 'default';
+        const firstDay = days[0];
+        const firstDayCode = firstDay?.dayCode ?? '';
+        const { option, timeBooking: timeBookingData } =
+          checkDayCodeToBookingOption(firstDay, optionEachDay);
 
-      setBookingCustomOptionString(customOption);
-      setBookingOptionValue(option);
-      setTimeBooking(timeBookingData);
-      setBookingOptionEachDay(optionEachDay);
-      setDayBooking(days);
-      setWorkingDayCount(dayCount);
+        const customOption =
+          settings.BOOKING_OPTION_CUSTOM_EACH_DAY?.[firstDayCode] ?? 'default';
 
-      await fetchAppointment(days);
+        setBookingCustomOptionString(customOption);
+        setBookingOptionValue(option);
+        setTimeBooking(timeBookingData);
+        setBookingOptionEachDay(optionEachDay);
+        setDayBooking(days);
+        setWorkingDayCount(dayCount);
+
+        await fetchAppointment(days);
+
+        // Tự động chọn ngày đầu tiên sau khi load xong
+        if (days.length > 0) {
+          const firstDay = days[0];
+          const firstDayCustomOption =
+            settings.BOOKING_OPTION_CUSTOM_EACH_DAY?.[firstDay.dayCode] ??
+            'default';
+          setChoosenDayCode(firstDay.dayCode);
+          setBookingCustomOptionString(firstDayCustomOption);
+          setStep(1);
+        }
+
+        setIsInitLoading(false);
+      } catch (err) {
+        console.error('[BookingForm] initData failed:', err);
+        setInitError(true);
+        setIsInitLoading(false);
+      }
     };
 
     initData();
@@ -401,29 +432,41 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
             }}
             className={cn('dayBooking-box', !isHideDayColumn && 'show')}
           >
-            {dayBooking.map((dayItem, dayIndex) => (
-              <div
-                key={dayItem.dayCode}
-                className="day-box"
-                onClick={() => onChooseDay(dayItem)}
-                style={
-                  choosenDayCode === dayItem.dayCode
-                    ? { borderColor: 'black', opacity: 1 }
-                    : choosenDayCode && choosenDayCode !== dayItem.dayCode
-                      ? { opacity: 0.4 }
-                      : {}
-                }
-              >
-                <span className="text day-name">
-                  {dayIndex === 0
-                    ? 'Hôm nay'
-                    : (DAY_NAMES[dayItem.dayName] ?? dayItem.dayName)}
-                </span>
-                <span className="text text-base sm:text-sm day-txt">
-                  {dayItem.date}
-                </span>
-              </div>
-            ))}
+            {isInitLoading
+              ? // Skeleton — 7 placeholder ngày trong lúc load
+                Array.from({ length: 7 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="day-box"
+                    style={{ opacity: 1 - i * 0.1, pointerEvents: 'none' }}
+                  >
+                    <span className="block h-4 w-16 rounded bg-gray-200 animate-pulse" />
+                    <span className="block h-3 w-20 rounded bg-gray-100 animate-pulse mt-1" />
+                  </div>
+                ))
+              : dayBooking.map((dayItem, dayIndex) => (
+                  <div
+                    key={dayItem.dayCode}
+                    className="day-box"
+                    onClick={() => onChooseDay(dayItem)}
+                    style={
+                      choosenDayCode === dayItem.dayCode
+                        ? { borderColor: 'black', opacity: 1 }
+                        : choosenDayCode && choosenDayCode !== dayItem.dayCode
+                          ? { opacity: 0.4 }
+                          : {}
+                    }
+                  >
+                    <span className="text day-name">
+                      {dayIndex === 0
+                        ? 'Hôm nay'
+                        : (DAY_NAMES[dayItem.dayName] ?? dayItem.dayName)}
+                    </span>
+                    <span className="text text-base sm:text-sm day-txt">
+                      {dayItem.date}
+                    </span>
+                  </div>
+                ))}
 
             <Lottie
               style={{
@@ -437,14 +480,52 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
               height={100}
               width={100}
               speed={1}
-              isStopped={false}
-              isPaused={false}
+              isStopped={isInitLoading}
+              isPaused={isInitLoading}
             />
           </div>
 
           {/* Cột chọn giờ + form */}
           <div className="timeBooking-box">
-            {bookingOptionValue === 7 ? (
+            {/* Hint chọn ngày — đã bỏ vì ngày đầu tiên được chọn tự động */}
+
+            {/* Spinner trung tâm khi đang init */}
+            {isInitLoading && (
+              <div className="flex flex-col items-center justify-center h-full gap-4">
+                <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm text-gray-500">Đang tải lịch...</span>
+              </div>
+            )}
+
+            {/* Error state — hiện khi network lỗi (mobile không reach server) */}
+            {!isInitLoading && initError && (
+              <div className="flex flex-col items-center justify-center h-full gap-4 px-6 text-center">
+                <span className="text-3xl">📵</span>
+                <p className="text day-txt text-sm">
+                  Không thể tải lịch đặt hẹn.
+                  <br />
+                  Vui lòng kiểm tra kết nối mạng và thử lại.
+                </p>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setInitError(false);
+                    setIsInitLoading(true);
+                    // Re-trigger useEffect bằng cách force reload
+                    window.location.reload();
+                  }}
+                >
+                  Thử lại
+                </Button>
+                <span
+                  onClick={() => resetAndBackProps(false)}
+                  className="text text-sm opacity-60 cursor-pointer"
+                >
+                  {'< Quay lại'}
+                </span>
+              </div>
+            )}
+            {!isInitLoading && !initError && bookingOptionValue === 7 ? (
               // Trạng thái tạm khoá
               <div className="justity-center align-center">
                 <div className="flex flex-col w-[90%] justify-center items-center">

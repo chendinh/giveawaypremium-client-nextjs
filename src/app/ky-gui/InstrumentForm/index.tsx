@@ -59,7 +59,7 @@ const InstrumentForm: React.FC<InstrumentFormProps> = ({ backConsignment }) => {
   };
 
   return (
-    <div className="w-full min-h-screen py-10 px-4 flex justify-center">
+    <div className="w-full h-[calc(90vh-120px)] scroll-m-0 sm:h-full sm:min-h-screen py-10 px-4 flex justify-center">
       <div
         className={cn(
           'w-full max-w-2xl transition-all duration-700 ease-out',

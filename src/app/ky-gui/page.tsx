@@ -55,7 +55,7 @@ function ZaloModal({
   // Tính năng tắt → hiển thị hotline ngay, không mở modal thứ 2
   if (!isShowBookingOnline) {
     return (
-      <div className="p-6 bg-white rounded-xl max-w-md w-full mx-4 text-center space-y-4">
+      <div className="p-6 bg-white rounded-xl max-w-md w-full mx-auto text-center space-y-4">
         <h3 className="text-xl font-bold">Ký Gửi Online</h3>
         <p className="text-gray-600">
           Tính năng đang tạm ngưng. Để ký gửi, vui lòng liên hệ trực tiếp:
@@ -80,7 +80,7 @@ function ZaloModal({
   }
 
   return (
-    <div className="p-6 bg-white rounded-xl max-w-lg w-full mx-4">
+    <div className="p-6 bg-white rounded-xl max-w-md w-full mx-auto">
       <h3 className="text-xl font-bold mb-4">Hướng dẫn ký gửi online</h3>
       <p className="text-gray-700 mb-4">
         Sau khi truy cập Zalo, vui lòng nhấn <strong>Quan tâm/Follow</strong> để
@@ -167,7 +167,7 @@ export default function ConsignmentPage() {
   ];
 
   return (
-    <div className="min-h-screen w-screen py-12 px-4 sm:px-6 lg:px-8">
+    <div className="h-[calc(90vh-120px)] pt-[190px] sm:pt-16 scroll-m-0 sm:h-full sm:min-h-screen w-screen px-4 sm:px-6 lg:px-8">
       <div className="mx-auto h-full flex justify-center items-center relative w-full">
         {/* Menu chính */}
         {activeTab === 'menu' && (

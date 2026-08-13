@@ -12,7 +12,7 @@ import './gioi-thieu.scss';
 const Items = Timeline.Item;
 
 const photoItems = [
-  { src: '../../images/Icon/aLogoBlack.svg', alt: 'Logo' },
+  { src: '../../images/Icon/logoHeaderBlack.svg', alt: 'Logo' },
   { src: '../../images/Store/store1.jpg', alt: 'Store 1' },
   { src: '../../images/Store/store2.jpg', alt: 'Store 2' },
   { src: '../../images/Store/store3.jpg', alt: 'Store 3' },

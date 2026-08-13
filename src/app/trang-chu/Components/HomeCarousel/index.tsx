@@ -118,9 +118,11 @@ function RevealText({
           style={{
             display: 'inline-block',
             overflow: 'hidden',
-            paddingTop: '0.32em',
-            marginTop: '-0.32em',
+            paddingTop: '0.15em',
+            paddingBottom: '0.05em',
+            marginTop: '-0.15em',
             verticalAlign: 'bottom',
+            lineHeight: 1.15,
           }}
         >
           <span
@@ -179,7 +181,7 @@ export default function HomeCarousel() {
 
   useEffect(() => {
     const t1 = setTimeout(() => setPageReady(true), 16);
-    const t2 = setTimeout(() => setSlideActive(true), 400);
+    const t2 = setTimeout(() => setSlideActive(true), 100);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
@@ -385,7 +387,7 @@ export default function HomeCarousel() {
         {/* PREMIUM mobile — exit trượt ra phải */}
         <div
           className={cn(
-            'absolute right-0 bottom-32 z-10 rotate-90 origin-top-right',
+            'absolute right-0 bottom-[200px] z-10 rotate-90 origin-top-right',
             'transition-all ease-[cubic-bezier(0.25,1,0.5,1)]',
             isExiting
               ? 'duration-[450ms] translate-x-[150px] opacity-0'
@@ -400,7 +402,7 @@ export default function HomeCarousel() {
         </div>
 
         {/* Slide text mobile — exit: drop xuống */}
-        <div className="relative w-full flex-1 flex items-center pl-[10%]">
+        <div className="relative w-full flex-1 mt-20 flex items-center pl-[10%]">
           <div
             className={cn(
               'transition-all ease-in-out',
@@ -413,24 +415,11 @@ export default function HomeCarousel() {
               key={currentSlide}
               text={slides[currentSlide].title}
               active={slideActive}
-              className="text-5xl font-bold uppercase tracking-wider text-gray-800"
+              className="text-[44px] font-bold uppercase tracking-wider text-gray-800"
               onClick={() => handleNavigate(slides[currentSlide].route)}
             />
             <Dots />
           </div>
-          <Lottie
-            options={lottieOptions}
-            height={80}
-            width={80}
-            speed={0.5}
-            style={{
-              position: 'absolute',
-              right: 10,
-              bottom: 60,
-              pointerEvents: 'none',
-              zoom: 0.5,
-            }}
-          />
         </div>
 
         {/* Mobile footer — exit: trượt xuống */}
@@ -448,7 +437,7 @@ export default function HomeCarousel() {
           <div className="mb-2">
             <MarqueeStrip />
           </div>
-          <div className="flex flex-col items-center gap-3 px-6 pb-8">
+          <div className="flex flex-col items-center gap-3 px-6 pb-24">
             <div className="w-full max-w-xs border-t border-black" />
             <div className="flex w-full items-center justify-between">
               <a
