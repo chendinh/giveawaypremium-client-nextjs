@@ -104,6 +104,7 @@
       pointer-events: none;
       width: 100%;
       max-width: 1500px;
+      padding-bottom: 20px;
 
       &.show {
         position: relative;
@@ -113,11 +114,13 @@
       }
 
       .searching-table-content {
-        padding: 1rem 0.5rem;
+        padding: 15px 0.5rem;
         min-height: 50vh;
+        height: calc(90vh - 130px);
 
         @media screen and (min-width: 640px) {
           padding: 2rem 1rem;
+          height: auto;
         }
       }
 
