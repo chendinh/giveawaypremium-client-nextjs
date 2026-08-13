@@ -254,7 +254,7 @@ export default function HomeCarousel() {
         {/* GIVEAWAY — slide từ trái vào, exit trượt ra trái */}
         <div
           className={cn(
-            'absolute left-0 bottom-32 z-10 -rotate-90 origin-bottom-left',
+            'absolute left-0 bottom-[180px] z-10 -rotate-90 origin-bottom-left',
             'transition-all ease-[cubic-bezier(0.25,1,0.5,1)]',
             isExiting
               ? 'duration-[450ms] -translate-x-[220px] opacity-0'
@@ -286,7 +286,7 @@ export default function HomeCarousel() {
         </div>
 
         {/* Slide text — exit: drop xuống */}
-        <div className="relative w-full h-full flex items-center pl-[10%]">
+        <div className="relative w-full h-full flex items-center pl-[12%]">
           <div
             className={cn(
               'transition-all ease-in-out',
@@ -299,7 +299,7 @@ export default function HomeCarousel() {
               key={currentSlide}
               text={slides[currentSlide].title}
               active={slideActive}
-              className="text-7xl font-['myriadpro-semibold'] uppercase tracking-wider text-black"
+              className="text-[65px] font-['myriadpro-semibold'] uppercase tracking-wider text-black"
               onClick={() => handleNavigate(slides[currentSlide].route)}
             />
             <Dots />
@@ -331,7 +331,7 @@ export default function HomeCarousel() {
                 : 'duration-[1600ms] translate-y-12 opacity-0'
           )}
         >
-          <div className="mb-3">
+          <div className="mb-5 px-10">
             <MarqueeStrip />
           </div>
           <div className="flex items-center justify-between px-12 pb-6">
