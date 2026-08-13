@@ -73,7 +73,6 @@ const menuItems: MenuItemType[] = [
     icon: <Mail className="h-5 w-5" />,
     label: 'Ký gửi',
     isFullScreen: false,
-    notifKey: 'pendingPayouts',
   },
   {
     key: 5,
