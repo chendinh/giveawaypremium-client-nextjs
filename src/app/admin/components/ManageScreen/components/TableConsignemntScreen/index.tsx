@@ -782,7 +782,6 @@ const TableConsignmentScreen: React.FC = () => {
           <TableHeader>
             <TableRow>
               <TableHead className="w-8 p-1" />
-              <TableHead className="w-[40px]">STT</TableHead>
               <TableHead>Mã KG</TableHead>
               <TableHead>Tên KH</TableHead>
               <TableHead>SĐT</TableHead>
@@ -842,9 +841,6 @@ const TableConsignmentScreen: React.FC = () => {
                             <ChevronDown className="h-3.5 w-3.5" />
                           )}
                         </span>
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        {(currentPage - 1) * pageSize + index + 1}
                       </TableCell>
                       <TableCell className="font-mono text-xs">
                         {item.consignmentId}

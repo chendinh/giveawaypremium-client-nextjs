@@ -128,16 +128,18 @@
   justify-content: center;
   color: rgb(9, 9, 9);
   letter-spacing: 0.5px;
-  font-weight: 400;
+  font-weight: 600; // tăng từ 400 → 600 để in không bị mờ
 
   /* align-items: center;
   flex-direction: column; */
   font-size: 12px;
-  font-family: Arial;
+  font-family: Arial, 'Arial Black', sans-serif;
   /* background: #e6e6e6; */
   // width: 100%;
   // height: auto;
   box-sizing: border-box;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
 .BoxTicket {
@@ -147,7 +149,7 @@
 }
 
 .BoxHeader {
-  font-weight: 400;
+  font-weight: 600;
   color: black;
 
   // font-size: 5px;
@@ -157,15 +159,14 @@
   p:nth-child(1) {
     // font-size: 5px;
     font-size: 14px;
-
-    font-weight: 700;
+    font-weight: 800; // tên cửa hàng — đậm nhất
   }
   p {
     font-size: 12px;
     margin: 0;
     margin-bottom: 5px;
     // font-size: 5px;
-    font-weight: 500;
+    font-weight: 600; // tăng từ 500 → 600
     line-height: 0.75rem;
   }
   > h3 {

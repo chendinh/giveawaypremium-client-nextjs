@@ -1364,7 +1364,7 @@ export class GapService {
         objectId: groupId,
       };
     }
-    const customQuery = `order=-createdAt&skip=${skip}&limit=${lim}&count=1&where=${JSON.stringify(whereObj)}`;
+    const customQuery = `order=createdAt&skip=${skip}&limit=${lim}&count=1&where=${JSON.stringify(whereObj)}`;
     return this.fetchData(
       '/classes/Consignment',
       REQUEST_TYPE.GET,
@@ -1857,7 +1857,7 @@ export class GapService {
     if (filters.isGetMoney === true) whereObj.isGetMoney = true;
     else if (filters.isGetMoney === false) whereObj.isGetMoney = { $ne: true };
 
-    const customQuery = `order=-createdAt&include=group&skip=${skip}&limit=${limit}&count=1&where=${JSON.stringify(whereObj)}`;
+    const customQuery = `order=createdAt&include=group&skip=${skip}&limit=${limit}&count=1&where=${JSON.stringify(whereObj)}`;
     return this.fetchData(
       '/classes/Consignment',
       REQUEST_TYPE.GET,
