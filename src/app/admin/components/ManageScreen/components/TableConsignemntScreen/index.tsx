@@ -53,6 +53,8 @@ import {
   ChevronDown,
   ChevronUp,
   Save,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -157,6 +159,48 @@ const buildAuditNote = (
       `  • SP [${c.productCode || '?'}]: ${fieldLabel[c.field] || c.field} ${c.oldVal} → ${c.newVal}`
   );
   return `[${time}] ${staffName} sửa đơn ${consignmentId}:\n${lines.join('\n')}`;
+};
+
+// ─── Copy cell — hiển thị text + icon copy, không trigger row expand ──────────
+const CopyCell: React.FC<{
+  value?: string | null;
+  className?: string;
+}> = ({ value, className }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation(); // không trigger toggleExpand trên TableRow
+    if (!value) return;
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 group cursor-default',
+        className
+      )}
+    >
+      <span>{value || '---'}</span>
+      {value && (
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground ml-0.5"
+          title="Sao chép"
+        >
+          {copied ? (
+            <Check className="h-3 w-3 text-green-500" />
+          ) : (
+            <Copy className="h-3 w-3" />
+          )}
+        </button>
+      )}
+    </span>
+  );
 };
 
 // ─── Inline editable product row ──────────────────────
@@ -845,13 +889,13 @@ const TableConsignmentScreen: React.FC = () => {
                         </span>
                       </TableCell>
                       <TableCell className="font-mono text-xs">
-                        {item.consignmentId}
+                        <CopyCell value={item.consignmentId} />
                       </TableCell>
                       <TableCell className="text-sm max-w-[200px] truncate">
                         {item.consignerName}
                       </TableCell>
                       <TableCell className="text-xs">
-                        {item.phoneNumber}
+                        <CopyCell value={item.phoneNumber} />
                       </TableCell>
                       <TableCell className="text-right text-sm">
                         {item.numberOfProducts}
@@ -871,7 +915,13 @@ const TableConsignmentScreen: React.FC = () => {
                         {item.banks?.[0]?.type || item.bankName || '---'}
                       </TableCell>
                       <TableCell className="text-xs font-mono">
-                        {item.banks?.[0]?.accNumber || item.bankId || '---'}
+                        <CopyCell
+                          value={
+                            item.banks?.[0]?.accNumber ||
+                            item.bankId ||
+                            undefined
+                          }
+                        />
                       </TableCell>
                       <TableCell className="text-center">
                         {item.isGetMoney ? (

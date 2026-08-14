@@ -571,8 +571,10 @@ const TableAppointmentScreen: React.FC = () => {
                       khoá.
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Quý khách vui lòng gọi hotline 0703 334 443 để biết thêm
-                      thông tin.
+                      Quý khách vui lòng gọi hotline 0703 334 443
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      để được hướng dẫn phương thức kí gửi khác.
                     </p>
                     <p className="text-sm text-muted-foreground">
                       Xin lỗi vì sự bất tiện này.

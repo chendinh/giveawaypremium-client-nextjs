@@ -32,7 +32,7 @@ function BookingAlertModal({ onClose }: BookingAlertModalProps) {
         <a href="tel:0703334443" className="text-blue-600 hover:underline">
           0703 334 443
         </a>{' '}
-        để biết thêm thông tin.
+        để được hướng dẫn phương thức kí gửi khác
         <br />
         Xin lỗi vì sự bất tiện này.
       </p>

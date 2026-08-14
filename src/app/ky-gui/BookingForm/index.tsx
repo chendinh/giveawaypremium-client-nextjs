@@ -411,7 +411,8 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
             Hiện tại tính năng đặt lịch ký gửi trên website đang tạm khoá.
           </p>
           <p className="text day-txt">
-            Quý khách vui lòng gọi hotline 0703 334 443 để biết thêm thông tin.
+            Quý khách vui lòng gọi hotline 0703 334 443 để được hướng dẫn phương
+            thức kí gửi khác
           </p>
           <p className="text day-txt">Xin lỗi vì sự bất tiện này.</p>
           <Button
@@ -542,8 +543,10 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
                     khoá.
                   </p>
                   <p className="text day-txt">
-                    Quý khách vui lòng gọi hotline 0703 334 443 để biết thêm
-                    thông tin.
+                    Quý khách vui lòng gọi hotline 0703 334 443
+                  </p>
+                  <p className="text day-txt">
+                    để được hướng dẫn phương thức kí gửi khác.
                   </p>
                   <p className="text day-txt">Xin lỗi vì sự bất tiện này.</p>
                   <div className="flex flex-col w-full justify-center items-center mt-5">
