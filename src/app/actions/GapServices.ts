@@ -2347,7 +2347,6 @@ export class GapService {
           ORDER_PAYMENT: Number(
             (formData.shippingInfo as any)?.orderPayment ?? 4
           ) as 1 | 2 | 3 | 4,
-          // ORDER_TYPE bị xóa — field này không hợp lệ với VTP createOrder (gây lỗi "Price does not apply")
         },
       },
     };

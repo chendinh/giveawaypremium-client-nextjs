@@ -380,41 +380,50 @@ const TableOrderScreen: React.FC = () => {
   }, [activeFromDate, activeToDate]);
 
   // ── Fetch 1 đơn hàng theo objectId rồi update row tương ứng ──
-  const refreshSingleOrder = useCallback(async (orderId: string) => {
-    setUpdatingOrderId(orderId);
-    try {
-      // Gọi thẳng /classes/Order/{id} với include đầy đủ
-      const raw = await GapService.getOrderById(orderId);
+  const refreshSingleOrder = useCallback(
+    async (orderId: string, allowClearTransporter = false) => {
+      setUpdatingOrderId(orderId);
+      try {
+        // Gọi thẳng /classes/Order/{id} với include đầy đủ
+        const raw = await GapService.getOrderById(orderId);
 
-      if (!raw?.objectId) {
-        console.warn('[refreshSingleOrder] no objectId in response', raw);
-        return;
-      }
-
-      setOrderData(prev => {
-        const idx = prev.findIndex(o => o.objectId === orderId);
-        if (idx === -1) return prev;
-        // Không overwrite transporter nếu DB chưa có nhưng local đã có (optimistic)
-        if (!raw.transporter && prev[idx].transporter) {
-          return prev;
+        if (!raw?.objectId) {
+          console.warn('[refreshSingleOrder] no objectId in response', raw);
+          return;
         }
-        const updated = [...prev];
-        updated[idx] = parseRawOrder(raw, prev[idx].key);
-        return updated;
-      });
 
-      // Nếu modal VTP đang mở cho đơn này → chỉ cập nhật nếu DB có transporter
-      setVtpDetailItem(prev => {
-        if (prev?.objectId !== orderId) return prev;
-        if (!raw.transporter && prev.transporter) return prev;
-        return parseRawOrder(raw, prev.key);
-      });
-    } catch (err) {
-      console.error('refreshSingleOrder error:', err);
-    } finally {
-      setUpdatingOrderId(null);
-    }
-  }, []);
+        setOrderData(prev => {
+          const idx = prev.findIndex(o => o.objectId === orderId);
+          if (idx === -1) return prev;
+          // Không overwrite transporter nếu DB chưa có nhưng local đã có (optimistic)
+          // Trừ khi allowClearTransporter = true (trường hợp huỷ đơn)
+          if (
+            !allowClearTransporter &&
+            !raw.transporter &&
+            prev[idx].transporter
+          ) {
+            return prev;
+          }
+          const updated = [...prev];
+          updated[idx] = parseRawOrder(raw, prev[idx].key);
+          return updated;
+        });
+
+        // Nếu modal VTP đang mở cho đơn này → chỉ cập nhật nếu DB có transporter
+        setVtpDetailItem(prev => {
+          if (prev?.objectId !== orderId) return prev;
+          if (!allowClearTransporter && !raw.transporter && prev.transporter)
+            return prev;
+          return parseRawOrder(raw, prev.key);
+        });
+      } catch (err) {
+        console.error('refreshSingleOrder error:', err);
+      } finally {
+        setUpdatingOrderId(null);
+      }
+    },
+    []
+  );
 
   // ── Bấm "Tìm": commit pending → active rồi fetch ──
   const handleSearch = () => {
@@ -696,7 +705,8 @@ const TableOrderScreen: React.FC = () => {
         toast.success('Huỷ vận đơn thành công');
         setVtpDetailOpen(false);
         // Chỉ refresh đúng row này, không reload cả trang
-        await refreshSingleOrder(orderId);
+        // allowClearTransporter=true vì huỷ đơn → transporter bị xoá khỏi DB
+        await refreshSingleOrder(orderId, true);
       } else {
         toast.error(vtpResult?.message || 'Huỷ vận đơn không thành công');
       }
