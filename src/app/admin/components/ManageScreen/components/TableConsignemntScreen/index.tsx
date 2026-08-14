@@ -577,7 +577,7 @@ const TableConsignmentScreen: React.FC = () => {
           ...finalDraft,
           numberOfProducts: recalcedNumberOfProducts,
           numSoldConsignment: recalcedNumSold,
-          moneyBack: recalcedMoneyBack,
+          moneyBack: Math.round(recalcedMoneyBack * 100) / 100, // làm tròn 2 chữ số để tránh float lẻ
         };
         setDataSource(prev =>
           prev.map(i => (i.objectId === objectId ? mergedItem : i))
@@ -792,8 +792,10 @@ const TableConsignmentScreen: React.FC = () => {
               <TableHead>Ngân hàng</TableHead>
               <TableHead>ID NH</TableHead>
               <TableHead className="text-center">Trả tiền</TableHead>
-              <TableHead>Thời gian TT</TableHead>
-              <TableHead className="w-[90px] text-right">Thao tác</TableHead>
+              <TableHead className="w-[150px] text-right">
+                Thời gian TT
+              </TableHead>
+              <TableHead className="w-[100px] text-right">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -845,7 +847,7 @@ const TableConsignmentScreen: React.FC = () => {
                       <TableCell className="font-mono text-xs">
                         {item.consignmentId}
                       </TableCell>
-                      <TableCell className="text-sm max-w-[120px] truncate">
+                      <TableCell className="text-sm max-w-[200px] truncate">
                         {item.consignerName}
                       </TableCell>
                       <TableCell className="text-xs">
@@ -862,7 +864,7 @@ const TableConsignmentScreen: React.FC = () => {
                       </TableCell>
                       <TableCell className="text-right text-sm font-medium">
                         {item.moneyBack
-                          ? `${numberWithCommas(item.moneyBack * 1000)}đ`
+                          ? `${numberWithCommas(Math.round(item.moneyBack * 1000))}đ`
                           : '---'}
                       </TableCell>
                       <TableCell className="text-xs max-w-[100px] truncate">
