@@ -1628,6 +1628,19 @@ export class GapService {
     }
   }
 
+  /** Fetch a single Order by objectId, includes client + transporter + productList.consignment */
+  static async getOrderById(orderId: string): Promise<any> {
+    return this.fetchData(
+      `/classes/Order/${orderId}`,
+      REQUEST_TYPE.GET,
+      null,
+      null,
+      null,
+      null,
+      'include=client,transporter,productList.consignment'
+    );
+  }
+
   static async getOrder(
     page: number = 1,
     selectedKeys: SelectedKeys | null = null,

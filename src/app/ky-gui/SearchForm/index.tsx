@@ -1,7 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { format, addDays, parseISO } from 'date-fns';
+import {
+  format,
+  addDays,
+  parseISO,
+  parse as parseDateFns,
+  isValid,
+} from 'date-fns';
 import GapService from '@/app/actions/GapServices';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +21,25 @@ import './style.scss';
 // Helper function
 const numberWithCommas = (x: number | string): string => {
   return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+};
+
+/**
+ * Parse date string an toàn — hỗ trợ cả ISO ("2026-08-01", "2026-08-01T...")
+ * và format "dd-MM-yyyy" mà Parse Server có thể lưu.
+ * Trả về null nếu không parse được.
+ */
+const safeParseDateStr = (dateStr: string | null | undefined): Date | null => {
+  if (!dateStr) return null;
+  // Thử ISO trước
+  const iso = parseISO(dateStr);
+  if (isValid(iso)) return iso;
+  // Thử dd-MM-yyyy
+  const dmy = parseDateFns(dateStr, 'dd-MM-yyyy', new Date());
+  if (isValid(dmy)) return dmy;
+  // Thử dd/MM/yyyy
+  const dmySlash = parseDateFns(dateStr, 'dd/MM/yyyy', new Date());
+  if (isValid(dmySlash)) return dmySlash;
+  return null;
 };
 
 // Types
@@ -312,9 +337,12 @@ const SearchForm: React.FC<SearchFormProps> = ({ backConsignment }) => {
           <div className="note-item">
             <span className="note-label">Ngày tổng kết:</span>
             <span className="note-value">
-              {item.group?.timeGetMoney
-                ? `${format(parseISO(item.group.timeGetMoney), 'dd/MM/yyyy')} → ${format(addDays(parseISO(item.group.timeGetMoney), 10), 'dd/MM/yyyy')}`
-                : 'Chưa xác định'}
+              {(() => {
+                const d = safeParseDateStr(item.group?.timeGetMoney);
+                return d
+                  ? `${format(d, 'dd/MM/yyyy')} → ${format(addDays(d, 10), 'dd/MM/yyyy')}`
+                  : 'Chưa xác định';
+              })()}
             </span>
           </div>
 
@@ -322,9 +350,10 @@ const SearchForm: React.FC<SearchFormProps> = ({ backConsignment }) => {
             <div className="note-item">
               <span className="note-label">Ngày nhận tiền:</span>
               <span className="note-value note-value-done">
-                {item.timeConfirmGetMoney
-                  ? format(parseISO(item.timeConfirmGetMoney), 'dd/MM/yyyy')
-                  : '---'}
+                {(() => {
+                  const d = safeParseDateStr(item.timeConfirmGetMoney);
+                  return d ? format(d, 'dd/MM/yyyy') : '---';
+                })()}
               </span>
             </div>
           ) : (

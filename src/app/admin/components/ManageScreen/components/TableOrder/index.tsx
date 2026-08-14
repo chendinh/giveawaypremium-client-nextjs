@@ -219,6 +219,40 @@ interface SearchFilters {
   isOnlineSale: string;
 }
 
+// ─── Helper: parse raw API item → OrderItem ───────────
+const parseRawOrder = (item: Record<string, any>, key: number): OrderItem => ({
+  key,
+  objectId: item.objectId,
+  fullName: item.fullName,
+  consignmentId: item.consignmentId,
+  consignerIdCard: item.consignerIdCard,
+  consigneeName: item.consigneeName,
+  phoneNumber: item.phoneNumber,
+  totalNumberOfProductForSale: `${Number(item.totalNumberOfProductForSale)}`,
+  isTransferMoneyWithBank: item.isTransferMoneyWithBank
+    ? 'Chuyển khoản'
+    : 'Trực tiếp',
+  transferBankMoneyAmount: item.transferBankMoneyAmount || '---',
+  transferOfflineMoneyAmount: item.transferOfflineMoneyAmount || '---',
+  totalMoneyForSale: item.totalMoneyForSale ? `${item.totalMoneyForSale}` : 0,
+  totalMoneyForSaleAfterFee:
+    (item.totalMoneyForSaleAfterFee
+      ? `${item.totalMoneyForSaleAfterFee}`
+      : `${convertPriceAfterFee(item.totalMoneyForSaleAfterFee)}`) || 0,
+  createdAt: formatDate(item.createdAt),
+  note: item.note || '---',
+  isOnlineSale: item.isOnlineSale ? 'Online' : 'Offline',
+  shippingInfo: item.shippingInfo,
+  clientInfo: item.clientInfo || item.client,
+  transporter: item.transporter,
+  moneyBackForFullSold: item.moneyBackForFullSold
+    ? `${item.moneyBackForFullSold}`
+    : 0,
+  timeConfirmGetMoney: formatDate(item.timeConfirmGetMoney),
+  productList: item.productList,
+  isGetMoney: item.isOnlineSale ? item.isGetMoney || false : true,
+});
+
 // ─── Component ────────────────────────────────────────
 const TableOrderScreen: React.FC = () => {
   const { userData } = useAppStore();
@@ -233,18 +267,29 @@ const TableOrderScreen: React.FC = () => {
 
   // Loading
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  // Loading cho update 1 row (tạo/huỷ vận đơn)
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
-  // Search
-  const [searchFilters, setSearchFilters] = useState<SearchFilters>({
+  // Search — pendingFilters: giá trị trên UI input (chưa search)
+  //          activeFilters: giá trị đang được dùng để fetch
+  const [pendingFilters, setPendingFilters] = useState<SearchFilters>({
+    objectId: '',
+    phoneNumber: '',
+    isTransferMoneyWithBank: '',
+    isOnlineSale: '',
+  });
+  const [activeFilters, setActiveFilters] = useState<SearchFilters>({
     objectId: '',
     phoneNumber: '',
     isTransferMoneyWithBank: '',
     isOnlineSale: '',
   });
 
-  // Date range
-  const [fromDate, setFromDate] = useState<string>('');
-  const [toDate, setToDate] = useState<string>('');
+  // Date range — pending (input) vs active (dùng để fetch)
+  const [pendingFromDate, setPendingFromDate] = useState<string>('');
+  const [pendingToDate, setPendingToDate] = useState<string>('');
+  const [activeFromDate, setActiveFromDate] = useState<string>('');
+  const [activeToDate, setActiveToDate] = useState<string>('');
 
   // Expanded rows
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -267,35 +312,39 @@ const TableOrderScreen: React.FC = () => {
   // ── Initialize date range to current month ──
   useEffect(() => {
     const { from, to } = currentMonthRange();
-    setFromDate(from);
-    setToDate(to);
+    setPendingFromDate(from);
+    setPendingToDate(to);
+    setActiveFromDate(from);
+    setActiveToDate(to);
   }, []);
 
   // ── Build selected keys for API ──
-  const buildSelectedKeys = useCallback((): Record<string, string> | null => {
-    const keys: Record<string, string> = {};
-    if (searchFilters.objectId) keys.objectId = searchFilters.objectId;
-    if (searchFilters.phoneNumber) keys.phoneNumber = searchFilters.phoneNumber;
-    if (searchFilters.isTransferMoneyWithBank)
-      keys.isTransferMoneyWithBank = searchFilters.isTransferMoneyWithBank;
-    if (searchFilters.isOnlineSale)
-      keys.isOnlineSale = searchFilters.isOnlineSale;
-    return Object.keys(keys).length > 0 ? keys : null;
-  }, [searchFilters]);
+  const buildSelectedKeys = useCallback(
+    (filters: SearchFilters): Record<string, string> | null => {
+      const keys: Record<string, string> = {};
+      if (filters.objectId) keys.objectId = filters.objectId;
+      if (filters.phoneNumber) keys.phoneNumber = filters.phoneNumber;
+      if (filters.isTransferMoneyWithBank)
+        keys.isTransferMoneyWithBank = filters.isTransferMoneyWithBank;
+      if (filters.isOnlineSale) keys.isOnlineSale = filters.isOnlineSale;
+      return Object.keys(keys).length > 0 ? keys : null;
+    },
+    []
+  );
 
-  // ── Fetch orders ──
+  // ── Fetch orders (dùng activeFilters + activeFromDate/To) ──
   const fetchOrders = useCallback(
     async (page: number = 1) => {
-      if (!fromDate || !toDate) return;
+      if (!activeFromDate || !activeToDate) return;
       setIsLoading(true);
       try {
-        const selectedKeys = buildSelectedKeys();
+        const selectedKeys = buildSelectedKeys(activeFilters);
         let res = await GapService.getOrder(
           page,
           selectedKeys,
           100,
-          fromDate,
-          toDate
+          activeFromDate,
+          activeToDate
         );
 
         if (selectedKeys?.objectId && res && !res.results) {
@@ -304,42 +353,8 @@ const TableOrderScreen: React.FC = () => {
 
         if (res?.results) {
           const items: OrderItem[] = res.results.map(
-            (item: Record<string, any>, indexItem: number) => ({
-              key: indexItem,
-              objectId: item.objectId,
-              fullName: item.fullName,
-              consignmentId: item.consignmentId,
-              consignerIdCard: item.consignerIdCard,
-              consigneeName: item.consigneeName,
-              phoneNumber: item.phoneNumber,
-              totalNumberOfProductForSale: `${Number(item.totalNumberOfProductForSale)}`,
-              isTransferMoneyWithBank: item.isTransferMoneyWithBank
-                ? 'Chuyển khoản'
-                : 'Trực tiếp',
-              transferBankMoneyAmount: item.transferBankMoneyAmount || '---',
-              transferOfflineMoneyAmount:
-                item.transferOfflineMoneyAmount || '---',
-              totalMoneyForSale: item.totalMoneyForSale
-                ? `${item.totalMoneyForSale}`
-                : 0,
-              totalMoneyForSaleAfterFee:
-                (item.totalMoneyForSaleAfterFee
-                  ? `${item.totalMoneyForSaleAfterFee}`
-                  : `${convertPriceAfterFee(item.totalMoneyForSaleAfterFee)}`) ||
-                0,
-              createdAt: formatDate(item.createdAt),
-              note: item.note || '---',
-              isOnlineSale: item.isOnlineSale ? 'Online' : 'Offline',
-              shippingInfo: item.shippingInfo,
-              clientInfo: item.clientInfo || item.client,
-              transporter: item.transporter,
-              moneyBackForFullSold: item.moneyBackForFullSold
-                ? `${item.moneyBackForFullSold}`
-                : 0,
-              timeConfirmGetMoney: formatDate(item.timeConfirmGetMoney),
-              productList: item.productList,
-              isGetMoney: item.isOnlineSale ? item.isGetMoney || false : true,
-            })
+            (item: Record<string, any>, indexItem: number) =>
+              parseRawOrder(item, indexItem)
           );
           setOrderData(items);
           setTotalCount(res.count || items.length);
@@ -353,31 +368,113 @@ const TableOrderScreen: React.FC = () => {
       }
       setIsLoading(false);
     },
-    [buildSelectedKeys, fromDate, toDate]
+    [buildSelectedKeys, activeFilters, activeFromDate, activeToDate]
   );
 
-  // ── Init: fetch when dates are ready ──
+  // ── Init: fetch khi activeFromDate/To được set lần đầu ──
   useEffect(() => {
-    if (fromDate && toDate) {
+    if (activeFromDate && activeToDate) {
       fetchOrders(1);
     }
-  }, [fromDate, toDate, fetchOrders]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeFromDate, activeToDate]);
 
-  // ── Search ──
+  // ── Fetch 1 đơn hàng theo objectId rồi update row tương ứng ──
+  const refreshSingleOrder = useCallback(async (orderId: string) => {
+    setUpdatingOrderId(orderId);
+    try {
+      // Gọi thẳng /classes/Order/{id} với include đầy đủ
+      const raw = await GapService.getOrderById(orderId);
+
+      if (!raw?.objectId) {
+        console.warn('[refreshSingleOrder] no objectId in response', raw);
+        return;
+      }
+
+      setOrderData(prev => {
+        const idx = prev.findIndex(o => o.objectId === orderId);
+        if (idx === -1) return prev;
+        // Không overwrite transporter nếu DB chưa có nhưng local đã có (optimistic)
+        if (!raw.transporter && prev[idx].transporter) {
+          return prev;
+        }
+        const updated = [...prev];
+        updated[idx] = parseRawOrder(raw, prev[idx].key);
+        return updated;
+      });
+
+      // Nếu modal VTP đang mở cho đơn này → chỉ cập nhật nếu DB có transporter
+      setVtpDetailItem(prev => {
+        if (prev?.objectId !== orderId) return prev;
+        if (!raw.transporter && prev.transporter) return prev;
+        return parseRawOrder(raw, prev.key);
+      });
+    } catch (err) {
+      console.error('refreshSingleOrder error:', err);
+    } finally {
+      setUpdatingOrderId(null);
+    }
+  }, []);
+
+  // ── Bấm "Tìm": commit pending → active rồi fetch ──
   const handleSearch = () => {
+    setActiveFilters(pendingFilters);
+    setActiveFromDate(pendingFromDate);
+    setActiveToDate(pendingToDate);
     setCurrentPage(1);
-    fetchOrders(1);
+    // fetchOrders sẽ tự chạy qua useEffect theo activeFilters/dates
+    // Nhưng vì setState async, gọi thẳng luôn với giá trị pending
+    setIsLoading(true);
+    buildSelectedKeys(pendingFilters); // warm up
+    GapService.getOrder(
+      1,
+      buildSelectedKeys(pendingFilters),
+      100,
+      pendingFromDate,
+      pendingToDate
+    )
+      .then(res => {
+        if (
+          buildSelectedKeys(pendingFilters)?.objectId &&
+          res &&
+          !res.results
+        ) {
+          res = { ...res, results: [res], count: 1 };
+        }
+        if (res?.results) {
+          const items: OrderItem[] = res.results.map(
+            (item: Record<string, any>, indexItem: number) =>
+              parseRawOrder(item, indexItem)
+          );
+          setOrderData(items);
+          setTotalCount(res.count || items.length);
+        } else {
+          setOrderData([]);
+          setTotalCount(0);
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        toast.error('Không thể tải dữ liệu');
+      })
+      .finally(() => setIsLoading(false));
   };
 
   const handleResetSearch = () => {
-    setSearchFilters({
+    const { from, to } = currentMonthRange();
+    const empty: SearchFilters = {
       objectId: '',
       phoneNumber: '',
       isTransferMoneyWithBank: '',
       isOnlineSale: '',
-    });
+    };
+    setPendingFilters(empty);
+    setActiveFilters(empty);
+    setPendingFromDate(from);
+    setPendingToDate(to);
+    setActiveFromDate(from);
+    setActiveToDate(to);
     setCurrentPage(1);
-    fetchOrders(1);
   };
 
   // ── Pagination ──
@@ -533,7 +630,37 @@ const TableOrderScreen: React.FC = () => {
             ? `Tạo vận đơn thành công! Mã: ${orderNumber}`
             : 'Tạo vận đơn thành công'
         );
-        handleRefresh();
+
+        // Cập nhật row ngay lập tức từ response (không chờ fetch lại)
+        // Construct transporter tạm — đủ để UI hiện trạng thái & ORDER_NUMBER
+        const vtpData = res?.result?.data || res?.data || {};
+        const optimisticTransporter: TransporterInfo = {
+          status: 'WAITING_PICK_UP',
+          res: {
+            status: 200,
+            data: {
+              ORDER_NUMBER: vtpData.ORDER_NUMBER,
+              MONEY_TOTAL: vtpData.MONEY_TOTAL,
+              MONEY_COLLECTION: vtpData.MONEY_COLLECTION,
+              EXCHANGE_WEIGHT: vtpData.EXCHANGE_WEIGHT,
+              ORDER_STATUS: vtpData.ORDER_STATUS,
+            },
+          },
+        };
+        setOrderData(prev => {
+          const idx = prev.findIndex(o => o.objectId === row.objectId);
+          if (idx === -1) return prev;
+          const updated = [...prev];
+          updated[idx] = {
+            ...updated[idx],
+            transporter: optimisticTransporter,
+          };
+          return updated;
+        });
+
+        // Sync từ DB sau 2s để server kịp lưu Transporter → Order pointer
+        // Nếu DB chưa sẵn sàng thì giữ nguyên optimistic update (không overwrite nếu raw thiếu transporter)
+        setTimeout(() => refreshSingleOrder(row.objectId), 2000);
       } else {
         toast.error(
           'Tạo vận đơn VTP chưa được. Kiểm tra lại địa chỉ người nhận.'
@@ -557,12 +684,21 @@ const TableOrderScreen: React.FC = () => {
   const handleCancelTransport = async (orderId: string) => {
     try {
       const res = await GapService.deleteTransport(orderId);
-      if (res?.result?.success) {
+      // Parse Cloud trả về: { result: { status: 200, error: false, message: "...", data: null } }
+      // GHTK trả về: { result: { success: true, ... } }
+      const vtpResult = res?.result;
+      const isSuccess =
+        vtpResult?.success === true || // GHTK style
+        Number(vtpResult?.status) === 200 || // VTP style — chỉ cần status 200
+        vtpResult?.message?.toLowerCase?.()?.includes('thành công');
+
+      if (isSuccess) {
         toast.success('Huỷ vận đơn thành công');
         setVtpDetailOpen(false);
-        handleRefresh();
+        // Chỉ refresh đúng row này, không reload cả trang
+        await refreshSingleOrder(orderId);
       } else {
-        toast.error('Huỷ vận đơn không thành công');
+        toast.error(vtpResult?.message || 'Huỷ vận đơn không thành công');
       }
     } catch (err) {
       console.error(err);
@@ -581,10 +717,19 @@ const TableOrderScreen: React.FC = () => {
   // ── Refresh ──
   const handleRefresh = () => {
     const { from, to } = currentMonthRange();
-    setFromDate(from);
-    setToDate(to);
+    const empty: SearchFilters = {
+      objectId: '',
+      phoneNumber: '',
+      isTransferMoneyWithBank: '',
+      isOnlineSale: '',
+    };
+    setPendingFilters(empty);
+    setActiveFilters(empty);
+    setPendingFromDate(from);
+    setPendingToDate(to);
+    setActiveFromDate(from);
+    setActiveToDate(to);
     setCurrentPage(1);
-    fetchOrders(1);
   };
 
   // ── Nest table: save ──
@@ -706,10 +851,11 @@ const TableOrderScreen: React.FC = () => {
           <Label className="text-xs">Mã đơn hàng</Label>
           <Input
             className="w-[160px] h-8 text-sm"
-            value={searchFilters.objectId}
+            value={pendingFilters.objectId}
             onChange={e =>
-              setSearchFilters(prev => ({ ...prev, objectId: e.target.value }))
+              setPendingFilters(prev => ({ ...prev, objectId: e.target.value }))
             }
+            onKeyDown={e => e.key === 'Enter' && handleSearch()}
             placeholder="Tìm mã đơn"
           />
         </div>
@@ -717,22 +863,23 @@ const TableOrderScreen: React.FC = () => {
           <Label className="text-xs">SĐT</Label>
           <Input
             className="w-[160px] h-8 text-sm"
-            value={searchFilters.phoneNumber}
+            value={pendingFilters.phoneNumber}
             onChange={e =>
-              setSearchFilters(prev => ({
+              setPendingFilters(prev => ({
                 ...prev,
                 phoneNumber: e.target.value,
               }))
             }
+            onKeyDown={e => e.key === 'Enter' && handleSearch()}
             placeholder="Tìm số điện thoại"
           />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Thanh toán</Label>
           <Select
-            value={searchFilters.isTransferMoneyWithBank}
+            value={pendingFilters.isTransferMoneyWithBank || 'all'}
             onValueChange={val =>
-              setSearchFilters(prev => ({
+              setPendingFilters(prev => ({
                 ...prev,
                 isTransferMoneyWithBank: val === 'all' ? '' : val,
               }))
@@ -751,9 +898,9 @@ const TableOrderScreen: React.FC = () => {
         <div className="space-y-1">
           <Label className="text-xs">Hình thức</Label>
           <Select
-            value={searchFilters.isOnlineSale}
+            value={pendingFilters.isOnlineSale || 'all'}
             onValueChange={val =>
-              setSearchFilters(prev => ({
+              setPendingFilters(prev => ({
                 ...prev,
                 isOnlineSale: val === 'all' ? '' : val,
               }))
@@ -772,20 +919,25 @@ const TableOrderScreen: React.FC = () => {
         <div className="space-y-1 flex flex-col">
           <Label className="text-xs">Từ ngày</Label>
           <DatePickerInput
-            value={fromDate}
-            onChange={setFromDate}
+            value={pendingFromDate}
+            onChange={setPendingFromDate}
             placeholder="Từ ngày"
           />
         </div>
         <div className="space-y-1 flex flex-col">
           <Label className="text-xs">Đến ngày</Label>
           <DatePickerInput
-            value={toDate}
-            onChange={setToDate}
+            value={pendingToDate}
+            onChange={setPendingToDate}
             placeholder="Đến ngày"
           />
         </div>
-        <Button size="sm" className="h-8" onClick={handleSearch}>
+        <Button
+          size="sm"
+          className="h-8"
+          onClick={handleSearch}
+          disabled={isLoading}
+        >
           <Search className="h-3 w-3 mr-1" />
           Tìm
         </Button>
@@ -836,24 +988,31 @@ const TableOrderScreen: React.FC = () => {
               orderData.map(item => {
                 const isExpanded = expandedRows.has(item.objectId);
                 const productRows = isExpanded ? buildProductRows(item) : [];
+                const isUpdating = updatingOrderId === item.objectId;
 
                 return (
                   <React.Fragment key={item.objectId}>
-                    <TableRow className="align-top">
+                    <TableRow
+                      className={`align-top transition-colors ${isUpdating ? 'opacity-60 bg-muted/40' : ''}`}
+                    >
                       {/* Expand toggle */}
                       <TableCell className="p-1 pt-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => toggleRow(item.objectId)}
-                        >
-                          {isExpanded ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          )}
-                        </Button>
+                        {isUpdating ? (
+                          <Loader2 className="h-4 w-4 animate-spin mx-auto text-muted-foreground" />
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => toggleRow(item.objectId)}
+                          >
+                            {isExpanded ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
                       </TableCell>
 
                       {/* Mã đơn + badge hình thức */}
