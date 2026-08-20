@@ -2,6 +2,7 @@ import '@/lib/i18n';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 import { DictionaryProvider } from '@/context/DictionaryProvider';
 import { getDictionary, DEFAULT_LOCALE } from '@/lib/get-dictionary';
@@ -161,6 +162,7 @@ export default async function RootLayout({
                 <UpdateNotification />
               </TooltipProvider>
               <SpeedInsights />
+              <Analytics />
             </body>
           </LocaleProvider>
         </DictionaryProvider>
