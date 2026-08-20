@@ -32,12 +32,12 @@ const TagQrcode = forwardRef<HTMLDivElement, TagQrcodeProps>(
         const dataString = await QRCode.toString(data.code, {
           margin: 0,
           type: 'svg',
-          width: 100,
+          width: 120,
         });
         if (typeof dataString === 'string') {
           const formatted = dataString.replace(
             '<svg',
-            '<svg style="width:10mm;height:10mm" class="walletconnect-qrcode__image"'
+            '<svg style="width:13mm;height:13mm" class="walletconnect-qrcode__image"'
           );
           setSvg(formatted);
         }

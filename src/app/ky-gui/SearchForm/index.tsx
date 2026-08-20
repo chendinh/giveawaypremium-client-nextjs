@@ -72,6 +72,7 @@ interface ConsignmentData {
   moneyBack?: number;
   email?: string;
   isGetMoney?: boolean;
+  note?: string;
   group?: GroupInfo;
 }
 
@@ -179,47 +180,16 @@ const SearchForm: React.FC<SearchFormProps> = ({ backConsignment }) => {
     const numberOfProducts = Number(item.numberOfProducts) || 0;
     const numSoldConsignment = Number(item.numSoldConsignment) || 0;
     const remainNum = numberOfProducts - numSoldConsignment;
-    const soldPercent =
-      numberOfProducts > 0
-        ? Math.round((numSoldConsignment / numberOfProducts) * 100)
-        : 0;
-
-    // Xác định trạng thái hiện tại của đơn ký gửi
-    const isFullySold = remainNum === 0 && numberOfProducts > 0;
     const isPaidOut = !!item.isGetMoney;
 
-    type StageKey = 'received' | 'selling' | 'summary' | 'paidout';
-    const stages: {
-      key: StageKey;
-      label: string;
-      done: boolean;
-      active: boolean;
-    }[] = [
-      {
-        key: 'received',
-        label: '✅ Đã tiếp nhận',
-        done: true,
-        active: false,
-      },
-      {
-        key: 'selling',
-        label: isFullySold ? '🎉 Bán hết' : `🏷️ Đang bán (${soldPercent}%)`,
-        done: isFullySold,
-        active: !isFullySold && !isPaidOut,
-      },
-      {
-        key: 'summary',
-        label: item.group?.timeGetMoney ? '📋 Đã tổng kết' : '📋 Chờ tổng kết',
-        done: !!item.group?.timeGetMoney,
-        active: isFullySold && !isPaidOut,
-      },
-      {
-        key: 'paidout',
-        label: isPaidOut ? '💰 Đã nhận tiền' : '💰 Chờ nhận tiền',
-        done: isPaidOut,
-        active: false,
-      },
-    ];
+    // Lọc bỏ audit log lines (bắt đầu bằng "[") khỏi ghi chú hiển thị
+    const visibleNote = item.note
+      ? item.note
+          .split('\n---\n')
+          .filter(s => !s.trim().startsWith('['))
+          .join('\n')
+          .trim()
+      : '';
 
     return (
       <div
@@ -232,7 +202,6 @@ const SearchForm: React.FC<SearchFormProps> = ({ backConsignment }) => {
         }
       >
         <div className="note-box-content">
-          {/* Header */}
           <div className="note-item">
             <span className="note-label">Mã ký gửi:</span>
             <span className="note-value font-mono">
@@ -245,52 +214,14 @@ const SearchForm: React.FC<SearchFormProps> = ({ backConsignment }) => {
             <span className="note-value">{item.consignerName || '---'}</span>
           </div>
 
-          {/* Timeline trạng thái */}
-          <div className="mt-3 mb-2">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {stages.map((stage, i) => (
-                <React.Fragment key={stage.key}>
-                  <span
-                    className={cn(
-                      'text-xs px-2 py-0.5 rounded-full font-medium',
-                      stage.done
-                        ? 'bg-green-100 text-green-800'
-                        : stage.active
-                          ? 'bg-blue-100 text-blue-800 ring-1 ring-blue-400'
-                          : 'bg-gray-100 text-gray-400'
-                    )}
-                  >
-                    {stage.label}
-                  </span>
-                  {i < stages.length - 1 && (
-                    <span className="text-gray-300 text-xs">›</span>
-                  )}
-                </React.Fragment>
-              ))}
-            </div>
+          <div className="note-item">
+            <span className="note-label">Số lượng:</span>
+            <span className="note-value">{numberOfProducts} món</span>
           </div>
 
-          {/* Progress bar */}
-          <div className="mt-2 mb-3">
-            <div className="flex justify-between text-xs text-gray-500 mb-1">
-              <span>
-                Đã bán: {numSoldConsignment}/{numberOfProducts} món
-              </span>
-              <span className="font-medium">{soldPercent}%</span>
-            </div>
-            <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className={cn(
-                  'h-full rounded-full transition-all duration-500',
-                  soldPercent === 100
-                    ? 'bg-green-500'
-                    : soldPercent >= 50
-                      ? 'bg-blue-500'
-                      : 'bg-yellow-400'
-                )}
-                style={{ width: `${soldPercent}%` }}
-              />
-            </div>
+          <div className="note-item">
+            <span className="note-label">Đã bán:</span>
+            <span className="note-value">{numSoldConsignment} món</span>
           </div>
 
           <div className="note-item">
@@ -329,7 +260,9 @@ const SearchForm: React.FC<SearchFormProps> = ({ backConsignment }) => {
           <div className="note-item">
             <span className="note-label">Tổng tiền:</span>
             <span className="note-value note-value-money">
-              {item.moneyBack ? numberWithCommas(item.moneyBack * 1000) : '---'}{' '}
+              {item.moneyBack
+                ? numberWithCommas(Math.round(item.moneyBack * 1000))
+                : '---'}{' '}
               vnđ
             </span>
           </div>
@@ -346,7 +279,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ backConsignment }) => {
             </span>
           </div>
 
-          {isPaidOut ? (
+          {isPaidOut && (
             <div className="note-item">
               <span className="note-label">Ngày nhận tiền:</span>
               <span className="note-value note-value-done">
@@ -356,7 +289,20 @@ const SearchForm: React.FC<SearchFormProps> = ({ backConsignment }) => {
                 })()}
               </span>
             </div>
-          ) : (
+          )}
+
+          {visibleNote && (
+            <div className="note-item" style={{ alignItems: 'flex-start' }}>
+              <span className="note-label" style={{ paddingTop: '2px' }}>
+                Ghi chú:
+              </span>
+              <span className="note-value" style={{ whiteSpace: 'pre-wrap' }}>
+                {visibleNote}
+              </span>
+            </div>
+          )}
+
+          {!isPaidOut && (
             <div className="mt-2 p-2 rounded-lg bg-yellow-50 border border-yellow-200 text-xs text-yellow-700">
               Tiền chưa được chuyển. Vui lòng liên hệ khi đến ngày tổng kết.
             </div>

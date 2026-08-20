@@ -68,6 +68,12 @@ import './style.scss';
 const numberWithCommas = (x: number | string): string =>
   x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
+/** Format tiền VND — luôn làm tròn số nguyên trước khi format để tránh float artifact */
+const formatVND = (valueInThousands: number): string => {
+  const rounded = Math.round(valueInThousands * 1000);
+  return `${numberWithCommas(rounded)}đ`;
+};
+
 /** Tính giá sau phí theo bracket — đơn vị nghìn đồng */
 const calcPriceAfterFee = (price: number): number => {
   if (price <= 0) return 0;
@@ -224,8 +230,8 @@ const EditableProductRow: React.FC<EditableProductRowProps> = ({
 
   return (
     <TableRow>
-      <TableCell className="text-xs text-muted-foreground">
-        {index + 1}
+      <TableCell className="text-xs font-mono text-muted-foreground">
+        {product.code || `#${index + 1}`}
       </TableCell>
       <TableCell>
         <Input
@@ -839,20 +845,21 @@ const TableConsignmentScreen: React.FC = () => {
               <TableHead className="w-[150px] text-right">
                 Thời gian TT
               </TableHead>
+              <TableHead className="max-w-[180px]">Ghi chú</TableHead>
               <TableHead className="w-[100px] text-right">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={14} className="text-center py-10">
+                <TableCell colSpan={15} className="text-center py-10">
                   <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                 </TableCell>
               </TableRow>
             ) : dataSource.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={14}
+                  colSpan={15}
                   className="text-center py-10 text-muted-foreground"
                 >
                   Không có dữ liệu
@@ -908,7 +915,7 @@ const TableConsignmentScreen: React.FC = () => {
                       </TableCell>
                       <TableCell className="text-right text-sm font-medium">
                         {item.moneyBack
-                          ? `${numberWithCommas(Math.round(item.moneyBack * 1000))}đ`
+                          ? formatVND(Number(item.moneyBack))
                           : '---'}
                       </TableCell>
                       <TableCell className="text-xs max-w-[100px] truncate">
@@ -941,6 +948,26 @@ const TableConsignmentScreen: React.FC = () => {
                       </TableCell>
                       <TableCell className="text-xs whitespace-nowrap">
                         {item.timeConfirmGetMoney || '---'}
+                      </TableCell>
+                      <TableCell
+                        className="text-xs max-w-[180px]"
+                        title={
+                          item.note
+                            ? item.note
+                                .split('\n---\n')
+                                .filter(s => !s.trim().startsWith('['))
+                                .join('\n---\n')
+                            : undefined
+                        }
+                      >
+                        <span className="line-clamp-2 text-muted-foreground">
+                          {item.note
+                            ? item.note
+                                .split('\n---\n')
+                                .filter(s => !s.trim().startsWith('['))
+                                .join(' / ') || '---'
+                            : '---'}
+                        </span>
                       </TableCell>
                       <TableCell
                         className="text-right"
@@ -987,7 +1014,7 @@ const TableConsignmentScreen: React.FC = () => {
                     {isExpanded && (
                       <TableRow>
                         <TableCell
-                          colSpan={14}
+                          colSpan={15}
                           className="p-0 border-b"
                           onClick={e => e.stopPropagation()}
                         >
@@ -1105,8 +1132,8 @@ const TableConsignmentScreen: React.FC = () => {
                                   <Table>
                                     <TableHeader>
                                       <TableRow className="bg-muted/40">
-                                        <TableHead className="text-xs h-8 w-8">
-                                          #
+                                        <TableHead className="text-xs h-8 w-24">
+                                          Mã SP
                                         </TableHead>
                                         <TableHead className="text-xs h-8">
                                           Tên sản phẩm
