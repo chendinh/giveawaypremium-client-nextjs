@@ -24,20 +24,30 @@ const numberWithCommas = (x: number | string): string => {
 };
 
 /**
- * Parse date string an toàn — hỗ trợ cả ISO ("2026-08-01", "2026-08-01T...")
- * và format "dd-MM-yyyy" mà Parse Server có thể lưu.
+ * Parse date an toàn — hỗ trợ:
+ * - Parse Server Date object: { __type: "Date", iso: "..." }
+ * - ISO string: "2026-08-01", "2026-08-01T..."
+ * - "dd-MM-yyyy" và "dd/MM/yyyy"
  * Trả về null nếu không parse được.
  */
-const safeParseDateStr = (dateStr: string | null | undefined): Date | null => {
-  if (!dateStr) return null;
+const safeParseDateStr = (
+  dateVal: string | { __type?: string; iso?: string } | null | undefined
+): Date | null => {
+  if (!dateVal) return null;
+  // Parse Server Date object { __type: "Date", iso: "..." }
+  if (typeof dateVal === 'object' && dateVal.iso) {
+    const iso = parseISO(dateVal.iso);
+    return isValid(iso) ? iso : null;
+  }
+  if (typeof dateVal !== 'string') return null;
   // Thử ISO trước
-  const iso = parseISO(dateStr);
+  const iso = parseISO(dateVal);
   if (isValid(iso)) return iso;
   // Thử dd-MM-yyyy
-  const dmy = parseDateFns(dateStr, 'dd-MM-yyyy', new Date());
+  const dmy = parseDateFns(dateVal, 'dd-MM-yyyy', new Date());
   if (isValid(dmy)) return dmy;
   // Thử dd/MM/yyyy
-  const dmySlash = parseDateFns(dateStr, 'dd/MM/yyyy', new Date());
+  const dmySlash = parseDateFns(dateVal, 'dd/MM/yyyy', new Date());
   if (isValid(dmySlash)) return dmySlash;
   return null;
 };
@@ -49,8 +59,8 @@ interface BankInfo {
 }
 
 interface GroupInfo {
-  timeGetMoney?: string;
-  timeConfirmGetMoney?: string;
+  timeGetMoney?: string | { __type?: string; iso?: string };
+  timeConfirmGetMoney?: string | { __type?: string; iso?: string };
 }
 
 interface ConsignmentData {
@@ -59,10 +69,10 @@ interface ConsignmentData {
   consignmentId?: string;
   consignerIdCard?: string;
   consigneeName?: string;
-  timeGetMoney?: string;
+  timeGetMoney?: string | { __type?: string; iso?: string };
   phoneNumber?: string;
   isTransferMoneyWithBank?: boolean;
-  timeConfirmGetMoney?: string;
+  timeConfirmGetMoney?: string | { __type?: string; iso?: string };
   numberOfProducts?: number | string;
   numSoldConsignment?: number | string;
   remainNumConsignment?: number | string;
@@ -186,7 +196,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ backConsignment }) => {
     const visibleNote = item.note
       ? item.note
           .split('\n---\n')
-          .filter(s => !s.trim().startsWith('['))
+          .filter(s => s.trim().length > 0 && !s.trim().startsWith('['))
           .join('\n')
           .trim()
       : '';

@@ -140,12 +140,12 @@
   justify-content: center;
   color: black;
   letter-spacing: 0.3px;
-  font-weight: 600; // tăng từ 500 → 600
+  font-weight: 500;
 
   /* align-items: center;
   flex-direction: column; */
   font-size: 12px;
-  font-family: 'myriadpro-boldcond' !important; // đổi sang bold condensed để in rõ nét
+  font-family: 'myriadpro-cond' !important;
   /* background: #e6e6e6; */
   // width: 100%;
   // height: auto;
@@ -172,42 +172,42 @@
 
 .leftBox {
   padding-bottom: 8px;
-  font-family: 'myriadpro-boldcond' !important; // bold condensed
+  font-family: 'myriadpro-cond' !important;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  width: 13mm;
+  width: 15mm;
   height: 20mm;
 
   p {
-    font-family: 'myriadpro-boldcond' !important;
+    font-family: 'myriadpro-cond' !important;
     text-align: left;
     margin: 0 !important;
-    font-weight: 600; // tăng từ 400 → 600
-    word-break: break-all;
-    font-size: 9px;
-    line-height: 11px;
+    font-weight: 400;
+    word-break: normal;
+    font-size: 12px;
+    line-height: 14px;
   }
 
   .leftBoxCode {
     padding-top: 4px;
-    font-family: 'myriadpro-boldcond' !important;
+    font-family: 'myriadpro-cond' !important;
     text-align: left;
     margin: 0 !important;
-    font-weight: 700; // mã sản phẩm — đậm hơn
-    word-break: break-all;
-    font-size: 9px; // nhỏ lại để mã không bị rớt xuống
-    line-height: 11px;
+    font-weight: 400;
+    word-break: normal;
+    font-size: 12px;
+    line-height: 14px;
   }
 }
 
 .rightBox {
   padding-bottom: 6px;
 
-  font-family: 'myriadpro-boldcond' !important; // bold condensed
+  font-family: 'myriadpro-cond' !important;
   text-align: right;
-  width: calc(21mm);
+  width: calc(15mm + 5px);
   height: 20mm;
 
   display: flex;
@@ -215,25 +215,25 @@
   align-items: flex-end;
   justify-content: space-between;
   p {
-    line-height: 11px;
-    font-family: 'myriadpro-boldcond' !important;
+    line-height: 12px;
+    font-family: 'myriadpro-cond' !important;
     margin: 0 !important;
     text-align: right;
     word-break: normal;
-    font-size: 10px;
-    font-weight: 600; // tăng từ 400 → 600
+    font-size: 12px;
+    font-weight: 400;
   }
 
   .rightBoxName {
     zoom: 0.9;
     padding-top: 7.5px;
-    line-height: 11px;
-    font-family: 'myriadpro-boldcond' !important;
+    line-height: 12px;
+    font-family: 'myriadpro-cond' !important;
     margin: 0 !important;
     text-align: right;
     word-break: normal;
-    font-size: 10px; // nhỏ lại để hiển thị đủ tên
-    font-weight: 600; // tăng từ 400 → 600
+    font-size: 12px;
+    font-weight: 400;
     height: 16mm;
     overflow: hidden;
   }
@@ -245,12 +245,12 @@
     zoom: 0.8;
     font-style: italic;
     line-height: 10px;
-    font-family: 'myriadpro-boldcond' !important;
+    font-family: 'myriadpro-cond' !important;
     margin: 0 !important;
     text-align: right;
     word-break: normal;
     font-size: 10px;
-    font-weight: 600; // tăng từ 300 → 600
+    font-weight: 300;
   }
 
   .price {
@@ -261,7 +261,7 @@
     text-align: right;
     word-break: normal;
     font-size: 14px;
-    font-weight: 700; // giá — đậm nhất, quan trọng nhất trên tag
+    font-weight: 400;
   }
 }
 
@@ -272,7 +272,7 @@
 }
 
 .BoxHeader {
-  font-weight: 600; // tăng từ 400 → 600
+  font-weight: 400;
   color: black;
 
   // font-size: 5px;
@@ -283,14 +283,14 @@
     // font-size: 5px;
     font-size: 14px;
 
-    font-weight: 800; // tên shop — đậm nhất
+    font-weight: 700;
   }
   p {
     font-size: 12px;
     margin: 0;
     margin-bottom: 5px;
     // font-size: 5px;
-    font-weight: 600; // tăng từ 500 → 600
+    font-weight: 500;
     line-height: 0.75rem;
   }
   > h3 {
