@@ -162,7 +162,7 @@
 .qrcode {
   padding-top: 1px;
   display: flex;
-  height: 20mm;
+  height: 22mm;
   flex-direction: row;
   overflow: visible;
 }
@@ -172,7 +172,7 @@
 }
 
 .leftBox {
-  padding-bottom: 8px;
+  padding-bottom: 6px;
   font-family: 'myriadpro-cond' !important;
   display: flex;
   flex-direction: column;
@@ -197,10 +197,10 @@
     font-family: 'myriadpro-cond' !important;
     text-align: left;
     margin: 0 !important;
-    font-weight: 400;
+    font-weight: 500;
     white-space: nowrap;
     overflow: visible;
-    font-size: 8.5px;
+    font-size: 9px;
     line-height: 11px;
   }
 }
