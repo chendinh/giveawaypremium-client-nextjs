@@ -301,16 +301,14 @@ const SearchForm: React.FC<SearchFormProps> = ({ backConsignment }) => {
             </div>
           )}
 
-          {visibleNote && (
-            <div className="note-item" style={{ alignItems: 'flex-start' }}>
-              <span className="note-label" style={{ paddingTop: '2px' }}>
-                Ghi chú:
-              </span>
-              <span className="note-value" style={{ whiteSpace: 'pre-wrap' }}>
-                {visibleNote}
-              </span>
-            </div>
-          )}
+          <div className="note-item" style={{ alignItems: 'flex-start' }}>
+            <span className="note-label" style={{ paddingTop: '2px' }}>
+              Ghi chú:
+            </span>
+            <span className="note-value" style={{ whiteSpace: 'pre-wrap' }}>
+              {visibleNote || '--'}
+            </span>
+          </div>
 
           {!isPaidOut && (
             <div className="mt-2 p-2 rounded-lg bg-yellow-50 border border-yellow-200 text-xs text-yellow-700">
