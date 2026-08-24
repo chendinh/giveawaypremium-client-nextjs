@@ -334,7 +334,16 @@ const TableConsignmentScreen: React.FC = () => {
   const [totalCount, setTotalCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isLoadingTags, setIsLoadingTags] = useState<boolean>(false);
-  const [searchFilters, setSearchFilters] = useState<SearchFilters>({
+
+  // draftFilters — state người dùng đang nhập (chưa submit)
+  const [draftFilters, setDraftFilters] = useState<SearchFilters>({
+    phoneNumber: '',
+    consignerName: '',
+    consignmentId: '',
+    isGetMoney: '',
+  });
+  // committedFilters — filters đã bấm Tìm, dùng để fetch
+  const [committedFilters, setCommittedFilters] = useState<SearchFilters>({
     phoneNumber: '',
     consignerName: '',
     consignmentId: '',
@@ -378,23 +387,23 @@ const TableConsignmentScreen: React.FC = () => {
       setIsLoading(true);
       try {
         const hasFilters =
-          searchFilters.phoneNumber ||
-          searchFilters.consignerName ||
-          searchFilters.consignmentId ||
-          searchFilters.isGetMoney !== '';
+          committedFilters.phoneNumber ||
+          committedFilters.consignerName ||
+          committedFilters.consignmentId ||
+          committedFilters.isGetMoney !== '';
 
         let res: any;
         if (hasFilters) {
           res = await GapService.getConsignmentWithFilters(
             page,
             {
-              phoneNumber: searchFilters.phoneNumber || undefined,
-              consignerName: searchFilters.consignerName || undefined,
-              consignmentId: searchFilters.consignmentId || undefined,
+              phoneNumber: committedFilters.phoneNumber || undefined,
+              consignerName: committedFilters.consignerName || undefined,
+              consignmentId: committedFilters.consignmentId || undefined,
               isGetMoney:
-                searchFilters.isGetMoney === 'true'
+                committedFilters.isGetMoney === 'true'
                   ? true
-                  : searchFilters.isGetMoney === 'false'
+                  : committedFilters.isGetMoney === 'false'
                     ? false
                     : null,
               groupId,
@@ -417,7 +426,7 @@ const TableConsignmentScreen: React.FC = () => {
       }
       setIsLoading(false);
     },
-    [currentTagId]
+    [currentTagId, committedFilters]
   );
 
   useEffect(() => {
@@ -440,17 +449,19 @@ const TableConsignmentScreen: React.FC = () => {
 
   const handleSearch = () => {
     setCurrentPage(1);
-    fetchConsignments(1);
+    // Commit draftFilters → triggering useEffect → fetchConsignments
+    setCommittedFilters({ ...draftFilters });
   };
   const handleResetSearch = () => {
-    setSearchFilters({
+    const empty: SearchFilters = {
       phoneNumber: '',
       consignerName: '',
       consignmentId: '',
       isGetMoney: '',
-    });
+    };
+    setDraftFilters(empty);
+    setCommittedFilters(empty);
     setCurrentPage(1);
-    fetchConsignments(1);
   };
 
   const handlePageChange = (page: number) => {
@@ -762,41 +773,44 @@ const TableConsignmentScreen: React.FC = () => {
           <Label className="text-xs">SĐT</Label>
           <Input
             className="w-[140px] h-8 text-sm"
-            value={searchFilters.phoneNumber}
+            value={draftFilters.phoneNumber}
             onChange={e =>
-              setSearchFilters(p => ({ ...p, phoneNumber: e.target.value }))
+              setDraftFilters(p => ({ ...p, phoneNumber: e.target.value }))
             }
             placeholder="Số điện thoại"
+            onKeyDown={e => e.key === 'Enter' && handleSearch()}
           />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Tên KH</Label>
           <Input
             className="w-[140px] h-8 text-sm"
-            value={searchFilters.consignerName}
+            value={draftFilters.consignerName}
             onChange={e =>
-              setSearchFilters(p => ({ ...p, consignerName: e.target.value }))
+              setDraftFilters(p => ({ ...p, consignerName: e.target.value }))
             }
             placeholder="Tên khách hàng"
+            onKeyDown={e => e.key === 'Enter' && handleSearch()}
           />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Mã KG</Label>
           <Input
             className="w-[120px] h-8 text-sm"
-            value={searchFilters.consignmentId}
+            value={draftFilters.consignmentId}
             onChange={e =>
-              setSearchFilters(p => ({ ...p, consignmentId: e.target.value }))
+              setDraftFilters(p => ({ ...p, consignmentId: e.target.value }))
             }
             placeholder="Mã ký gửi"
+            onKeyDown={e => e.key === 'Enter' && handleSearch()}
           />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Trả tiền</Label>
           <Select
-            value={searchFilters.isGetMoney}
+            value={draftFilters.isGetMoney}
             onValueChange={val =>
-              setSearchFilters(p => ({
+              setDraftFilters(p => ({
                 ...p,
                 isGetMoney: val === 'all' ? '' : val,
               }))
@@ -841,7 +855,7 @@ const TableConsignmentScreen: React.FC = () => {
               <TableHead className="text-right">Tiền trả KH</TableHead>
               <TableHead>Ngân hàng</TableHead>
               <TableHead>ID NH</TableHead>
-              <TableHead className="text-center">Trả tiền</TableHead>
+              <TableHead className="w-[120px] text-center">Trả tiền</TableHead>
               <TableHead className="w-[150px] text-right">
                 Thời gian TT
               </TableHead>
@@ -930,11 +944,11 @@ const TableConsignmentScreen: React.FC = () => {
                           }
                         />
                       </TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="text-center w-[120px]">
                         {item.isGetMoney ? (
                           <Badge
                             variant="default"
-                            className="bg-green-500 text-xs"
+                            className="bg-green-500 text-xs w-[75px]"
                           >
                             <CheckCircle2 className="h-3 w-3 mr-1" />
                             Đã trả
