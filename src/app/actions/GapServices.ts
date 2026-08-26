@@ -2133,11 +2133,22 @@ export class GapService {
   }
 
   static async sendPaymentConfirmationEmail(
-    consignmentObjectId: string
+    item: any // ConsignmentItem type từ TableConsignemntScreen
   ): Promise<any> {
-    const body = { consignmentId: consignmentObjectId };
+    const body = {
+      consignmentId: item.objectId,
+      customerName: item.consignerName || '',
+      phoneNumber: item.phoneNumber || '',
+      identityId: item.consignerIdCard || '',
+      bankName:
+        (item.bankName as string) || (item.banks?.[0]?.type as string) || '',
+      bankId:
+        (item.bankId as string) || (item.banks?.[0]?.accNumber as string) || '',
+      moneyBack: item.moneyBack || 0,
+      note: item.note || '',
+    };
 
-    console.log('consignmentObjectId', consignmentObjectId);
+    console.log('sendPaymentConfirmationEmail body:', body);
     return this.fetchData(
       '/functions/sendPaymentConfirmationEmail',
       REQUEST_TYPE.POST,

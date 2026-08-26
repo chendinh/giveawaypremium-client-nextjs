@@ -118,6 +118,7 @@ interface ConsignmentItem {
   banks?: Array<{ type?: string; accNumber?: string }>;
   bankName?: string;
   bankId?: string;
+  consignerIdCard?: string;
 }
 
 interface TagItem {
@@ -640,9 +641,25 @@ const TableConsignmentScreen: React.FC = () => {
         timeConfirmGetMoney: finalTimeConfirm,
       };
 
+      // Detect payment status change: false → true
+      const paymentJustConfirmed =
+        original.isGetMoney === false && finalIsGetMoney === true;
+
       const res = await GapService.updateConsignment(finalDraft);
       if (res) {
         toast.success('Cập nhật thành công');
+
+        // Tự động gửi email xác nhận thanh toán khi trạng thái chuyển → đã trả
+        if (paymentJustConfirmed) {
+          try {
+            await GapService.sendPaymentConfirmationEmail(
+              finalDraft as ConsignmentItem
+            );
+            toast.success('Đã gửi email xác nhận thanh toán');
+          } catch {
+            toast.error('Có lỗi khi gửi email xác nhận thanh toán');
+          }
+        }
         // Tính lại các giá trị tổng từ productList đã cập nhật
         const updatedProducts = finalDraft.productList || [];
         const recalcedNumberOfProducts = updatedProducts.reduce(
@@ -781,7 +798,7 @@ const TableConsignmentScreen: React.FC = () => {
   // ── Send payment confirmation email ──
   const handleSendPaymentEmail = async (item: ConsignmentItem) => {
     try {
-      await GapService.sendPaymentConfirmationEmail(item.objectId);
+      await GapService.sendPaymentConfirmationEmail(item);
       toast.success('Đã gửi email xác nhận thanh toán');
     } catch {
       toast.error('Có lỗi khi gửi email');

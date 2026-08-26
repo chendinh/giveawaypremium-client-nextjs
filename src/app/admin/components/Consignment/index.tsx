@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useId } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -40,14 +40,8 @@ import './style.scss';
 const numberWithCommas = (x: number | string): string =>
   x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
-// SSR-safe: uses a static placeholder for server, generates random ID on client
-const SSR_PLACEHOLDER_ID = 'ssr-id';
-const generateIdMix = (): string => {
-  if (typeof window === 'undefined') {
-    return SSR_PLACEHOLDER_ID;
-  }
-  return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
-};
+// useId hook cho client-side unique ID (stable hydration)
+// useId đảm bảo cùng một ID giữa server và client rendering
 
 // ─── Types ────────────────────────────────────────────
 interface ProductItem {
@@ -127,12 +121,15 @@ const Consignment: React.FC<ConsignmentProps> = () => {
   const [productList, setProductList] = useState<ProductItem[]>([]);
   const [isClient, setIsClient] = useState(false);
 
+  // useId cho mỗi instance component — stable giữa server/client
+  const componentId = useId();
+
   // Generate initial product list only on client to avoid hydration mismatch
   useEffect(() => {
     setIsClient(true);
     setProductList([
       {
-        hashCode: generateIdMix(),
+        hashCode: `pid-${componentId}-${Date.now()}`,
         code: '',
         productId: 0,
         price: '',
@@ -147,7 +144,7 @@ const Consignment: React.FC<ConsignmentProps> = () => {
         rateNew: 100,
       },
     ]);
-  }, []);
+  }, [componentId]);
   const [formData, setFormData] = useState<FormDataType>({
     consigneeName: userData?.fullName || userData?.username || '',
     consignerName: '',
@@ -408,7 +405,7 @@ const Consignment: React.FC<ConsignmentProps> = () => {
     const newItems: ProductItem[] = [0, 1, 2].map(i => ({
       categoryId: '',
       subCategoryId: '',
-      hashCode: generateIdMix(),
+      hashCode: `pid-${componentId}-${Date.now()}-${i}`,
       price: '',
       count: 1,
       remainNumberProduct: 1,
@@ -511,7 +508,7 @@ const Consignment: React.FC<ConsignmentProps> = () => {
     setIsTransferMoneyWithBank('false');
     setProductList([
       {
-        hashCode: generateIdMix(),
+        hashCode: `pid-${componentId}-${Date.now()}`,
         code: '',
         productId: '',
         price: '',
@@ -769,7 +766,7 @@ const Consignment: React.FC<ConsignmentProps> = () => {
         }
       }
 
-      const hashCode = generateIdMix();
+      const hashCode = `pid-${componentId}-${Date.now()}-${itemIndex}`;
 
       newProductList.push({
         name,
