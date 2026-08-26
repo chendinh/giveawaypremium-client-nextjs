@@ -742,13 +742,15 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
                     )}
                   />
 
-                  {formValues.numberOfProduct > 50 &&
-                    formValues.numberOfProduct <= 100 && (
-                      <p className="text-red-500 text-sm">
+                  {formValues.numberOfProduct > 50 && (
+                    <div className="flex gap-2 text-sm text-amber-600">
+                      <span>⚠️</span>
+                      <span>
                         Với số lượng hàng hoá trên 50, Xin vui lòng liên hệ
                         hotline 0703334443 để được hỗ trợ tốt nhất.
-                      </p>
-                    )}
+                      </span>
+                    </div>
+                  )}
 
                   <div className="bookingNoteString">
                     <span>

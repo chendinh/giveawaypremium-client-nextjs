@@ -2132,6 +2132,24 @@ export class GapService {
     );
   }
 
+  static async sendPaymentConfirmationEmail(
+    consignmentObjectId: string
+  ): Promise<any> {
+    const body = { consignmentId: consignmentObjectId };
+
+    console.log('consignmentObjectId', consignmentObjectId);
+    return this.fetchData(
+      '/functions/sendPaymentConfirmationEmail',
+      REQUEST_TYPE.POST,
+      null,
+      body,
+      null,
+      null,
+      null,
+      true // useAuth: true — gửi X-Parse-Session-Token
+    );
+  }
+
   static async sendEmailTongketALLWithObjectIdConsigment(
     idConsignment: string
   ): Promise<any> {

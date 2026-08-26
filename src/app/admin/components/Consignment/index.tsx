@@ -40,8 +40,14 @@ import './style.scss';
 const numberWithCommas = (x: number | string): string =>
   x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
-const generateIdMix = (): string =>
-  Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+// SSR-safe: uses a static placeholder for server, generates random ID on client
+const SSR_PLACEHOLDER_ID = 'ssr-id';
+const generateIdMix = (): string => {
+  if (typeof window === 'undefined') {
+    return SSR_PLACEHOLDER_ID;
+  }
+  return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+};
 
 // ─── Types ────────────────────────────────────────────
 interface ProductItem {
@@ -118,23 +124,30 @@ const Consignment: React.FC<ConsignmentProps> = () => {
   const [allInfoTag, setAllInfoTag] = useState<TagItem[]>([]);
   const [isTransferMoneyWithBank, setIsTransferMoneyWithBank] =
     useState<string>('false');
-  const [productList, setProductList] = useState<ProductItem[]>([
-    {
-      hashCode: generateIdMix(),
-      code: '',
-      productId: 0,
-      price: '',
-      count: 1,
-      remainNumberProduct: 1,
-      priceAfterFee: '',
-      totalPriceAfterFee: '',
-      categoryId: '',
-      subCategoryId: '',
-      note: '---',
-      isNew: 'false',
-      rateNew: 100,
-    },
-  ]);
+  const [productList, setProductList] = useState<ProductItem[]>([]);
+  const [isClient, setIsClient] = useState(false);
+
+  // Generate initial product list only on client to avoid hydration mismatch
+  useEffect(() => {
+    setIsClient(true);
+    setProductList([
+      {
+        hashCode: generateIdMix(),
+        code: '',
+        productId: 0,
+        price: '',
+        count: 1,
+        remainNumberProduct: 1,
+        priceAfterFee: '',
+        totalPriceAfterFee: '',
+        categoryId: '',
+        subCategoryId: '',
+        note: '---',
+        isNew: 'false',
+        rateNew: 100,
+      },
+    ]);
+  }, []);
   const [formData, setFormData] = useState<FormDataType>({
     consigneeName: userData?.fullName || userData?.username || '',
     consignerName: '',

@@ -718,6 +718,14 @@ const TableConsignmentScreen: React.FC = () => {
         toast.success(
           newIsGetMoney ? 'Đã xác nhận trả tiền' : 'Đã huỷ xác nhận'
         );
+        // Tự động gửi email xác nhận chuyển khoản khi đánh dấu đã trả tiền
+        if (newIsGetMoney) {
+          GapService.sendPaymentConfirmationEmail(item.objectId).catch(() => {
+            toast.warning(
+              'Xác nhận thành công nhưng gửi email thất bại. Vui lòng gửi lại thủ công.'
+            );
+          });
+        }
         // Cập nhật local state ngay, không cần fetch lại cả trang
         setDataSource(prev =>
           prev.map(i =>
@@ -767,6 +775,16 @@ const TableConsignmentScreen: React.FC = () => {
       toast.success('Đã gửi email tổng kết');
     } catch {
       toast.error('Có lỗi xảy ra');
+    }
+  };
+
+  // ── Send payment confirmation email ──
+  const handleSendPaymentEmail = async (item: ConsignmentItem) => {
+    try {
+      await GapService.sendPaymentConfirmationEmail(item.objectId);
+      toast.success('Đã gửi email xác nhận thanh toán');
+    } catch {
+      toast.error('Có lỗi khi gửi email');
     }
   };
 
@@ -1069,6 +1087,13 @@ const TableConsignmentScreen: React.FC = () => {
                             >
                               <Mail className="h-4 w-4 mr-2" />
                               Gửi email
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleSendPaymentEmail(item)}
+                              className="text-green-600"
+                            >
+                              <DollarSign className="h-4 w-4 mr-2" />
+                              Gửi email đã trả tiền
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => openDeleteDialog(item.objectId)}

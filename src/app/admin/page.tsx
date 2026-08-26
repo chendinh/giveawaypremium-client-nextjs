@@ -287,6 +287,7 @@ const DashBoard: React.FC = () => {
                   alt="GiveAway"
                   width={70}
                   height={15}
+                  style={{ width: 'auto', height: 'auto' }}
                 />
               </span>
             )}
