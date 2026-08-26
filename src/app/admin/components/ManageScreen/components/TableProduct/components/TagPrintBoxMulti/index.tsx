@@ -29,9 +29,11 @@ const TagPrintBoxMulti: React.FC<TagPrintBoxMultiProps> = ({ productData }) => {
   });
 
   // Expand productData by numberTagCount for batch printing
+  // numberTagCount ở đây đã được override bởi nhân viên (hoặc fallback về tồn kho)
   const productDataExpanded: ProductDataItem[] = [];
   for (const detail of productData) {
-    for (let i = 0; i < detail.numberTagCount; i++) {
+    const count = Math.max(0, detail.numberTagCount);
+    for (let i = 0; i < count; i++) {
       productDataExpanded.push(detail);
     }
   }

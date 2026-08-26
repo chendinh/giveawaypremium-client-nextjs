@@ -155,6 +155,9 @@ const TableProductScreen: React.FC = () => {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isShowMultiPrintView, setIsShowMultiPrintView] =
     useState<boolean>(false);
+
+  // Override số lượng nhãn in cho từng sản phẩm (key = objectId)
+  const [printCounts, setPrintCounts] = useState<Record<string, number>>({});
   // File input ref
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadTargetKey, setUploadTargetKey] = useState<string>('');
@@ -659,7 +662,12 @@ const TableProductScreen: React.FC = () => {
               >
                 Chỉnh sửa chi tiết
               </Button>
-              <TagPrintBox data={record} />
+              <TagPrintBox
+                data={record}
+                printCount={
+                  printCounts[record.objectId] ?? record.numberTagCount
+                }
+              />
             </div>
           </div>
         </TableCell>
@@ -753,7 +761,13 @@ const TableProductScreen: React.FC = () => {
               />
               Đóng In Tất Cả
             </Button>
-            <TagPrintBoxMulti productData={productData} />
+            <TagPrintBoxMulti
+              productData={productData.map(p => ({
+                ...p,
+                // Dùng số nhân viên đã nhập, fallback về tồn kho
+                numberTagCount: printCounts[p.objectId] ?? p.numberTagCount,
+              }))}
+            />
           </div>
         )}
 
@@ -874,7 +888,21 @@ const TableProductScreen: React.FC = () => {
                       {item.code || '---'}
                     </TableCell>
                     <TableCell className="text-right text-sm">
-                      {item.numberTagCount}
+                      <input
+                        type="number"
+                        min={0}
+                        value={
+                          printCounts[item.objectId] ?? item.numberTagCount
+                        }
+                        onChange={e => {
+                          const val = Math.max(0, Number(e.target.value));
+                          setPrintCounts(prev => ({
+                            ...prev,
+                            [item.objectId]: val,
+                          }));
+                        }}
+                        className="w-14 text-right border border-border rounded px-1 py-0.5 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                      />
                     </TableCell>
                     <TableCell className="text-sm max-w-[150px] truncate">
                       {item.name || '---'}
