@@ -1592,8 +1592,14 @@ export class GapService {
       const body: Record<string, any> = {
         isGetMoney: item.isGetMoney || false,
       };
-      if (item.timeConfirmGetMoney) {
+      if (
+        item.isGetMoney &&
+        item.timeConfirmGetMoney &&
+        item.timeConfirmGetMoney !== '---'
+      ) {
         body.timeConfirmGetMoney = item.timeConfirmGetMoney;
+      } else if (!item.isGetMoney) {
+        body.timeConfirmGetMoney = { __op: 'Delete' };
       }
       return this.fetchData(
         `/classes/Order/${item.objectId}`,
@@ -1911,6 +1917,39 @@ export class GapService {
         REQUEST_TYPE.PUT,
         null,
         body
+      );
+    } catch (e) {
+      console.log(e);
+      return false;
+    }
+  }
+
+  /** Chỉ update isGetMoney + timeConfirmGetMoney + note — không động đến productList */
+  static async updateConsignmentPayment(
+    objectId: string,
+    isGetMoney: boolean,
+    timeConfirmGetMoney?: string,
+    note?: string
+  ): Promise<any> {
+    try {
+      const body: Record<string, any> = { isGetMoney };
+      if (isGetMoney && timeConfirmGetMoney) {
+        body.timeConfirmGetMoney = timeConfirmGetMoney;
+      } else if (!isGetMoney) {
+        body.timeConfirmGetMoney = { __op: 'Delete' };
+      }
+      if (note !== undefined) {
+        body.note = note;
+      }
+      return this.fetchData(
+        `/classes/Consignment/${objectId}`,
+        REQUEST_TYPE.PUT,
+        null,
+        body,
+        null,
+        null,
+        null,
+        true
       );
     } catch (e) {
       console.log(e);
@@ -2289,14 +2328,11 @@ export class GapService {
 
     // Ưu tiên numeric ID từ ShippingInfo (set bởi VTP cascade dropdowns)
     const vtpProvinceId = (formData.shippingInfo as any)?.vtpProvinceId as
-      | number
-      | undefined;
+      number | undefined;
     const vtpDistrictId = (formData.shippingInfo as any)?.vtpDistrictId as
-      | number
-      | undefined;
+      number | undefined;
     const vtpWardId = (formData.shippingInfo as any)?.vtpWardId as
-      | number
-      | undefined;
+      number | undefined;
 
     if (!vtpProvinceId || !vtpDistrictId || !vtpWardId) {
       showNotification(

@@ -611,7 +611,34 @@ const TableConsignmentScreen: React.FC = () => {
         finalNote = finalNote ? `${finalNote}\n---\n${auditNote}` : auditNote;
       }
 
-      const finalDraft = { ...draft, note: finalNote };
+      // Nếu isGetMoney thay đổi → sync timeConfirmGetMoney + append audit note
+      let finalIsGetMoney = draft.isGetMoney;
+      let finalTimeConfirm = draft.timeConfirmGetMoney;
+      if (original.isGetMoney !== draft.isGetMoney) {
+        const staffName =
+          userData?.fullName || userData?.username || 'Nhân viên';
+        const time = format(new Date(), 'dd/MM/yyyy HH:mm');
+        const paymentNote = draft.isGetMoney
+          ? `[${time}] ${staffName} xác nhận ĐÃ TRẢ TIỀN cho đơn ${draft.consignmentId}`
+          : `[${time}] ${staffName} huỷ xác nhận trả tiền cho đơn ${draft.consignmentId}`;
+        finalNote = finalNote
+          ? `${finalNote}\n---\n${paymentNote}`
+          : paymentNote;
+
+        if (draft.isGetMoney) {
+          finalTimeConfirm = format(new Date(), 'dd-MM-yyyy HH:mm');
+        } else {
+          finalTimeConfirm = undefined;
+        }
+        finalIsGetMoney = draft.isGetMoney;
+      }
+
+      const finalDraft = {
+        ...draft,
+        note: finalNote,
+        isGetMoney: finalIsGetMoney,
+        timeConfirmGetMoney: finalTimeConfirm,
+      };
 
       const res = await GapService.updateConsignment(finalDraft);
       if (res) {
@@ -639,6 +666,8 @@ const TableConsignmentScreen: React.FC = () => {
           numberOfProducts: recalcedNumberOfProducts,
           numSoldConsignment: recalcedNumSold,
           moneyBack: Math.round(recalcedMoneyBack * 100) / 100, // làm tròn 2 chữ số để tránh float lẻ
+          isGetMoney: finalIsGetMoney,
+          timeConfirmGetMoney: finalTimeConfirm,
         };
         setDataSource(prev =>
           prev.map(i => (i.objectId === objectId ? mergedItem : i))
@@ -663,20 +692,49 @@ const TableConsignmentScreen: React.FC = () => {
 
   // ── Toggle get money ──
   const handleToggleGetMoney = async (item: ConsignmentItem) => {
-    const updated = {
-      ...item,
-      isGetMoney: !item.isGetMoney,
-      timeConfirmGetMoney: !item.isGetMoney
-        ? format(new Date(), 'dd-MM-yyyy HH:mm')
-        : '',
-    };
+    const newIsGetMoney = !item.isGetMoney;
+    const newTimeConfirm = newIsGetMoney
+      ? format(new Date(), 'dd-MM-yyyy HH:mm')
+      : undefined;
+
+    // Append payment audit note
+    const staffName = userData?.fullName || userData?.username || 'Nhân viên';
+    const time = format(new Date(), 'dd/MM/yyyy HH:mm');
+    const paymentNote = newIsGetMoney
+      ? `[${time}] ${staffName} xác nhận ĐÃ TRẢ TIỀN cho đơn ${item.consignmentId}`
+      : `[${time}] ${staffName} huỷ xác nhận trả tiền cho đơn ${item.consignmentId}`;
+    const updatedNote = item.note
+      ? `${item.note}\n---\n${paymentNote}`
+      : paymentNote;
+
     try {
-      const res = await GapService.updateConsignment(updated);
+      const res = await GapService.updateConsignmentPayment(
+        item.objectId,
+        newIsGetMoney,
+        newTimeConfirm,
+        updatedNote
+      );
       if (res) {
         toast.success(
-          updated.isGetMoney ? 'Đã xác nhận trả tiền' : 'Đã huỷ xác nhận'
+          newIsGetMoney ? 'Đã xác nhận trả tiền' : 'Đã huỷ xác nhận'
         );
-        fetchConsignments(currentPage);
+        // Cập nhật local state ngay, không cần fetch lại cả trang
+        setDataSource(prev =>
+          prev.map(i =>
+            i.objectId === item.objectId
+              ? {
+                  ...i,
+                  isGetMoney: newIsGetMoney,
+                  timeConfirmGetMoney: newIsGetMoney
+                    ? newTimeConfirm
+                    : undefined,
+                  note: updatedNote,
+                }
+              : i
+          )
+        );
+      } else {
+        toast.error('Cập nhật thất bại');
       }
     } catch {
       toast.error('Có lỗi xảy ra');

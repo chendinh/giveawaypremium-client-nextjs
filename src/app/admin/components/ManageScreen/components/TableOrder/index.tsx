@@ -575,6 +575,8 @@ const TableOrderScreen: React.FC = () => {
 
     if (newItem.isGetMoney) {
       newItem.timeConfirmGetMoney = format(new Date(), 'dd-MM-yyyy HH:mm');
+    } else {
+      newItem.timeConfirmGetMoney = '---';
     }
 
     newData.splice(index, 1, newItem);
