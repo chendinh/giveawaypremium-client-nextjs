@@ -416,9 +416,40 @@ const SaleScreen: React.FC = () => {
         }
 
         updateCurrentPane(pane => {
+          // Tìm theo objectId VÀ code để tránh nhầm khi 2 sản phẩm có cùng objectId
           const existIdx = pane.productList.findIndex(
-            item => item.objectId === productRes.objectId
+            item =>
+              item.objectId === productRes.objectId &&
+              item.code === productRes.code
           );
+
+          // Kiểm tra xem có sản phẩm nào trùng objectId nhưng khác code không
+          // (trường hợp bất thường — log để debug)
+          const conflictIdx = pane.productList.findIndex(
+            item =>
+              item.objectId === productRes.objectId &&
+              item.code !== productRes.code
+          );
+          if (conflictIdx >= 0) {
+            const conflict = pane.productList[conflictIdx];
+            console.error(
+              '[SaleScreen] objectId conflict detected!',
+              '\n  Scanned code:',
+              productRes.code,
+              '→',
+              productRes.name,
+              '\n  In cart    :',
+              conflict.code,
+              '→',
+              conflict.name,
+              '\n  objectId   :',
+              productRes.objectId
+            );
+            toast.error(
+              `Xung đột dữ liệu: mã "${productRes.code}" và "${conflict.code}" có cùng ID. Vui lòng báo admin kiểm tra DB.`
+            );
+            return pane;
+          }
 
           const newList = [...pane.productList];
 
@@ -431,9 +462,10 @@ const SaleScreen: React.FC = () => {
               );
               return pane;
             }
-            toast.info('Sản phẩm tương đồng');
+            toast.info('Sản phẩm tương đồng — tăng số lượng');
+            // Giữ nguyên thông tin sản phẩm từ API mới nhất, chỉ cộng thêm quantity
             newList[existIdx] = {
-              ...existItem,
+              ...productRes,
               numberOfProductForSale: currentQty + 1,
             };
           } else {

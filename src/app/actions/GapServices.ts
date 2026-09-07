@@ -806,7 +806,8 @@ export class GapService {
   }
 
   static async getProductWithCode(keyword: string): Promise<any> {
-    const customQuery = `include=medias&limit=${1}&count=1&where={"code":"${keyword}"}`;
+    const where = JSON.stringify({ code: keyword.trim() });
+    const customQuery = `include=medias&limit=1&count=1&where=${encodeURIComponent(where)}`;
 
     return this.fetchData(
       '/classes/Product',
