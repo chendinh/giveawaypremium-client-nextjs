@@ -90,13 +90,14 @@ const checkDayCodeToBookingOption = (
       ) {
         return {
           option: i,
-          timeBooking: TIME_BOOKING[key] || TIME_BOOKING.OPTION_8,
+          timeBooking: TIME_BOOKING[key] || TIME_BOOKING.OPTION_7,
         };
       }
     }
-    return { option: 8, timeBooking: TIME_BOOKING.OPTION_8 };
+    // Ngày chưa được cấu hình → mặc định nghỉ (option 7)
+    return { option: 7, timeBooking: TIME_BOOKING.OPTION_7 };
   }
-  return { option: 8, timeBooking: TIME_BOOKING.OPTION_8 };
+  return { option: 7, timeBooking: TIME_BOOKING.OPTION_7 };
 };
 
 const MAX_BOOKING_DAYS = 35;
