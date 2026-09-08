@@ -2133,6 +2133,22 @@ export class GapService {
     );
   }
 
+  /** Gửi email xác nhận ký gửi — dùng Cloud Function để đảm bảo
+   *  consignmentId và product codes là giá trị server đã sinh, không phải client */
+  static async sendConsignmentEmail(consignmentObjectId: string): Promise<any> {
+    const body = { consignmentId: consignmentObjectId };
+    return this.fetchData(
+      '/functions/sendConsignmentEmail',
+      REQUEST_TYPE.POST,
+      null,
+      body,
+      null,
+      null,
+      null,
+      true
+    );
+  }
+
   static async sendPaymentConfirmationEmail(
     item: any // ConsignmentItem type từ TableConsignemntScreen
   ): Promise<any> {

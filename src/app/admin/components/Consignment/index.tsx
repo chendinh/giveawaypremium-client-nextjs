@@ -942,15 +942,11 @@ const Consignment: React.FC<ConsignmentProps> = () => {
             bankName: finalFormData.bankName,
             bankId: finalFormData.bankId,
           };
+          // Dùng sendConsignmentEmail (Cloud Function) thay vì sendMail trực tiếp
+          // để email luôn dùng consignmentId/product codes đã được server sinh ra
+          // (tránh gửi mã client-generated khi có race condition)
           if (finalFormData.mail?.length > 0) {
-            GapService.sendMail(
-              customerFormData,
-              finalFormData as any,
-              'CONSIGNMENT',
-              'CONSIGNMENT',
-              timeGroupCode,
-              normalizedProductList as any
-            );
+            GapService.sendConsignmentEmail(result.objectId);
           }
           GapService.updateCustomer(customerFormData, objectIdFoundUser);
         } else {
@@ -993,14 +989,11 @@ const Consignment: React.FC<ConsignmentProps> = () => {
             setIsShowConfirmForm(true);
             setIsConsigning(false);
             setTempConsignment?.(null);
-            GapService.sendMail(
-              customerFormData,
-              finalFormData as any,
-              'CONSIGNMENT',
-              'CONSIGNMENT',
-              timeGroupCode,
-              normalizedProductList as any
-            );
+            // Dùng sendConsignmentEmail (Cloud Function) thay vì sendMail trực tiếp
+            // để email luôn dùng consignmentId/product codes đã được server sinh ra
+            if (customerFormData.mail?.length > 0) {
+              GapService.sendConsignmentEmail(result.objectId);
+            }
           } else {
             setIsConsigning(false);
             toast.error('Tạo đơn ký gửi thất bại');
