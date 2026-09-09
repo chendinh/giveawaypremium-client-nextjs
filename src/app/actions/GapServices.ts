@@ -1377,6 +1377,44 @@ export class GapService {
     );
   }
 
+  /**
+   * Lấy số thứ tự lớn nhất của consignmentId trong group.
+   * Dùng để hiển thị preview mã tiếp theo — chính xác hơn dùng count
+   * vì không bị ảnh hưởng bởi đơn bị xóa hay trùng mã.
+   * VD: group có 130 đơn nhưng max number là 133 → preview sẽ là 134
+   */
+  static async getLatestConsignmentNumber(groupId: string): Promise<number> {
+    const whereObj = {
+      deletedAt: null,
+      group: {
+        __type: 'Pointer',
+        className: 'ConsignmentGroup',
+        objectId: groupId,
+      },
+    };
+    // Lấy 10 đơn mới nhất, tìm số lớn nhất trong consignmentId
+    const customQuery = `order=-createdAt&limit=10&keys=consignmentId&where=${JSON.stringify(whereObj)}`;
+    const res = await this.fetchData(
+      '/classes/Consignment',
+      REQUEST_TYPE.GET,
+      null,
+      null,
+      null,
+      null,
+      customQuery
+    );
+    const results: Array<{ consignmentId?: string }> = res?.results || [];
+    let max = 0;
+    for (const item of results) {
+      const numStr = item.consignmentId?.split('-')[0];
+      if (numStr) {
+        const num = parseInt(numStr, 10);
+        if (!isNaN(num) && num > max) max = num;
+      }
+    }
+    return max;
+  }
+
   /** Ký gửi chưa trả tiền — dùng cho notification badge admin */
   static async getConsignmentUnpaid(): Promise<any> {
     const customQuery = `count=1&limit=0&where={"deletedAt":${null},"isGetMoney":{"$ne":true}}`;

@@ -342,14 +342,14 @@ const Consignment: React.FC<ConsignmentProps> = () => {
   // Gọi lại để nhân viên thấy mã đúng cho đơn tiếp theo, không cần chọn lại đợt
   const refreshConsignmentIdPreview = async (
     groupId: string,
-    groupCode: string
+    _groupCode: string
   ) => {
     try {
-      const res = await GapService.getConsignment(1, null, 1, groupId);
-      if (res?.count) {
+      const maxNum = await GapService.getLatestConsignmentNumber(groupId);
+      if (maxNum > 0) {
         setFormData(prev => ({
           ...prev,
-          consignmentId: `${res.count + 1}`,
+          consignmentId: `${maxNum + 1}`,
         }));
       }
     } catch {
@@ -362,15 +362,10 @@ const Consignment: React.FC<ConsignmentProps> = () => {
     const findTag = allInfoTag.find(tag => tag.code === value);
     if (!findTag) return;
 
-    const resConsignment = await GapService.getConsignment(
-      1,
-      null,
-      1,
+    const maxNum = await GapService.getLatestConsignmentNumber(
       findTag.objectId
     );
-    const newConsignmentId = resConsignment?.count
-      ? `${resConsignment.count + 1}`
-      : '';
+    const newConsignmentId = maxNum > 0 ? `${maxNum + 1}` : '';
 
     setFormData(prev => ({
       ...prev,
