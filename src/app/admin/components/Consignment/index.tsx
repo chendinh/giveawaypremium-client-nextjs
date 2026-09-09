@@ -338,6 +338,25 @@ const Consignment: React.FC<ConsignmentProps> = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  // ── Refresh consignmentId preview sau khi tạo thành công ──
+  // Gọi lại để nhân viên thấy mã đúng cho đơn tiếp theo, không cần chọn lại đợt
+  const refreshConsignmentIdPreview = async (
+    groupId: string,
+    groupCode: string
+  ) => {
+    try {
+      const res = await GapService.getConsignment(1, null, 1, groupId);
+      if (res?.count) {
+        setFormData(prev => ({
+          ...prev,
+          consignmentId: `${res.count + 1}`,
+        }));
+      }
+    } catch {
+      // không critical — chỉ là preview
+    }
+  };
+
   // ── Change time get money ──
   const onChangeTimeGetMoney = async (value: string) => {
     const findTag = allInfoTag.find(tag => tag.code === value);
@@ -879,23 +898,12 @@ const Consignment: React.FC<ConsignmentProps> = () => {
       return;
     }
 
-    const resConsignment = await GapService.getConsignment(
-      1,
-      null,
-      null,
-      timeGroupId
-    );
-    let newConsignmentId: string | undefined;
-    if (resConsignment?.count) {
-      newConsignmentId = `${resConsignment.count + 1}`;
-    }
-
     setIsConsigning(true);
     const finalProductList = productListTemp;
     const finalFormData = {
       ...formData,
       numberOfProducts: productCount,
-      consignmentId: newConsignmentId || formData.consignmentId,
+      // consignmentId giữ nguyên giá trị preview — server sẽ overwrite bằng giá trị chính xác
     };
     setProductList(finalProductList);
     setFormData(finalFormData);
@@ -949,6 +957,9 @@ const Consignment: React.FC<ConsignmentProps> = () => {
             GapService.sendConsignmentEmail(result.objectId);
           }
           GapService.updateCustomer(customerFormData, objectIdFoundUser);
+          // Refresh preview mã tiếp theo ngay sau khi tạo thành công
+          // để nhân viên thấy đúng số mà không cần chọn lại đợt
+          refreshConsignmentIdPreview(timeGroupId, timeGroupCode);
         } else {
           setIsConsigning(false);
           toast.error('Tạo Đơn Ký gửi thất bại');
@@ -994,6 +1005,8 @@ const Consignment: React.FC<ConsignmentProps> = () => {
             if (customerFormData.mail?.length > 0) {
               GapService.sendConsignmentEmail(result.objectId);
             }
+            // Refresh preview mã tiếp theo ngay sau khi tạo thành công
+            refreshConsignmentIdPreview(timeGroupId, timeGroupCode);
           } else {
             setIsConsigning(false);
             toast.error('Tạo đơn ký gửi thất bại');
