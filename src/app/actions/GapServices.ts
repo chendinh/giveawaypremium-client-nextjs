@@ -1350,6 +1350,23 @@ export class GapService {
   }
 
   // ── Consignment ──
+  /**
+   * Fetch một consignment theo objectId — dùng để lấy consignmentId thực
+   * sau khi server overwrite trong beforeSave (tránh hiển thị mã client-generated).
+   */
+  static async getConsignmentById(objectId: string): Promise<any> {
+    return this.fetchData(
+      `/classes/Consignment/${objectId}`,
+      REQUEST_TYPE.GET,
+      null,
+      null,
+      null,
+      null,
+      null,
+      true
+    );
+  }
+
   static async getConsignment(
     page: number = 1,
     keyword?: string | null,

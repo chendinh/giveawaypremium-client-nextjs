@@ -927,6 +927,22 @@ const Consignment: React.FC<ConsignmentProps> = () => {
           note
         );
         if (result?.objectId) {
+          // Fetch lại từ server để lấy consignmentId THỰC (server đã overwrite trong beforeSave)
+          // Nếu không fetch lại, màn hình confirm sẽ hiển thị mã client-generated (sai)
+          // và product codes trong DB sẽ không khớp với mã nhân viên thấy
+          const savedConsignment = await GapService.getConsignmentById(
+            result.objectId
+          );
+          const realConsignmentId: string =
+            savedConsignment?.consignmentId ||
+            finalFormData.consignmentId + '-' + timeGroupCode;
+          // Split để tách số và groupCode: "50-926" → ["50", "926"]
+          const parts = realConsignmentId.split('-');
+          const realNumber = parts[0] || finalFormData.consignmentId;
+          const realGroupCode = parts[1] || timeGroupCode;
+
+          setFormData(prev => ({ ...prev, consignmentId: realNumber }));
+          setTimeGroupCode(realGroupCode);
           setIsShowConfirmForm(true);
           setIsConsigning(false);
           setTempConsignment?.(null);
@@ -945,15 +961,10 @@ const Consignment: React.FC<ConsignmentProps> = () => {
             bankName: finalFormData.bankName,
             bankId: finalFormData.bankId,
           };
-          // Dùng sendConsignmentEmail (Cloud Function) thay vì sendMail trực tiếp
-          // để email luôn dùng consignmentId/product codes đã được server sinh ra
-          // (tránh gửi mã client-generated khi có race condition)
           if (finalFormData.mail?.length > 0) {
             GapService.sendConsignmentEmail(result.objectId);
           }
           GapService.updateCustomer(customerFormData, objectIdFoundUser);
-          // Refresh preview mã tiếp theo ngay sau khi tạo thành công
-          // để nhân viên thấy đúng số mà không cần chọn lại đợt
           refreshConsignmentIdPreview(timeGroupId, timeGroupCode);
         } else {
           setIsConsigning(false);
@@ -992,15 +1003,25 @@ const Consignment: React.FC<ConsignmentProps> = () => {
             note
           );
           if (result?.objectId) {
+            // Fetch lại để lấy consignmentId thực từ server
+            const savedConsignment = await GapService.getConsignmentById(
+              result.objectId
+            );
+            const realConsignmentId: string =
+              savedConsignment?.consignmentId ||
+              finalFormData.consignmentId + '-' + timeGroupCode;
+            const parts = realConsignmentId.split('-');
+            const realNumber = parts[0] || finalFormData.consignmentId;
+            const realGroupCode = parts[1] || timeGroupCode;
+
+            setFormData(prev => ({ ...prev, consignmentId: realNumber }));
+            setTimeGroupCode(realGroupCode);
             setIsShowConfirmForm(true);
             setIsConsigning(false);
             setTempConsignment?.(null);
-            // Dùng sendConsignmentEmail (Cloud Function) thay vì sendMail trực tiếp
-            // để email luôn dùng consignmentId/product codes đã được server sinh ra
             if (customerFormData.mail?.length > 0) {
               GapService.sendConsignmentEmail(result.objectId);
             }
-            // Refresh preview mã tiếp theo ngay sau khi tạo thành công
             refreshConsignmentIdPreview(timeGroupId, timeGroupCode);
           } else {
             setIsConsigning(false);
