@@ -164,7 +164,7 @@ const Consignment: React.FC<ConsignmentProps> = () => {
   const [totalMoney, setTotalMoney] = useState<number>(0);
   const [isLoadingTags, setIsLoadingTags] = useState<boolean>(false);
   const [objectIdFoundUser, setObjectIdFoundUser] = useState<string>('');
-  const [birthday, setBirthday] = useState<string>('');
+  // birthday được lưu trong formData.birthday — không cần state riêng
   const [isConsigning, setIsConsigning] = useState<boolean>(false);
   const [isShowConfirmForm, setIsShowConfirmForm] = useState<boolean>(false);
   const [isFoundUser, setIsFoundUser] = useState<boolean>(false);
@@ -306,8 +306,7 @@ const Consignment: React.FC<ConsignmentProps> = () => {
           numberOfConsignment: u.numberOfConsignment || 0,
           numberOfConsignmentTime: u.numberOfConsignmentTime || 0,
         }));
-        setBirthday(u.birthday || '');
-        setIsFoundUser(true);
+        // birthday đã được set trong formData.birthday ở trên
         setObjectIdFoundUser(u.objectId);
       } else {
         setIsFoundUser(false);
@@ -326,7 +325,6 @@ const Consignment: React.FC<ConsignmentProps> = () => {
         consignmentId: '',
       }));
       setObjectIdFoundUser('');
-      setBirthday('');
       setIsShowConfirmForm(false);
       setIsFoundUser(false);
       setNote('');
@@ -556,7 +554,6 @@ const Consignment: React.FC<ConsignmentProps> = () => {
     setTotalMoney(0);
     setIsLoadingTags(false);
     setObjectIdFoundUser('');
-    setBirthday('');
     setIsConsigning(false);
     setIsShowConfirmForm(false);
     setIsFoundUser(false);

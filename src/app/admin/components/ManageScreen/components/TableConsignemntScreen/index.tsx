@@ -737,7 +737,9 @@ const TableConsignmentScreen: React.FC = () => {
         );
         // Tự động gửi email xác nhận chuyển khoản khi đánh dấu đã trả tiền
         if (newIsGetMoney) {
-          GapService.sendPaymentConfirmationEmail(item.objectId).catch(() => {
+          // Truyền full object thay vì string để sendPaymentConfirmationEmail
+          // có đủ thông tin (consignerName, bankName, moneyBack...) để gửi email
+          GapService.sendPaymentConfirmationEmail(item).catch(() => {
             toast.warning(
               'Xác nhận thành công nhưng gửi email thất bại. Vui lòng gửi lại thủ công.'
             );
