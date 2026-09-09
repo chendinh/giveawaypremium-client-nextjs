@@ -846,6 +846,9 @@ export class GapService {
           medias: convertMediaArrayToPointerArray(item.medias),
         };
       } else {
+        // QUAN TRỌNG: KHÔNG ghi đè soldNumberProduct và remainNumberProduct từ client
+        // Các field này chỉ được cập nhật bởi Order.afterSave (server-side) để tránh
+        // race condition khi admin mở màn hình và lưu sau khi đã bán.
         body = {
           medias: convertMediaArrayToPointerArray(item.medias || []),
           rateNew: Number(item.rateNew) || 0,
@@ -857,8 +860,6 @@ export class GapService {
           price: item.price,
           priceAfterFee: item.priceAfterFee,
           count: item.count,
-          soldNumberProduct: item.soldNumberProduct,
-          remainNumberProduct: item.remainNumberProduct,
         };
       }
 
