@@ -337,17 +337,18 @@ const Consignment: React.FC<ConsignmentProps> = () => {
   };
 
   // ── Refresh consignmentId preview sau khi tạo thành công ──
-  // Gọi lại để nhân viên thấy mã đúng cho đơn tiếp theo, không cần chọn lại đợt
+  // Gọi API /consignment/next-id để lấy mã chính xác cho đơn tiếp theo
   const refreshConsignmentIdPreview = async (
     groupId: string,
     _groupCode: string
   ) => {
     try {
-      const maxNum = await GapService.getLatestConsignmentNumber(groupId);
-      if (maxNum > 0) {
+      const res = await GapService.getNextConsignmentId(groupId);
+      if (res?.nextId) {
+        const parts = res.nextId.split('-');
         setFormData(prev => ({
           ...prev,
-          consignmentId: `${maxNum + 1}`,
+          consignmentId: parts[0] || res.nextId,
         }));
       }
     } catch {
@@ -360,10 +361,11 @@ const Consignment: React.FC<ConsignmentProps> = () => {
     const findTag = allInfoTag.find(tag => tag.code === value);
     if (!findTag) return;
 
-    const maxNum = await GapService.getLatestConsignmentNumber(
-      findTag.objectId
-    );
-    const newConsignmentId = maxNum > 0 ? `${maxNum + 1}` : '';
+    // Dùng API /consignment/next-id để lấy mã preview chính xác (atomic counter)
+    const nextIdRes = await GapService.getNextConsignmentId(findTag.objectId);
+    const newConsignmentId = nextIdRes?.nextId
+      ? nextIdRes.nextId.split('-')[0]
+      : '';
 
     setFormData(prev => ({
       ...prev,
@@ -924,22 +926,32 @@ const Consignment: React.FC<ConsignmentProps> = () => {
           note
         );
         if (result?.objectId) {
-          // Fetch lại từ server để lấy consignmentId THỰC (server đã overwrite trong beforeSave)
-          // Nếu không fetch lại, màn hình confirm sẽ hiển thị mã client-generated (sai)
-          // và product codes trong DB sẽ không khớp với mã nhân viên thấy
+          // POST /classes/Consignment chỉ trả objectId + createdAt.
+          // Parse beforeSave là synchronous — consignmentId đã được ghi đúng trước khi response về.
+          // GET lại để lấy consignmentId thực mà server đã overwrite.
           const savedConsignment = await GapService.getConsignmentById(
             result.objectId
           );
-          const realConsignmentId: string =
-            savedConsignment?.consignmentId ||
-            finalFormData.consignmentId + '-' + timeGroupCode;
-          // Split để tách số và groupCode: "50-926" → ["50", "926"]
-          const parts = realConsignmentId.split('-');
-          const realNumber = parts[0] || finalFormData.consignmentId;
-          const realGroupCode = parts[1] || timeGroupCode;
 
-          setFormData(prev => ({ ...prev, consignmentId: realNumber }));
-          setTimeGroupCode(realGroupCode);
+          // Nếu GET thành công, server đã trả consignmentId format "50-926"
+          const serverConsignmentId: string | undefined =
+            savedConsignment?.consignmentId;
+
+          if (serverConsignmentId) {
+            const parts = serverConsignmentId.split('-');
+            setFormData(prev => ({
+              ...prev,
+              consignmentId: parts[0] || serverConsignmentId,
+            }));
+            setTimeGroupCode(parts[1] || timeGroupCode);
+          } else {
+            // Fallback: đọc counter hiện tại để suy ngược mã vừa tạo (seq - 1 không đúng vì
+            // nhân viên khác có thể đã tạo thêm) — thông báo kiểm tra lại
+            toast.warning(
+              'Không lấy được mã tự động — vui lòng kiểm tra bảng ký gửi'
+            );
+          }
+
           setIsShowConfirmForm(true);
           setIsConsigning(false);
           setTempConsignment?.(null);
@@ -1000,19 +1012,27 @@ const Consignment: React.FC<ConsignmentProps> = () => {
             note
           );
           if (result?.objectId) {
-            // Fetch lại để lấy consignmentId thực từ server
+            // GET lại để lấy consignmentId thực mà server đã overwrite trong beforeSave
             const savedConsignment = await GapService.getConsignmentById(
               result.objectId
             );
-            const realConsignmentId: string =
-              savedConsignment?.consignmentId ||
-              finalFormData.consignmentId + '-' + timeGroupCode;
-            const parts = realConsignmentId.split('-');
-            const realNumber = parts[0] || finalFormData.consignmentId;
-            const realGroupCode = parts[1] || timeGroupCode;
 
-            setFormData(prev => ({ ...prev, consignmentId: realNumber }));
-            setTimeGroupCode(realGroupCode);
+            const serverConsignmentId: string | undefined =
+              savedConsignment?.consignmentId;
+
+            if (serverConsignmentId) {
+              const parts = serverConsignmentId.split('-');
+              setFormData(prev => ({
+                ...prev,
+                consignmentId: parts[0] || serverConsignmentId,
+              }));
+              setTimeGroupCode(parts[1] || timeGroupCode);
+            } else {
+              toast.warning(
+                'Không lấy được mã tự động — vui lòng kiểm tra bảng ký gửi'
+              );
+            }
+
             setIsShowConfirmForm(true);
             setIsConsigning(false);
             setTempConsignment?.(null);

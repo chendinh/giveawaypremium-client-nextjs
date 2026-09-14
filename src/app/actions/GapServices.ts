@@ -1368,6 +1368,40 @@ export class GapService {
     );
   }
 
+  /**
+   * Lấy mã ký gửi tiếp theo cho một group — gọi NestJS endpoint /consignment/next-id.
+   * Endpoint này đọc trực tiếp từ ConsignmentCounter (atomic), đảm bảo chính xác
+   * kể cả khi nhiều nhân viên tạo đơn cùng lúc.
+   *
+   * @returns { nextId: "51-926", seq: 51, groupCode: "926" } hoặc null nếu lỗi
+   */
+  static async getNextConsignmentId(
+    groupId: string
+  ): Promise<{ nextId: string; seq: number; groupCode: string } | null> {
+    try {
+      const key = StoreServices.getUserData()?.sessionToken;
+      const serverUrl =
+        process.env.NEXT_PUBLIC_SERVER_URL?.replace('/parse', '') || '';
+
+      const response = await fetch(
+        `${serverUrl}/consignment/next-id?groupId=${encodeURIComponent(groupId)}`,
+        {
+          method: 'GET',
+          headers: {
+            'X-Parse-Application-Id': process.env.NEXT_PUBLIC_APP_ID || '',
+            'X-Parse-REST-API-Key': process.env.NEXT_PUBLIC_REST_API_KEY || '',
+            ...(key ? { 'X-Parse-Session-Token': key } : {}),
+          },
+        }
+      );
+
+      if (!response.ok) return null;
+      return await response.json();
+    } catch {
+      return null;
+    }
+  }
+
   static async getConsignment(
     page: number = 1,
     keyword?: string | null,
