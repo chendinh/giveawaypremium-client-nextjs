@@ -1492,10 +1492,14 @@ export class GapService {
     moneyBackForFullSold: number,
     totalMoney: number,
     isTransferMoneyWithBank: string = 'false',
-    note: string = ''
+    note: string = '',
+    isCustomId: boolean = false
   ): Promise<any> {
     const body = {
-      consignmentId: formData.consignmentId + '-' + timeGroupCode,
+      consignmentId: isCustomId
+        ? formData.consignmentId // mã custom nhân viên tự nhập — giữ nguyên
+        : formData.consignmentId + '-' + timeGroupCode,
+      isCustomId: isCustomId || undefined, // chỉ gửi khi true để tránh thêm field thừa
       consignerName: formData.consignerName,
       consignerIdCard: formData.consignerIdCard,
       mail: formData.mail,

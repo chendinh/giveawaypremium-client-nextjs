@@ -179,6 +179,9 @@ const Consignment: React.FC<ConsignmentProps> = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [selectedEventId, setSelectedEventId] = useState<string>('');
   const [moneyBackPercent, setMoneyBackPercent] = useState<number>(0);
+  const [isCustomId, setIsCustomId] = useState<boolean>(false);
+  // Preview mã từ server — dùng để detect xem nhân viên có sửa thành mã custom không
+  const [previewConsignmentId, setPreviewConsignmentId] = useState<string>('');
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -346,10 +349,10 @@ const Consignment: React.FC<ConsignmentProps> = () => {
       const res = await GapService.getNextConsignmentId(groupId);
       if (res?.nextId) {
         const parts = res.nextId.split('-');
-        setFormData(prev => ({
-          ...prev,
-          consignmentId: parts[0] || res.nextId,
-        }));
+        const nextNum = parts[0] || res.nextId;
+        setFormData(prev => ({ ...prev, consignmentId: nextNum }));
+        setPreviewConsignmentId(nextNum);
+        setIsCustomId(false);
       }
     } catch {
       // không critical — chỉ là preview
@@ -367,11 +370,16 @@ const Consignment: React.FC<ConsignmentProps> = () => {
       ? nextIdRes.nextId.split('-')[0]
       : '';
 
+    // Lưu preview để sau này so sánh — nếu nhân viên sửa khác đi thì isCustomId = true
+    if (newConsignmentId) setPreviewConsignmentId(newConsignmentId);
+
     setFormData(prev => ({
       ...prev,
       timeGetMoney: moment(findTag.timeGetMoney).format(DATE_FORMAT),
       ...(newConsignmentId ? { consignmentId: newConsignmentId } : {}),
     }));
+    // Reset custom flag khi đổi nhóm — preview mới sẽ là baseline
+    setIsCustomId(false);
     setTimeGroupCode(value);
     setTimeGroupId(findTag.objectId);
   };
@@ -565,6 +573,8 @@ const Consignment: React.FC<ConsignmentProps> = () => {
     setTimeGroupId('');
     setTimeGroupCode('');
     setNote('');
+    setIsCustomId(false);
+    setPreviewConsignmentId('');
   };
 
   // ── Convert string name to category ──
@@ -923,7 +933,8 @@ const Consignment: React.FC<ConsignmentProps> = () => {
           moneyBackForFullSold,
           totalMoney,
           isTransferMoneyWithBank,
-          note
+          note,
+          isCustomId
         );
         if (result?.objectId) {
           // POST /classes/Consignment chỉ trả objectId + createdAt.
@@ -1009,7 +1020,8 @@ const Consignment: React.FC<ConsignmentProps> = () => {
             moneyBackForFullSold,
             totalMoney,
             isTransferMoneyWithBank,
-            note
+            note,
+            isCustomId
           );
           if (result?.objectId) {
             // GET lại để lấy consignmentId thực mà server đã overwrite trong beforeSave
@@ -1094,7 +1106,12 @@ const Consignment: React.FC<ConsignmentProps> = () => {
         />
         <div className="w-full max-w-2xl mx-auto p-4 space-y-2">
           {[
-            ['Mã Ký gửi', formData.consignmentId + '-' + timeGroupCode],
+            [
+              'Mã Ký gửi',
+              isCustomId
+                ? formData.consignmentId
+                : formData.consignmentId + '-' + timeGroupCode,
+            ],
             ['Số lượng Hàng Hoá', formData.numberOfProducts],
             ['Ngày trả tiền', formData.timeGetMoney],
             ['Tên Khách Hàng', formData.consignerName],
@@ -1547,11 +1564,47 @@ const Consignment: React.FC<ConsignmentProps> = () => {
           {/* Consignment ID */}
           <div className="grid grid-cols-[140px_1fr] items-center gap-2">
             <Label>Mã ký gửi</Label>
-            <Input
-              value={formData.consignmentId}
-              onChange={e => changeFormField('consignmentId', e.target.value)}
-              placeholder="..."
-            />
+            <div className="flex flex-col gap-1">
+              <div className="relative">
+                <Input
+                  value={formData.consignmentId}
+                  onChange={e => {
+                    const val = e.target.value;
+                    changeFormField('consignmentId', val);
+                    // Auto-detect custom: phần trước '-' là số thuần → bình thường
+                    // "50"   → /^\d+$/ → không custom
+                    // "th1"  → có chữ → custom, mã đầy đủ sẽ là "th1-1126"
+                    const numPart = val.split('-')[0];
+                    setIsCustomId(val.length > 0 && !/^\d+$/.test(numPart));
+                  }}
+                  placeholder={
+                    timeGroupCode
+                      ? `VD: ${previewConsignmentId || '50'}-${timeGroupCode}`
+                      : '...'
+                  }
+                  className={
+                    isCustomId
+                      ? 'border-amber-400 focus-visible:ring-amber-400 pr-20'
+                      : ''
+                  }
+                />
+                {isCustomId && (
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium pointer-events-none">
+                    KOL/VIP
+                  </span>
+                )}
+              </div>
+              {!isCustomId && timeGroupCode && formData.consignmentId && (
+                <p className="text-xs text-gray-400">
+                  Mã đầy đủ: {formData.consignmentId}-{timeGroupCode}
+                </p>
+              )}
+              {isCustomId && (
+                <p className="text-xs text-amber-600">
+                  Mã tùy chỉnh — hệ thống sẽ giữ nguyên mã này
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Staff name */}
