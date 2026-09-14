@@ -253,8 +253,14 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
 
   const onChooseDay = async (choosenDay: DayBooking) => {
     const settings = await StoreServices.getSetting();
+    // Dùng optionEachDay từ settings mới nhất (không dùng state cũ có thể stale)
+    const freshOptionEachDay =
+      settings.BOOKING_OPTION_EACH_DAY ?? bookingOptionEachDay;
     const { option, timeBooking: timeBookingData } =
-      checkDayCodeToBookingOption(choosenDay, bookingOptionEachDay);
+      checkDayCodeToBookingOption(choosenDay, freshOptionEachDay);
+
+    // Sync lại state để các lần chọn ngày tiếp theo cũng dùng data mới
+    setBookingOptionEachDay(freshOptionEachDay);
 
     const customOption =
       settings.BOOKING_OPTION_CUSTOM_EACH_DAY?.[choosenDay.dayCode] ??
