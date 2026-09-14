@@ -119,7 +119,7 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
   const [choosenDayCode, setChoosenDayCode] = useState<string | null>(null);
   const [choosenTimeCode, setChoosenTimeCode] = useState<string | null>(null);
   const [bookingDataCode, setBookingDataCode] = useState<string>('');
-  const [bookingOptionValue, setBookingOptionValue] = useState<number>(8);
+  const [bookingOptionValue, setBookingOptionValue] = useState<number>(7);
   const [bookingOptionEachDay, setBookingOptionEachDay] =
     useState<BookingOptionEachDay>({});
   const [workingDayCount, setWorkingDayCount] = useState<number>(14);
@@ -149,7 +149,8 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
       choosenDay: DayBooking | null,
       bookingOptionData: BookingOptionEachDay = BOOKING_OPTION_EACH_DAY_DATA_DEFAULT
     ): { option: number; timeBooking: TimeBooking[] } => {
-      const fallback = { option: 8, timeBooking: TIME_BOOKING.OPTION_8 };
+      // Ngày chưa config → mặc định khoá (option 7), fail-closed
+      const fallback = { option: 7, timeBooking: TIME_BOOKING.OPTION_7 };
 
       if (!choosenDay?.dayCode || !bookingOptionData) return fallback;
 
@@ -160,7 +161,7 @@ const ConsignmentScreen: React.FC<ConsignmentScreenProps> = ({
             option: i,
             timeBooking:
               TIME_BOOKING[key as keyof typeof TIME_BOOKING] ??
-              TIME_BOOKING.OPTION_8,
+              TIME_BOOKING.OPTION_7,
           };
         }
       }
