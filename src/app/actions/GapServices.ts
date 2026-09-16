@@ -1213,8 +1213,8 @@ export class GapService {
   ): Promise<any> {
     const limited = limit;
     const skip = limited * 1 - limited;
-    // Thêm deletedAt null để không trả về KH đã soft-delete
-    const customQuery = `skip=${skip}&limit=${limited}&count=1&where={"deletedAt":${null},"$or":[{"phoneNumber":"${phoneNumber.toString()}"},{"username":"${phoneNumber.toString()}"}]}`;
+    // deletedAt không tồn tại = chưa soft-delete ($exists: false thay vì null vì field không có ≠ null)
+    const customQuery = `skip=${skip}&limit=${limited}&count=1&where={"deletedAt":{"$exists":false},"$or":[{"phoneNumber":"${phoneNumber.toString()}"},{"username":"${phoneNumber.toString()}"}]}`;
     return this.fetchData(
       '/classes/_User',
       REQUEST_TYPE.GET,
