@@ -107,6 +107,7 @@ interface ConsignmentItem {
   phoneNumber?: string;
   numberOfProducts?: number;
   numSoldConsignment?: number;
+  remainNumConsignment?: number;
   moneyBack?: number;
   isGetMoney?: boolean;
   isTransferMoneyWithBank?: boolean;
@@ -539,15 +540,6 @@ const TableConsignmentScreen: React.FC = () => {
 
       // Khi soldNumberProduct thay đổi → recalc remainNumberProduct và totalPriceAfterFee
       if (field === 'soldNumberProduct') {
-        const sold = Number(value) || 0;
-        const count = Number(current.count) || 0;
-        const priceAfterFee = Number(current.priceAfterFee) || 0;
-        current.remainNumberProduct = count - sold;
-        current.totalPriceAfterFee = Math.round(sold * priceAfterFee);
-      }
-
-      // Khi đã bán thay đổi → recalc remainNumberProduct và totalPriceAfterFee
-      if (field === 'soldNumberProduct') {
         const newSold = Number(value) || 0;
         const count = Number(current.count) || 0;
         const priceAfterFee = Number(current.priceAfterFee) || 0;
@@ -671,6 +663,13 @@ const TableConsignmentScreen: React.FC = () => {
             acc + (Number(p.soldNumberProduct) || 0),
           0
         );
+        const recalcedRemainNum = updatedProducts.reduce(
+          (acc: number, p: ProductItem) =>
+            acc +
+            (Number(p.remainNumberProduct) ??
+              Number(p.count) - Number(p.soldNumberProduct || 0)),
+          0
+        );
         const recalcedMoneyBack = updatedProducts.reduce(
           (acc: number, p: ProductItem) =>
             acc +
@@ -682,6 +681,7 @@ const TableConsignmentScreen: React.FC = () => {
           ...finalDraft,
           numberOfProducts: recalcedNumberOfProducts,
           numSoldConsignment: recalcedNumSold,
+          remainNumConsignment: recalcedRemainNum,
           moneyBack: Math.round(recalcedMoneyBack * 100) / 100, // làm tròn 2 chữ số để tránh float lẻ
           isGetMoney: finalIsGetMoney,
           timeConfirmGetMoney: finalTimeConfirm,
@@ -979,8 +979,13 @@ const TableConsignmentScreen: React.FC = () => {
                 const isExpanded = expandedRows.has(item.objectId);
                 const draft = rowDrafts[item.objectId] || item;
                 const isSaving = savingRows.has(item.objectId);
+                // Ưu tiên remainNumConsignment từ server (tính từ sum(remainNumberProduct)).
+                // Fallback tính tại chỗ nếu field chưa có (data cũ chưa được sync).
                 const remain =
-                  (item.numberOfProducts || 0) - (item.numSoldConsignment || 0);
+                  item.remainNumConsignment !== undefined
+                    ? item.remainNumConsignment
+                    : (item.numberOfProducts || 0) -
+                      (item.numSoldConsignment || 0);
 
                 return (
                   <React.Fragment key={item.objectId}>
