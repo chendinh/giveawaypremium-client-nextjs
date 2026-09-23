@@ -1496,8 +1496,10 @@ export class GapService {
     isCustomId: boolean = false
   ): Promise<any> {
     const body = {
+      // Custom ID vẫn nối timeGroupCode để đảm bảo duy nhất giữa các nhóm
+      // (2 nhóm khác nhau có thể dùng cùng mã custom, ví dụ "vip1")
       consignmentId: isCustomId
-        ? formData.consignmentId // mã custom nhân viên tự nhập — giữ nguyên
+        ? `${formData.consignmentId}-${timeGroupCode}` // mã custom + nhóm
         : formData.consignmentId + '-' + timeGroupCode,
       isCustomId: isCustomId || undefined, // chỉ gửi khi true để tránh thêm field thừa
       consignerName: formData.consignerName,

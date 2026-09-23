@@ -1107,10 +1107,10 @@ const Consignment: React.FC<ConsignmentProps> = () => {
         <div className="w-full max-w-2xl mx-auto p-4 space-y-2">
           {[
             [
+              // Custom ID vẫn nối timeGroupCode để khớp với giá trị thực tế
+              // sẽ được server lưu (xem GapService.setConsignment)
               'Mã Ký gửi',
-              isCustomId
-                ? formData.consignmentId
-                : formData.consignmentId + '-' + timeGroupCode,
+              `${formData.consignmentId}-${timeGroupCode}`,
             ],
             ['Số lượng Hàng Hoá', formData.numberOfProducts],
             ['Ngày trả tiền', formData.timeGetMoney],
@@ -1594,14 +1594,14 @@ const Consignment: React.FC<ConsignmentProps> = () => {
                   </span>
                 )}
               </div>
-              {!isCustomId && timeGroupCode && formData.consignmentId && (
-                <p className="text-xs text-gray-400">
+              {timeGroupCode && formData.consignmentId && (
+                <p
+                  className={
+                    isCustomId ? 'text-xs text-amber-600' : 'text-xs text-gray-400'
+                  }
+                >
                   Mã đầy đủ: {formData.consignmentId}-{timeGroupCode}
-                </p>
-              )}
-              {isCustomId && (
-                <p className="text-xs text-amber-600">
-                  Mã tùy chỉnh — hệ thống sẽ giữ nguyên mã này
+                  {isCustomId ? ' (mã tùy chỉnh)' : ''}
                 </p>
               )}
             </div>
