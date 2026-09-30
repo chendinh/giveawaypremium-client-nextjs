@@ -1966,8 +1966,14 @@ export class GapService {
       };
     }
     if (filters.consignmentId) {
+      // Exact match (case-insensitive) — anchor đầu/cuối để tránh match nhầm
+      // substring, ví dụ search "3-1226" không được ra "13-1226", "23-1226".
+      const escapedId = filters.consignmentId.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        '\\$&'
+      );
       whereObj.consignmentId = {
-        $regex: filters.consignmentId,
+        $regex: `^${escapedId}$`,
         $options: 'i',
       };
     }
