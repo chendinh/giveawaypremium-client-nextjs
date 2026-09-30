@@ -1530,6 +1530,8 @@ export class GapService {
           accNumber: formData.bankId,
         },
       ],
+      bankName: formData.bankName,
+      bankId: formData.bankId,
       note,
       isTransferMoneyWithBank: isTransferMoneyWithBank === 'true',
       productList: productList || [],
