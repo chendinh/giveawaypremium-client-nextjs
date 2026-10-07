@@ -697,10 +697,14 @@ export class GapService {
       }
 
       if (selectedKeys?.code && selectedKeys.code.length > 0) {
-        whereUpperCase.code = { $regex: selectedKeys.code.trim() };
-        whereLowerCase.code = {
-          $regex: selectedKeys.code.trim().toLowerCase(),
-        };
+        // Exact match (case-insensitive) — anchor đầu/cuối để tránh match nhầm
+        // substring, ví dụ search "3-1226-1" không được ra "3-1226-10",
+        // "13-1226-1" hay "103-1226-13".
+        const escapedCode = selectedKeys.code
+          .trim()
+          .replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        whereUpperCase.code = { $regex: `^${escapedCode}$` };
+        whereLowerCase.code = { $regex: `^${escapedCode.toLowerCase()}$` };
       }
 
       if (
