@@ -101,6 +101,7 @@ interface SearchFilters {
   code: string;
   name: string;
   remainNumberProduct: string;
+  consignmentId: string;
 }
 
 interface ExpandedEditData {
@@ -136,6 +137,7 @@ const TableProductScreen: React.FC = () => {
     code: '',
     name: '',
     remainNumberProduct: '',
+    consignmentId: '',
   });
 
   // Expanded rows
@@ -189,7 +191,8 @@ const TableProductScreen: React.FC = () => {
         const hasFilters =
           searchFilters.code ||
           searchFilters.name ||
-          searchFilters.remainNumberProduct;
+          searchFilters.remainNumberProduct ||
+          searchFilters.consignmentId;
 
         const selectedKeys = hasFilters
           ? {
@@ -197,6 +200,9 @@ const TableProductScreen: React.FC = () => {
               ...(searchFilters.name && { name: searchFilters.name }),
               ...(searchFilters.remainNumberProduct && {
                 remainNumberProduct: searchFilters.remainNumberProduct,
+              }),
+              ...(searchFilters.consignmentId && {
+                consignmentId: searchFilters.consignmentId,
               }),
             }
           : null;
@@ -243,6 +249,13 @@ const TableProductScreen: React.FC = () => {
         } else {
           setProductData([]);
           setTotalCount(0);
+          // Parse Server trả lỗi (ví dụ Mongo timeout) không throw ở fetchData,
+          // nên res.error có giá trị trong khi res.results là undefined — phải
+          // check riêng để không hiển thị "Không có dữ liệu" nhầm thành kết quả tìm kiếm.
+          if (res?.error) {
+            console.error('Product query error:', res.error);
+            toast.error(`Lỗi tải dữ liệu: ${res.error}`);
+          }
         }
       } catch (err) {
         console.error('Error fetching products:', err);
@@ -281,7 +294,12 @@ const TableProductScreen: React.FC = () => {
   };
 
   const handleResetSearch = () => {
-    const resetFilters = { code: '', name: '', remainNumberProduct: '' };
+    const resetFilters = {
+      code: '',
+      name: '',
+      remainNumberProduct: '',
+      consignmentId: '',
+    };
     setSearchFilters(resetFilters);
     setCurrentPage(1);
     // Pass reset filters directly to avoid stale state closure
@@ -297,13 +315,19 @@ const TableProductScreen: React.FC = () => {
       setIsLoadingData(true);
       try {
         const hasFilters =
-          filters.code || filters.name || filters.remainNumberProduct;
+          filters.code ||
+          filters.name ||
+          filters.remainNumberProduct ||
+          filters.consignmentId;
         const selectedKeys = hasFilters
           ? {
               ...(filters.code && { code: filters.code }),
               ...(filters.name && { name: filters.name }),
               ...(filters.remainNumberProduct && {
                 remainNumberProduct: filters.remainNumberProduct,
+              }),
+              ...(filters.consignmentId && {
+                consignmentId: filters.consignmentId,
               }),
             }
           : null;
@@ -350,6 +374,10 @@ const TableProductScreen: React.FC = () => {
         } else {
           setProductData([]);
           setTotalCount(0);
+          if (res?.error) {
+            console.error('Product query error:', res.error);
+            toast.error(`Lỗi tải dữ liệu: ${res.error}`);
+          }
         }
       } catch {
         toast.error('Không thể tải dữ liệu sản phẩm');
@@ -812,6 +840,20 @@ const TableProductScreen: React.FC = () => {
               }))
             }
             placeholder="Số còn lại"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Đơn ký gửi</Label>
+          <Input
+            className="w-[140px] h-8 text-sm"
+            value={searchFilters.consignmentId}
+            onChange={e =>
+              setSearchFilters(prev => ({
+                ...prev,
+                consignmentId: e.target.value,
+              }))
+            }
+            placeholder="VD: 1-1226"
           />
         </div>
         <Button size="sm" className="h-8" onClick={handleSearch}>

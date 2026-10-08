@@ -686,6 +686,66 @@ export class GapService {
     const skip = limited * page - limited;
 
     if (selectedKeys) {
+      // ── Search theo Đơn ký gửi — nhánh riêng, return sớm ──
+      // Trả về TOÀN BỘ sản phẩm thuộc đơn đó, ví dụ "1-1226" → sản phẩm
+      // "1-1226-1", "1-1226-2", ...
+      //
+      // Product.consignment là Pointer THẬT trỏ tới Consignment, set
+      // server-side lúc tạo product (Consignment.afterCreate) — đây là
+      // nguồn chuẩn để xác định sản phẩm thuộc đơn ký gửi nào, không phụ
+      // thuộc format của field `code` (chỉ là nhãn hiển thị copy lại).
+      // Dùng $inQuery để join qua pointer này theo Consignment.consignmentId.
+      // Tách thành nhánh riêng (không gộp vào whereUpperCase/whereLowerCase
+      // bên dưới) để tránh lồng $or trong $or — dễ gây lỗi khi Parse Server
+      // transform $inQuery nằm sâu trong cây query.
+      if (selectedKeys.consignmentId && selectedKeys.consignmentId.length > 0) {
+        const escapedConsignmentId = selectedKeys.consignmentId
+          .trim()
+          .replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        const where = {
+          deletedAt: { $exists: false },
+          group: {
+            __type: 'Pointer',
+            className: 'ConsignmentGroup',
+            objectId: currentTagId,
+          },
+          $or: [
+            {
+              consignment: {
+                $inQuery: {
+                  where: {
+                    consignmentId: {
+                      $regex: `^${escapedConsignmentId}$`,
+                      $options: 'i',
+                    },
+                  },
+                  className: 'Consignment',
+                },
+              },
+            },
+            // Fallback cho data cũ có thể thiếu pointer `consignment`
+            {
+              code: {
+                $regex: `^${escapedConsignmentId}-\\d+$`,
+                $options: 'i',
+              },
+            },
+          ],
+        };
+
+        const customQuery = `include=medias&skip=${skip}&limit=${limited}&count=1&where=${JSON.stringify(where)}`;
+        return this.fetchData(
+          '/classes/Product',
+          REQUEST_TYPE.GET,
+          null,
+          null,
+          null,
+          null,
+          customQuery
+        );
+      }
+
       const whereUpperCase: Record<string, any> = {};
       const whereLowerCase: Record<string, any> = {};
 
