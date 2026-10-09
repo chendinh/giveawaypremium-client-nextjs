@@ -282,9 +282,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ backConsignment }) => {
             <span className="note-value">
               {(() => {
                 const d = safeParseDateStr(item.group?.timeGetMoney);
-                return d
-                  ? `${format(d, 'dd/MM/yyyy')} → ${format(addDays(d, 10), 'dd/MM/yyyy')}`
-                  : 'Chưa xác định';
+                return d ? `20-${format(d, 'dd/MM/yyyy')}` : 'Chưa xác định';
               })()}
             </span>
           </div>
