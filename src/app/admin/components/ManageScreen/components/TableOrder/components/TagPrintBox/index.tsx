@@ -21,6 +21,7 @@ interface TagPrintData {
   productList?: ProductItem[];
   totalNumberOfProductForSale?: number | string;
   totalMoneyForSale?: number | string;
+  isSelfPickup?: boolean;
 }
 
 interface TagPrintBoxProps {

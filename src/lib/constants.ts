@@ -524,3 +524,31 @@ export const BOOKING_OPTION_CUSTOM_EACH_DAY = 'BOOKING_OPTION_CUSTOM_EACH_DAY';
 export const WORKING_DAY_COUNT = 'WORKING_DAY_COUNT';
 
 export const DEFAULT_BOOKING_OPTION_VALUE = 8;
+
+/**
+ * Hình thức lấy hàng của đơn online — lưu ở `Order.shippingInfo.pickupType`.
+ *
+ * - SHIPPER: shipper ViettelPost đến lấy tại shop rồi giao cho khách (mặc định)
+ * - SELF: khách tự đến lấy tại shop → KHÔNG tạo vận đơn, phí ship = 0,
+ *   nhưng VẪN là đơn online (isOnlineSale = true) nên vẫn tính vào thống kê Online
+ *
+ * Dữ liệu cũ có thể là '2' (shipper) / '1' (shop gửi bưu cục) / undefined →
+ * tất cả đều hiểu là SHIPPER. Chỉ SELF mới là trường hợp đặc biệt.
+ */
+export const PICKUP_TYPE = {
+  SHIPPER: 'shipper',
+  SELF: 'self',
+} as const;
+
+export type PickupType = (typeof PICKUP_TYPE)[keyof typeof PICKUP_TYPE];
+
+/**
+ * Mã dịch vụ (`shippingInfo.optionTransfer`) khi khách tự đến lấy.
+ * Trùng mã "Lấy hàng trực tiếp" của luồng giao hàng cũ.
+ */
+export const SELF_PICKUP_SERVICE = 'tt';
+
+/** Đơn có phải "khách tự đến lấy tại shop" không (chỉ xét shippingInfo). */
+export const isSelfPickup = (
+  shippingInfo?: { pickupType?: unknown } | null
+): boolean => shippingInfo?.pickupType === PICKUP_TYPE.SELF;

@@ -153,6 +153,8 @@ export interface SelectedKeys {
   isTransferMoneyWithBank?: boolean;
   totalNumberOfProductForSale?: string;
   isOnlineSale?: boolean;
+  /** Lọc theo Order.shippingInfo.pickupType (vd 'self' = khách tự đến lấy) */
+  pickupType?: string;
   remainNumConsignment?: string;
   consignmentId?: string;
   isGetMoney?: boolean;
@@ -1842,6 +1844,9 @@ export class GapService {
       }
       if (selectedKeys.isOnlineSale) {
         allSearchRegex += `,"isOnlineSale":${selectedKeys.isOnlineSale}`;
+      }
+      if (selectedKeys.pickupType) {
+        allSearchRegex += `,"shippingInfo.pickupType":${JSON.stringify(selectedKeys.pickupType)}`;
       }
 
       const customQuery = `skip=${skip}&limit=${limited}&count=1&include=client,transporter&where={${allSearchRegex}}`;

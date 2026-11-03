@@ -20,6 +20,8 @@ interface ReceiptData {
   productList?: ProductItem[];
   totalNumberOfProductForSale?: number | string;
   totalMoneyForSale?: number | string;
+  /** Đơn online khách tự đến lấy tại shop → in thêm dòng "Nhận hàng" */
+  isSelfPickup?: boolean;
 }
 
 interface ReceiptOfflineProps {
@@ -55,6 +57,12 @@ const ReceiptOffline = React.forwardRef<HTMLDivElement, ReceiptOfflineProps>(
               <p>Ngày:</p>
               <p>{moment().format('DD-MM-YYYY HH:mm:ss')}</p>
             </div>
+            {data.isSelfPickup && (
+              <div className="BoxCol">
+                <p>Nhận hàng:</p>
+                <p>Khách tự đến lấy</p>
+              </div>
+            )}
             <table className="MainTable">
               <tbody>
                 <tr className="header">

@@ -53,6 +53,7 @@ import {
 
 import GapService from '@/app/actions/GapServices';
 import { useAppStore } from '@/store/useAppStore';
+import { PICKUP_TYPE, isSelfPickup } from '@/lib/constants';
 import { format, startOfMonth, addMonths, parseISO, isValid } from 'date-fns';
 
 import { DatePickerInput } from '@/components/ui/date-picker-input';
@@ -253,6 +254,14 @@ const parseRawOrder = (item: Record<string, any>, key: number): OrderItem => ({
   isGetMoney: item.isOnlineSale ? item.isGetMoney || false : true,
 });
 
+/**
+ * Đơn online mà khách tự đến lấy tại shop (không có vận đơn).
+ * Vẫn là đơn Online; chỉ xét khi isOnlineSale = Online để đơn offline lỡ
+ * mang pickupType 'self' không bị gắn nhãn nhầm.
+ */
+const isSelfPickupOrder = (item: OrderItem): boolean =>
+  item.isOnlineSale === 'Online' && isSelfPickup(item.shippingInfo);
+
 // ─── Component ────────────────────────────────────────
 const TableOrderScreen: React.FC = () => {
   const { userData } = useAppStore();
@@ -326,7 +335,13 @@ const TableOrderScreen: React.FC = () => {
       if (filters.phoneNumber) keys.phoneNumber = filters.phoneNumber;
       if (filters.isTransferMoneyWithBank)
         keys.isTransferMoneyWithBank = filters.isTransferMoneyWithBank;
-      if (filters.isOnlineSale) keys.isOnlineSale = filters.isOnlineSale;
+      if (filters.isOnlineSale === PICKUP_TYPE.SELF) {
+        // "Online - khách tự đến lấy": đơn online có shippingInfo.pickupType = self
+        keys.isOnlineSale = 'true';
+        keys.pickupType = PICKUP_TYPE.SELF;
+      } else if (filters.isOnlineSale) {
+        keys.isOnlineSale = filters.isOnlineSale;
+      }
       return Object.keys(keys).length > 0 ? keys : null;
     },
     []
@@ -811,6 +826,14 @@ const TableOrderScreen: React.FC = () => {
   const renderVTPAction = (item: OrderItem) => {
     if (item.isOnlineSale !== 'Online') return null;
     if (!item.transporter) {
+      // Khách tự đến lấy: không có nút tạo vận đơn để tránh tạo nhầm đơn VTP (tốn phí)
+      if (isSelfPickupOrder(item)) {
+        return (
+          <p className="text-xs leading-snug text-blue-700">
+            Khách tự đến lấy tại shop — không tạo vận đơn
+          </p>
+        );
+      }
       return (
         <Button
           variant="outline"
@@ -918,12 +941,15 @@ const TableOrderScreen: React.FC = () => {
               }))
             }
           >
-            <SelectTrigger className="w-[140px] h-8 text-sm">
+            <SelectTrigger className="w-[200px] h-8 text-sm">
               <SelectValue placeholder="Tất cả" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tất cả</SelectItem>
               <SelectItem value="true">Online</SelectItem>
+              <SelectItem value={PICKUP_TYPE.SELF}>
+                Online - khách tự đến lấy
+              </SelectItem>
               <SelectItem value="false">Offline</SelectItem>
             </SelectContent>
           </Select>
@@ -1032,16 +1058,26 @@ const TableOrderScreen: React.FC = () => {
                         <p className="text-xs font-mono text-muted-foreground leading-tight truncate max-w-[110px]">
                           {item.objectId}
                         </p>
-                        <Badge
-                          variant={
-                            item.isOnlineSale === 'Online'
-                              ? 'default'
-                              : 'outline'
-                          }
-                          className="mt-1 text-xs px-1.5 h-5"
-                        >
-                          {item.isOnlineSale}
-                        </Badge>
+                        <div className="mt-1 flex flex-wrap items-center gap-1">
+                          <Badge
+                            variant={
+                              item.isOnlineSale === 'Online'
+                                ? 'default'
+                                : 'outline'
+                            }
+                            className="text-xs px-1.5 h-5"
+                          >
+                            {item.isOnlineSale}
+                          </Badge>
+                          {isSelfPickupOrder(item) && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs px-1.5 h-5 whitespace-nowrap border-blue-300 bg-blue-50 text-blue-700"
+                            >
+                              Khách tự đến lấy
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
 
                       {/* Khách hàng */}
@@ -1147,6 +1183,7 @@ const TableOrderScreen: React.FC = () => {
                               totalNumberOfProductForSale:
                                 item.totalNumberOfProductForSale,
                               totalMoneyForSale: item.totalMoneyForSale,
+                              isSelfPickup: isSelfPickupOrder(item),
                             }}
                           />
                           <Button

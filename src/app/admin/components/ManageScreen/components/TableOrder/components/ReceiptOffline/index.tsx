@@ -20,6 +20,8 @@ interface ReceiptData {
   productList?: ProductItem[];
   totalNumberOfProductForSale?: number | string;
   totalMoneyForSale?: number | string;
+  /** Đơn online khách tự đến lấy tại shop → in thêm dòng "Nhận hàng" */
+  isSelfPickup?: boolean;
 }
 
 interface ReceiptOfflineProps {
@@ -42,7 +44,9 @@ const ReceiptOffline = React.forwardRef<HTMLDivElement, ReceiptOfflineProps>(
             <p style={{ marginBottom: '0px' }}>Địa chỉ: 01 Phó Đức Chính</p>
             <p>phường Nguyễn Thái Bình, Q1, HCM</p>
             <p>Hotline: 0703.334.443</p>
-            <p style={{ marginBottom: '0px' }}>Facebook: Give Away Premium Quận 1</p>
+            <p style={{ marginBottom: '0px' }}>
+              Facebook: Give Away Premium Quận 1
+            </p>
             <p>Instagram: @giveawaypremium_quan1</p>
           </div>
           <div className="BoxContent">
@@ -54,6 +58,12 @@ const ReceiptOffline = React.forwardRef<HTMLDivElement, ReceiptOfflineProps>(
               <p>Ngày:</p>
               <p>{moment().format('DD-MM-YYYY HH:mm:ss')}</p>
             </div>
+            {data.isSelfPickup && (
+              <div className="BoxCol">
+                <p>Nhận hàng:</p>
+                <p>Khách tự đến lấy</p>
+              </div>
+            )}
             <table className="MainTable">
               <tbody>
                 <tr className="header">
@@ -80,7 +90,9 @@ const ReceiptOffline = React.forwardRef<HTMLDivElement, ReceiptOfflineProps>(
                 </tr>
                 <tr>
                   <th>Tổng tiền:</th>
-                  <td>{numberWithCommas(data.totalMoneyForSale || '0')},000đ</td>
+                  <td>
+                    {numberWithCommas(data.totalMoneyForSale || '0')},000đ
+                  </td>
                 </tr>
               </tbody>
             </table>

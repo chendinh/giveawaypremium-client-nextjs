@@ -38,10 +38,17 @@ import {
   CreditCard,
   Printer,
   RefreshCw,
+  Store,
 } from 'lucide-react';
 
 import GapService from '@/app/actions/GapServices';
 import { useAppStore } from '@/store/useAppStore';
+import {
+  PICKUP_TYPE,
+  SELF_PICKUP_SERVICE,
+  isSelfPickup,
+  type PickupType,
+} from '@/lib/constants';
 import { useReactToPrint } from 'react-to-print';
 import ReceiptOffline from './components/ReceiptOffline/index';
 import { SearchableSelect } from '@/components/ui/searchable-select';
@@ -87,11 +94,12 @@ interface ShippingInfo {
    */
   orderPayment?: '1' | '2' | '3' | '4';
   /**
-   * Hình thức lấy hàng:
-   * '2' = shipper đến lấy tại shop (mặc định)
-   * '1' = shop gửi bưu cục
+   * Hình thức lấy hàng (xem PICKUP_TYPE):
+   * 'shipper' = shipper ViettelPost đến lấy tại shop rồi giao cho khách (mặc định)
+   * 'self'    = khách tự đến lấy tại shop — không tạo vận đơn, phí ship 0,
+   *             vẫn là đơn online
    */
-  pickupType?: '1' | '2';
+  pickupType?: PickupType;
 }
 
 interface ProductItem {
@@ -165,7 +173,28 @@ const DEFAULT_CLIENT_INFO: ClientInfo = {
 const DEFAULT_SHIPPING_INFO: ShippingInfo = {
   optionTransfer: 'tk',
   orderPayment: '4', // khách trả cước, tiền hàng đã CK trước
-  pickupType: '2',
+  pickupType: PICKUP_TYPE.SHIPPER,
+};
+
+/**
+ * shippingInfo thực sự lưu vào Order.
+ * - Khách tự đến lấy: bản gọn (dịch vụ 'tt', phí 0), bỏ địa chỉ/dịch vụ VTP
+ *   nhập dở để đơn không bị nhầm là đơn cần tạo vận đơn.
+ * - Đơn offline: pickupType không có nghĩa → luôn 'shipper', tránh giữ lại
+ *   lựa chọn 'self' nếu nhân viên đổi qua lại giữa Online/Offline.
+ */
+const buildOrderShippingInfo = (pane: OrderPane): ShippingInfo => {
+  if (pane.isOnlineSale !== 'true') {
+    return { ...pane.shippingInfo, pickupType: PICKUP_TYPE.SHIPPER };
+  }
+  if (isSelfPickup(pane.shippingInfo)) {
+    return {
+      optionTransfer: SELF_PICKUP_SERVICE,
+      shippingFee: 0,
+      pickupType: PICKUP_TYPE.SELF,
+    };
+  }
+  return pane.shippingInfo;
 };
 
 // ─── Component ────────────────────────────────────────
@@ -799,24 +828,24 @@ const SaleScreen: React.FC = () => {
       const [idStr, name] = value.split('|');
       const wardId = Number(idStr);
 
-      // Cập nhật ward vào state, đồng thời lấy provinceId/districtId từ pane hiện tại
-      let capturedProvinceId: number | undefined;
-      let capturedDistrictId: number | undefined;
+      // Lấy provinceId/districtId trực tiếp từ pane hiện tại. Không gán biến bên
+      // trong updater của setState: React 18 chỉ chạy updater đồng bộ trong vài
+      // trường hợp, nên cách đó có lúc bỏ qua bước tải dịch vụ VTP.
+      const capturedProvinceId =
+        panes[currentPaneIndex]?.shippingInfo.vtpProvinceId;
+      const capturedDistrictId =
+        panes[currentPaneIndex]?.shippingInfo.vtpDistrictId;
 
-      updateCurrentPane(pane => {
-        capturedProvinceId = pane.shippingInfo.vtpProvinceId;
-        capturedDistrictId = pane.shippingInfo.vtpDistrictId;
-        return {
-          ...pane,
-          shippingInfo: {
-            ...pane.shippingInfo,
-            orderAdressWard: name,
-            vtpWardId: wardId,
-            shippingFee: undefined,
-            optionTransfer: '',
-          },
-        };
-      });
+      updateCurrentPane(pane => ({
+        ...pane,
+        shippingInfo: {
+          ...pane.shippingInfo,
+          orderAdressWard: name,
+          vtpWardId: wardId,
+          shippingFee: undefined,
+          optionTransfer: '',
+        },
+      }));
 
       if (!capturedProvinceId || !capturedDistrictId) return;
 
@@ -851,7 +880,7 @@ const SaleScreen: React.FC = () => {
         setIsLoadingServices(false);
       }
     },
-    [updateCurrentPane, fetchShippingFee]
+    [panes, currentPaneIndex, updateCurrentPane, fetchShippingFee]
   );
 
   const onChangeStreetAddress = useCallback(
@@ -896,6 +925,19 @@ const SaleScreen: React.FC = () => {
     [updateCurrentPane]
   );
 
+  // ─── Pickup type (shipper đến lấy / khách tự đến lấy) ─
+  // Chỉ đổi pickupType, giữ nguyên địa chỉ/dịch vụ đã nhập để đổi qua lại không
+  // phải nhập lại. Khi lưu đơn, buildOrderShippingInfo sẽ lọc theo pickupType.
+  const onChangePickupType = useCallback(
+    (value: PickupType) => {
+      updateCurrentPane(pane => ({
+        ...pane,
+        shippingInfo: { ...pane.shippingInfo, pickupType: value },
+      }));
+    },
+    [updateCurrentPane]
+  );
+
   // ─── Create order ───────────────────────────────────
   const onHandleCreateOrder = useCallback(async () => {
     const currentPane = panes[currentPaneIndex];
@@ -920,7 +962,11 @@ const SaleScreen: React.FC = () => {
       toast.error('Chưa nhập tên Khách hàng');
       return;
     }
-    if (currentPane.isOnlineSale === 'true') {
+    // Khách tự đến lấy tại shop: không cần địa chỉ / dịch vụ vận chuyển
+    if (
+      currentPane.isOnlineSale === 'true' &&
+      !isSelfPickup(currentPane.shippingInfo)
+    ) {
       if (
         !currentPane.shippingInfo.orderAdressStreet ||
         currentPane.shippingInfo.orderAdressStreet.trim().length === 0
@@ -957,6 +1003,8 @@ const SaleScreen: React.FC = () => {
 
     try {
       const dataOrder = { ...currentPane };
+      // shippingInfo lưu vào Order: đơn tự đến lấy chỉ giữ bản gọn (dịch vụ 'tt', phí 0)
+      dataOrder.shippingInfo = buildOrderShippingInfo(currentPane);
       // Set count field for each product
       dataOrder.productList = dataOrder.productList.map(item => ({
         ...item,
@@ -1145,6 +1193,11 @@ const SaleScreen: React.FC = () => {
 
   const currentPane = panes[currentPaneIndex] ?? null;
 
+  // Đơn online mà khách tự đến lấy tại shop (không địa chỉ, không vận đơn)
+  const isSelfPickupOrder =
+    currentPane?.isOnlineSale === 'true' &&
+    isSelfPickup(currentPane.shippingInfo);
+
   const currentPaymentValue =
     currentPane?.isTransferWithBankAndOffline === 'true'
       ? 'both'
@@ -1228,6 +1281,7 @@ const SaleScreen: React.FC = () => {
               disabled={
                 isCreatingOrder ||
                 (currentPane.isOnlineSale === 'true' &&
+                  !isSelfPickupOrder &&
                   !!currentPane.shippingInfo.vtpWardId &&
                   !isLoadingServices &&
                   vtpServices.length === 0)
@@ -1608,225 +1662,244 @@ const SaleScreen: React.FC = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs">
-                        Địa chỉ giao hàng (số nhà - đường)
-                        <span className="text-destructive ml-0.5">*</span>
-                      </Label>
-                      <Input
-                        disabled={
-                          currentPane.shippingInfo.optionTransfer === 'tt'
-                        }
-                        value={currentPane.shippingInfo.orderAdressStreet || ''}
-                        onChange={onChangeStreetAddress}
-                        placeholder="Số nhà - đường"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="space-y-1">
-                        <Label className="text-xs">
-                          Tỉnh/Thành phố
-                          <span className="text-destructive ml-0.5">*</span>
-                        </Label>
-                        <SearchableSelect
-                          options={vtpProvinces.map(p => ({
-                            value: `${p.PROVINCE_ID}|${p.PROVINCE_NAME}`,
-                            label: p.PROVINCE_NAME,
-                          }))}
-                          value={
-                            currentPane.shippingInfo.vtpProvinceId
-                              ? `${currentPane.shippingInfo.vtpProvinceId}|${currentPane.shippingInfo.orderAdressProvince}`
-                              : ''
-                          }
-                          onValueChange={onChangeProvince}
-                          placeholder="Chọn tỉnh"
-                          searchPlaceholder="Tìm tỉnh/thành..."
-                          disabled={
-                            currentPane.shippingInfo.optionTransfer === 'tt'
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">
-                          Quận/Huyện
-                          <span className="text-destructive ml-0.5">*</span>
-                        </Label>
-                        <SearchableSelect
-                          options={vtpDistricts.map(d => ({
-                            value: `${d.DISTRICT_ID}|${d.DISTRICT_NAME}`,
-                            label: d.DISTRICT_NAME,
-                          }))}
-                          value={
-                            currentPane.shippingInfo.vtpDistrictId
-                              ? `${currentPane.shippingInfo.vtpDistrictId}|${currentPane.shippingInfo.orderAdressDistrict}`
-                              : ''
-                          }
-                          onValueChange={onChangeDistrict}
-                          placeholder={
-                            isLoadingDistricts ? 'Đang tải...' : 'Chọn quận'
-                          }
-                          searchPlaceholder="Tìm quận/huyện..."
-                          disabled={
-                            currentPane.shippingInfo.optionTransfer === 'tt' ||
-                            !currentPane.shippingInfo.vtpProvinceId ||
-                            isLoadingDistricts
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">
-                          Xã/Phường
-                          <span className="text-destructive ml-0.5">*</span>
-                        </Label>
-                        <SearchableSelect
-                          options={vtpWards.map(w => ({
-                            value: `${w.WARDS_ID}|${w.WARDS_NAME}`,
-                            label: w.WARDS_NAME,
-                          }))}
-                          value={
-                            currentPane.shippingInfo.vtpWardId
-                              ? `${currentPane.shippingInfo.vtpWardId}|${currentPane.shippingInfo.orderAdressWard}`
-                              : ''
-                          }
-                          onValueChange={onChangeWard}
-                          placeholder={
-                            isLoadingWards ? 'Đang tải...' : 'Chọn xã'
-                          }
-                          searchPlaceholder="Tìm xã/phường..."
-                          disabled={
-                            currentPane.shippingInfo.optionTransfer === 'tt' ||
-                            !currentPane.shippingInfo.vtpDistrictId ||
-                            isLoadingWards
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    <div className="space-y-2">
-                      <Label className="text-xs">Hình thức giao hàng</Label>
-                      {isLoadingServices ? (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Đang tải dịch vụ...
-                        </div>
-                      ) : vtpServices.length > 0 ? (
-                        <Select
-                          value={currentPane.shippingInfo.optionTransfer}
-                          onValueChange={onChangeShippingMethod}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Chọn dịch vụ" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {vtpServices.map(svc => (
-                              <SelectItem key={svc.code} value={svc.code}>
-                                {svc.name} —{' '}
-                                {numberWithCommas(roundUpTo1000(svc.price))} vnđ
-                                ({svc.time})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <div>
-                          {currentPane.shippingInfo.vtpWardId &&
-                          !isLoadingServices ? (
-                            <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2">
-                              <span className="text-destructive text-sm">
-                                ⚠️
-                              </span>
-                              <p className="text-xs text-destructive leading-relaxed">
-                                ViettelPost chưa phục vụ địa chỉ này. Vui lòng
-                                kiểm tra lại địa chỉ hoặc liên hệ khách hàng
-                                chọn địa chỉ khác.
-                              </p>
-                            </div>
-                          ) : (
-                            <p className="text-xs text-muted-foreground">
-                              Chọn đầy đủ Tỉnh → Quận → Phường để xem dịch vụ
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Phí giao hàng:
-                      </span>
-                      <span className="text-sm font-medium">
-                        {currentPane.shippingInfo.shippingFee != null
-                          ? `${numberWithCommas(roundUpTo1000(currentPane.shippingInfo.shippingFee))} vnđ`
-                          : '---'}
-                      </span>
-                    </div>
-
-                    <Separator />
-
-                    {/* Người trả phí ship */}
-                    <div className="space-y-2">
-                      <Label className="text-xs">Người trả phí ship</Label>
-                      <Select
-                        value={currentPane.shippingInfo.orderPayment ?? '4'}
-                        onValueChange={(value: '1' | '2' | '3' | '4') =>
-                          updateCurrentPane(pane => ({
-                            ...pane,
-                            shippingInfo: {
-                              ...pane.shippingInfo,
-                              orderPayment: value,
-                            },
-                          }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="4">
-                            Khách trả cước — tiền hàng đã CK
-                          </SelectItem>
-                          <SelectItem value="3">
-                            Shop trả cước — khách trả tiền hàng
-                          </SelectItem>
-                          <SelectItem value="2">
-                            Khách trả cả tiền hàng + cước
-                          </SelectItem>
-                          <SelectItem value="1">
-                            Không thu hộ (shop trả cước + tiền hàng)
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Hình thức lấy hàng */}
+                    {/* Hình thức lấy hàng — quyết định các trường bên dưới */}
                     <div className="space-y-2">
                       <Label className="text-xs">Hình thức lấy hàng</Label>
                       <Select
-                        value={currentPane.shippingInfo.pickupType ?? '2'}
-                        onValueChange={(value: '1' | '2') =>
-                          updateCurrentPane(pane => ({
-                            ...pane,
-                            shippingInfo: {
-                              ...pane.shippingInfo,
-                              pickupType: value,
-                            },
-                          }))
+                        value={
+                          currentPane.shippingInfo.pickupType ??
+                          PICKUP_TYPE.SHIPPER
+                        }
+                        onValueChange={(value: PickupType) =>
+                          onChangePickupType(value)
                         }
                       >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="2">
+                          <SelectItem value={PICKUP_TYPE.SHIPPER}>
                             Shipper đến lấy tại shop
                           </SelectItem>
-                          <SelectItem value="1">Shop gửi bưu cục</SelectItem>
+                          <SelectItem value={PICKUP_TYPE.SELF}>
+                            Khách tự đến lấy tại shop
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {isSelfPickupOrder ? (
+                      <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2">
+                        <Store className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                        <p className="text-xs leading-relaxed text-blue-900">
+                          Khách tự đến lấy tại shop: không cần nhập địa chỉ,
+                          không tính phí ship và không tạo vận đơn. Đơn vẫn tính
+                          là đơn Online.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <Separator />
+
+                        <div className="space-y-1">
+                          <Label className="text-xs">
+                            Địa chỉ giao hàng (số nhà - đường)
+                            <span className="text-destructive ml-0.5">*</span>
+                          </Label>
+                          <Input
+                            disabled={
+                              currentPane.shippingInfo.optionTransfer === 'tt'
+                            }
+                            value={
+                              currentPane.shippingInfo.orderAdressStreet || ''
+                            }
+                            onChange={onChangeStreetAddress}
+                            placeholder="Số nhà - đường"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">
+                              Tỉnh/Thành phố
+                              <span className="text-destructive ml-0.5">*</span>
+                            </Label>
+                            <SearchableSelect
+                              options={vtpProvinces.map(p => ({
+                                value: `${p.PROVINCE_ID}|${p.PROVINCE_NAME}`,
+                                label: p.PROVINCE_NAME,
+                              }))}
+                              value={
+                                currentPane.shippingInfo.vtpProvinceId
+                                  ? `${currentPane.shippingInfo.vtpProvinceId}|${currentPane.shippingInfo.orderAdressProvince}`
+                                  : ''
+                              }
+                              onValueChange={onChangeProvince}
+                              placeholder="Chọn tỉnh"
+                              searchPlaceholder="Tìm tỉnh/thành..."
+                              disabled={
+                                currentPane.shippingInfo.optionTransfer === 'tt'
+                              }
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">
+                              Quận/Huyện
+                              <span className="text-destructive ml-0.5">*</span>
+                            </Label>
+                            <SearchableSelect
+                              options={vtpDistricts.map(d => ({
+                                value: `${d.DISTRICT_ID}|${d.DISTRICT_NAME}`,
+                                label: d.DISTRICT_NAME,
+                              }))}
+                              value={
+                                currentPane.shippingInfo.vtpDistrictId
+                                  ? `${currentPane.shippingInfo.vtpDistrictId}|${currentPane.shippingInfo.orderAdressDistrict}`
+                                  : ''
+                              }
+                              onValueChange={onChangeDistrict}
+                              placeholder={
+                                isLoadingDistricts ? 'Đang tải...' : 'Chọn quận'
+                              }
+                              searchPlaceholder="Tìm quận/huyện..."
+                              disabled={
+                                currentPane.shippingInfo.optionTransfer ===
+                                  'tt' ||
+                                !currentPane.shippingInfo.vtpProvinceId ||
+                                isLoadingDistricts
+                              }
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">
+                              Xã/Phường
+                              <span className="text-destructive ml-0.5">*</span>
+                            </Label>
+                            <SearchableSelect
+                              options={vtpWards.map(w => ({
+                                value: `${w.WARDS_ID}|${w.WARDS_NAME}`,
+                                label: w.WARDS_NAME,
+                              }))}
+                              value={
+                                currentPane.shippingInfo.vtpWardId
+                                  ? `${currentPane.shippingInfo.vtpWardId}|${currentPane.shippingInfo.orderAdressWard}`
+                                  : ''
+                              }
+                              onValueChange={onChangeWard}
+                              placeholder={
+                                isLoadingWards ? 'Đang tải...' : 'Chọn xã'
+                              }
+                              searchPlaceholder="Tìm xã/phường..."
+                              disabled={
+                                currentPane.shippingInfo.optionTransfer ===
+                                  'tt' ||
+                                !currentPane.shippingInfo.vtpDistrictId ||
+                                isLoadingWards
+                              }
+                            />
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        <div className="space-y-2">
+                          <Label className="text-xs">Hình thức giao hàng</Label>
+                          {isLoadingServices ? (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Đang tải dịch vụ...
+                            </div>
+                          ) : vtpServices.length > 0 ? (
+                            <Select
+                              value={currentPane.shippingInfo.optionTransfer}
+                              onValueChange={onChangeShippingMethod}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Chọn dịch vụ" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {vtpServices.map(svc => (
+                                  <SelectItem key={svc.code} value={svc.code}>
+                                    {svc.name} —{' '}
+                                    {numberWithCommas(roundUpTo1000(svc.price))}{' '}
+                                    vnđ ({svc.time})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <div>
+                              {currentPane.shippingInfo.vtpWardId &&
+                              !isLoadingServices ? (
+                                <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2">
+                                  <span className="text-destructive text-sm">
+                                    ⚠️
+                                  </span>
+                                  <p className="text-xs text-destructive leading-relaxed">
+                                    ViettelPost chưa phục vụ địa chỉ này. Vui
+                                    lòng kiểm tra lại địa chỉ hoặc liên hệ khách
+                                    hàng chọn địa chỉ khác.
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">
+                                  Chọn đầy đủ Tỉnh → Quận → Phường để xem dịch
+                                  vụ
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">
+                            Phí giao hàng:
+                          </span>
+                          <span className="text-sm font-medium">
+                            {currentPane.shippingInfo.shippingFee != null
+                              ? `${numberWithCommas(roundUpTo1000(currentPane.shippingInfo.shippingFee))} vnđ`
+                              : '---'}
+                          </span>
+                        </div>
+
+                        <Separator />
+
+                        {/* Người trả phí ship */}
+                        <div className="space-y-2">
+                          <Label className="text-xs">Người trả phí ship</Label>
+                          <Select
+                            value={currentPane.shippingInfo.orderPayment ?? '4'}
+                            onValueChange={(value: '1' | '2' | '3' | '4') =>
+                              updateCurrentPane(pane => ({
+                                ...pane,
+                                shippingInfo: {
+                                  ...pane.shippingInfo,
+                                  orderPayment: value,
+                                },
+                              }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="4">
+                                Khách trả cước — tiền hàng đã CK
+                              </SelectItem>
+                              <SelectItem value="3">
+                                Shop trả cước — khách trả tiền hàng
+                              </SelectItem>
+                              <SelectItem value="2">
+                                Khách trả cả tiền hàng + cước
+                              </SelectItem>
+                              <SelectItem value="1">
+                                Không thu hộ (shop trả cước + tiền hàng)
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               )}
@@ -1843,9 +1916,11 @@ const SaleScreen: React.FC = () => {
                 Tạo đơn hàng thành công!
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
-                {currentPane.isOnlineSale === 'true'
-                  ? 'Đơn hàng online đã được tạo. Bước tiếp theo: vận chuyển.'
-                  : 'Đơn hàng đã hoàn tất.'}
+                {currentPane.isOnlineSale !== 'true'
+                  ? 'Đơn hàng đã hoàn tất.'
+                  : isSelfPickupOrder
+                    ? 'Đơn hàng online đã được tạo. Khách sẽ tự đến lấy hàng tại shop.'
+                    : 'Đơn hàng online đã được tạo. Bước tiếp theo: vận chuyển.'}
               </p>
               {currentPane.objectIdOrder && (
                 <Badge variant="outline" className="mt-2">
@@ -1859,7 +1934,7 @@ const SaleScreen: React.FC = () => {
               <Badge variant="default">Đơn Hàng ✓</Badge>
               <span className="text-muted-foreground">→</span>
               <Badge variant="default">Khách Hàng ✓</Badge>
-              {currentPane.isOnlineSale === 'true' && (
+              {currentPane.isOnlineSale === 'true' && !isSelfPickupOrder && (
                 <>
                   <span className="text-muted-foreground">→</span>
                   <Badge variant="default">Vận chuyển ✓</Badge>
@@ -1869,8 +1944,35 @@ const SaleScreen: React.FC = () => {
               <Badge variant="default">Hoàn Thành ✓</Badge>
             </div>
 
-            {/* ── Tạo vận đơn VTP (chỉ khi online) ── */}
-            {currentPane.isOnlineSale === 'true' && (
+            {/* ── Khách tự đến lấy tại shop (đơn online, không có vận đơn) ── */}
+            {isSelfPickupOrder && (
+              <div className="border border-blue-200 bg-blue-50 rounded-lg p-4 space-y-2 text-left">
+                <div className="flex items-center gap-2 font-medium text-sm text-blue-900">
+                  <Store className="h-4 w-4" />
+                  Khách tự đến lấy tại shop
+                </div>
+                <div className="text-xs text-blue-900 space-y-1">
+                  <p>
+                    Không tạo vận đơn ViettelPost. Chuẩn bị sẵn hàng để giao
+                    trực tiếp cho khách tại shop.
+                  </p>
+                  <p>
+                    Khách:{' '}
+                    <span className="font-medium">
+                      {currentPane.clientInfo.fullName || '—'}
+                    </span>{' '}
+                    · SĐT:{' '}
+                    <span className="font-medium">
+                      {currentPane.clientInfo.phoneNumber || '—'}
+                    </span>
+                  </p>
+                  <p>Đơn vẫn tính là đơn Online trong thống kê.</p>
+                </div>
+              </div>
+            )}
+
+            {/* ── Tạo vận đơn VTP (chỉ khi online và giao qua shipper) ── */}
+            {currentPane.isOnlineSale === 'true' && !isSelfPickupOrder && (
               <div className="border rounded-lg p-4 space-y-3 text-left bg-muted/30">
                 <div className="flex items-center gap-2 font-medium text-sm">
                   <Truck className="h-4 w-4" />
@@ -1972,6 +2074,7 @@ const SaleScreen: React.FC = () => {
                   totalNumberOfProductForSale:
                     currentPane?.totalNumberOfProductForSale,
                   totalMoneyForSale: currentPane?.totalMoneyForSale,
+                  isSelfPickup: isSelfPickupOrder,
                 }}
               />
             </div>
