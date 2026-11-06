@@ -23,8 +23,14 @@ export default function Header() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  // Ẩn header ở các trang đặc biệt nếu cần
-  if (pathname === '/admin' || pathname === '/monitor') return null;
+  // Ẩn header ở các trang đặc biệt nếu cần (admin và mọi route con như /admin/bao-cao)
+  if (
+    pathname === '/admin' ||
+    pathname?.startsWith('/admin/') ||
+    pathname === '/monitor'
+  ) {
+    return null;
+  }
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-transparent backdrop-blur-lg transition-all duration-500">

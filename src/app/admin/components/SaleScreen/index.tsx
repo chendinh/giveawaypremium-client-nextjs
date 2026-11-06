@@ -1018,6 +1018,20 @@ const SaleScreen: React.FC = () => {
       );
       dataOrder.totalMoneyForSale = discountedTotal;
 
+      // Luôn tính lại totalMoneyForSaleAfterFee từ chính productList sắp gửi đi
+      // ngay tại đây — KHÔNG tin giá trị đã lưu trong pane state. Đã phát hiện
+      // dữ liệu Order tháng 8/2026 bị cộng dồn qua nhiều đơn (giá trị đơn sau =
+      // giá trị đơn trước + số đúng của đơn sau), dù không lần ra được dòng code
+      // gây cộng dồn. Tính lại tại điểm cuối cùng trước khi gửi đi để chặn đứt
+      // bất kỳ state cũ/stale nào tại nguồn, không phụ thuộc giả thuyết nào.
+      dataOrder.totalMoneyForSaleAfterFee =
+        Math.round(
+          dataOrder.productList.reduce(
+            (sum, item) => sum + (item.count || 1) * (item.priceAfterFee || 0),
+            0
+          ) * 100
+        ) / 100;
+
       const resUser = await GapService.getCustomer(
         currentPane.clientInfo.phoneNumber
       );

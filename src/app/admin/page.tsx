@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +21,7 @@ import {
   Mail,
   Terminal,
   Settings,
+  FileText,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -47,6 +49,8 @@ interface MenuItemType {
   isFullScreen: boolean;
   /** key trong AdminNotificationCounts để hiển thị badge */
   notifKey?: 'pendingAppointments' | 'pendingOrders' | 'pendingPayouts';
+  /** Có href → mở route riêng thay vì đổi màn hình trong trang này */
+  href?: string;
 }
 
 const menuItems: MenuItemType[] = [
@@ -86,10 +90,18 @@ const menuItems: MenuItemType[] = [
     label: 'Cài đặt',
     isFullScreen: false,
   },
+  {
+    key: 7,
+    icon: <FileText className="h-5 w-5" />,
+    label: 'Báo cáo',
+    isFullScreen: true,
+    href: '/admin/bao-cao',
+  },
 ];
 
 // ── Component ──
 const DashBoard: React.FC = () => {
+  const router = useRouter();
   const {
     login,
     logout,
@@ -187,6 +199,10 @@ const DashBoard: React.FC = () => {
   };
 
   const handleChoosePage = (item: MenuItemType) => {
+    if (item.href) {
+      router.push(item.href);
+      return;
+    }
     setNumberPage(item.key);
     setIsFullScreen(item.isFullScreen);
     // Khi vào tab có badge → refresh để cập nhật count

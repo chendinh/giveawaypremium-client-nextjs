@@ -872,7 +872,11 @@ export class GapService {
   }
 
   static async getProductWithCode(keyword: string): Promise<any> {
-    const where = JSON.stringify({ code: keyword.trim() });
+    // Loại sản phẩm đã xoá mềm: ký gửi bị xoá rồi tạo lại có thể trùng code.
+    const where = JSON.stringify({
+      code: keyword.trim(),
+      deletedAt: { $exists: false },
+    });
     const customQuery = `include=medias&limit=1&count=1&where=${where}`;
 
     return this.fetchData(
@@ -2703,6 +2707,102 @@ export class GapService {
       null,
       true // requireUser — cần sessionToken
     );
+  }
+
+  // ── Báo cáo kiểm kê tháng (/admin/bao-cao) ──
+  // Tất cả đều là Cloud Function chỉ dành cho administrator. Parse trả về
+  // `{ result: ... }` khi thành công, `{ code, error }` khi lỗi.
+
+  private static callReportFunction(
+    name: string,
+    params: Record<string, any>
+  ): Promise<any> {
+    return this.fetchData(
+      `/functions/${name}`,
+      REQUEST_TYPE.POST,
+      null,
+      params,
+      null,
+      null,
+      null,
+      true
+    );
+  }
+
+  /** Báo cáo doanh thu + đối chiếu ngân hàng của một tháng ('YYYY-MM', giờ VN). */
+  static async getMonthlyReport(month: string, refresh = false): Promise<any> {
+    // refresh=true: bỏ bản lưu sẵn của tháng đã qua, server tính lại và ghi đè
+    return this.callReportFunction('getMonthlyReport', { month, refresh });
+  }
+
+  /** Ước tính tiền phải trả khách ký gửi theo tháng đến hạn (timeGetMoney). */
+  static async getPayoutForecast(since?: string): Promise<any> {
+    return this.callReportFunction('getPayoutForecast', since ? { since } : {});
+  }
+
+  /** Kéo giao dịch tháng đó từ SePay API về server (bù giai đoạn chưa có webhook). */
+  static async syncSepayTransactions(month: string): Promise<any> {
+    return this.callReportFunction('syncSepayTransactions', { month });
+  }
+
+  /** Gán giao dịch ngân hàng vào đơn/ký gửi và/hoặc ghi giải trình. */
+  static async linkBankTransaction(params: {
+    transactionId: string;
+    targets?: Array<{ type: 'order' | 'consignment'; id: string }>;
+    note?: string;
+  }): Promise<any> {
+    return this.callReportFunction('linkBankTransaction', params);
+  }
+
+  static async unlinkBankTransaction(
+    transactionId: string,
+    reason: string
+  ): Promise<any> {
+    return this.callReportFunction('unlinkBankTransaction', {
+      transactionId,
+      reason,
+    });
+  }
+
+  static async listReportAttachments(month: string): Promise<any> {
+    return this.callReportFunction('listReportAttachments', { month });
+  }
+
+  /** Đính kèm ảnh (đã upload qua uploadSingleFileWithFormData) vào báo cáo tháng. */
+  static async addReportAttachment(params: {
+    month: string;
+    kind: 'payout_bill' | 'bank_statement' | 'other';
+    mediaId: string;
+    note?: string;
+  }): Promise<any> {
+    return this.callReportFunction('addReportAttachment', params);
+  }
+
+  static async deleteReportAttachment(
+    attachmentId: string,
+    reason: string
+  ): Promise<any> {
+    return this.callReportFunction('deleteReportAttachment', {
+      attachmentId,
+      reason,
+    });
+  }
+
+  static async getMonthlyExpenses(month: string): Promise<any> {
+    return this.callReportFunction('getMonthlyExpenses', { month });
+  }
+
+  /** Ghi đè toàn bộ danh sách chi phí của một tháng (lương, điện nước, khác...). */
+  static async saveMonthlyExpenses(
+    month: string,
+    items: Array<{
+      id?: string;
+      label: string;
+      amountVnd: number;
+      note?: string;
+    }>
+  ): Promise<any> {
+    return this.callReportFunction('saveMonthlyExpenses', { month, items });
   }
 
   // Core Fetch Function
