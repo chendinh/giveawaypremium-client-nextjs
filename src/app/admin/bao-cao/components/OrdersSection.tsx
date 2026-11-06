@@ -30,6 +30,7 @@ import {
   numberWithCommas,
 } from '../format';
 import { OrderChannel, ReportOrderRow } from '../types';
+import BankCheckCell, { BankLookup } from './BankCheckCell';
 import { ReportSection } from './ReportSection';
 
 type ChannelFilter = 'all' | OrderChannel;
@@ -44,9 +45,11 @@ const channelLabel = (row: ReportOrderRow): string => {
 
 interface Props {
   orders: ReportOrderRow[];
+  /** Kết quả đối chiếu sao kê chiều tiền vào, key = mã đơn */
+  bank: BankLookup;
 }
 
-const OrdersSection: React.FC<Props> = ({ orders }) => {
+const OrdersSection: React.FC<Props> = ({ orders, bank }) => {
   const [channel, setChannel] = useState<ChannelFilter>('all');
   const [query, setQuery] = useState('');
 
@@ -121,13 +124,14 @@ const OrdersSection: React.FC<Props> = ({ orders }) => {
               <TableHead className="text-right">Lợi nhuận (phí)</TableHead>
               <TableHead className="text-right">Chuyển khoản</TableHead>
               <TableHead className="text-right">Tiền mặt</TableHead>
+              <TableHead>Đối chiếu sao kê</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={11}
+                  colSpan={12}
                   className="py-8 text-center text-sm text-muted-foreground"
                 >
                   Không có đơn hàng nào.
@@ -189,6 +193,14 @@ const OrdersSection: React.FC<Props> = ({ orders }) => {
                     </span>
                   )}
                 </TableCell>
+                <TableCell className={`${CELL} align-top`}>
+                  <BankCheckCell
+                    lookup={bank}
+                    itemKey={row.id}
+                    viaBank={row.bankVnd > 0}
+                    nonBankLabel="Không chuyển khoản"
+                  />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -217,6 +229,7 @@ const OrdersSection: React.FC<Props> = ({ orders }) => {
                 <TableCell className="text-right tabular-nums">
                   {formatVnd(totals.cash)}
                 </TableCell>
+                <TableCell />
               </TableRow>
             </TableFooter>
           )}

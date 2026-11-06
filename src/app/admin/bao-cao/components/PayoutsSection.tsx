@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 
 import { formatDateTime, formatVnd, numberWithCommas } from '../format';
 import { PayoutSummary, ReportPayoutRow } from '../types';
+import BankCheckCell, { BankLookup } from './BankCheckCell';
 import { ReportSection } from './ReportSection';
 
 const CELL = 'px-2 py-1.5 text-xs';
@@ -24,9 +25,11 @@ const NUM = `${CELL} text-right tabular-nums whitespace-nowrap`;
 interface Props {
   rows: ReportPayoutRow[];
   summary: PayoutSummary;
+  /** Kết quả đối chiếu sao kê chiều tiền ra, key = mã ký gửi */
+  bank: BankLookup;
 }
 
-const PayoutsSection: React.FC<Props> = ({ rows, summary }) => {
+const PayoutsSection: React.FC<Props> = ({ rows, summary, bank }) => {
   const cashRows = useMemo(
     () => rows.filter(row => row.method === 'cash').length,
     [rows]
@@ -49,13 +52,14 @@ const PayoutsSection: React.FC<Props> = ({ rows, summary }) => {
               <TableHead>Tài khoản nhận</TableHead>
               <TableHead className="text-right">Số tiền</TableHead>
               <TableHead>Nhân viên xác nhận</TableHead>
+              <TableHead>Đối chiếu sao kê</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   className="py-8 text-center text-sm text-muted-foreground"
                 >
                   Tháng này chưa có ký gửi nào được xác nhận đã trả tiền.
@@ -102,6 +106,14 @@ const PayoutsSection: React.FC<Props> = ({ rows, summary }) => {
                   {formatVnd(row.moneyBackVnd)}
                 </TableCell>
                 <TableCell className={CELL}>{row.markedBy || '—'}</TableCell>
+                <TableCell className={`${CELL} align-top`}>
+                  <BankCheckCell
+                    lookup={bank}
+                    itemKey={row.consignmentId}
+                    viaBank={row.method === 'bank'}
+                    nonBankLabel="Trả trực tiếp"
+                  />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -116,6 +128,7 @@ const PayoutsSection: React.FC<Props> = ({ rows, summary }) => {
                 <TableCell className="text-right tabular-nums">
                   {formatVnd(summary.totalVnd)}
                 </TableCell>
+                <TableCell />
                 <TableCell />
               </TableRow>
             </TableFooter>

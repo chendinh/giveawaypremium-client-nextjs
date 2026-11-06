@@ -76,7 +76,6 @@ interface Props {
 
 const SummarySection: React.FC<Props> = ({ report }) => {
   const { all, online, offline } = report.totals;
-  const { summary } = report.payouts;
 
   return (
     <ReportSection
@@ -141,46 +140,6 @@ const SummarySection: React.FC<Props> = ({ report }) => {
         chuyển khoản / tiền mặt lấy theo cách thanh toán nhân viên chọn khi tạo
         đơn.
       </p>
-
-      <div className="mt-4 rounded-lg border p-4">
-        <p className="text-sm font-semibold">
-          Thực chi trả khách trong tháng
-          <span className="ml-1 font-normal text-muted-foreground">
-            (tính theo ngày nhân viên bấm “đã trả tiền”)
-          </span>
-        </p>
-        <div className="mt-2 grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
-          <div>
-            <p className="text-muted-foreground">Chuyển khoản</p>
-            <p className="font-semibold tabular-nums">
-              {formatVnd(summary.bankVnd)}
-              <span className="ml-1 text-xs font-normal text-muted-foreground">
-                {summary.bankCount} khoản
-              </span>
-            </p>
-          </div>
-          <div>
-            <p className="text-muted-foreground">Trực tiếp (tiền mặt)</p>
-            <p className="font-semibold tabular-nums">
-              {formatVnd(summary.cashVnd)}
-              <span className="ml-1 text-xs font-normal text-muted-foreground">
-                {summary.cashCount} khoản
-              </span>
-            </p>
-          </div>
-          <div>
-            <p className="text-muted-foreground">Tổng thực chi</p>
-            <p className="font-semibold tabular-nums">
-              {formatVnd(summary.totalVnd)}
-            </p>
-          </div>
-        </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Khác với “Trả khách ký gửi” ở trên: khách ký gửi được trả sau ngày
-          tổng kết nên khoản chi trong tháng có thể thuộc doanh số của các tháng
-          trước.
-        </p>
-      </div>
 
       {report.quality.paymentGapOrders > 0 && (
         <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
