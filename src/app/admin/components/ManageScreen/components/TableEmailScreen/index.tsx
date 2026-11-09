@@ -29,6 +29,8 @@ import {
 } from 'lucide-react';
 
 import GapService from '@/app/actions/GapServices';
+import { usePermission } from '@/hooks/usePermission';
+import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store/useAppStore';
 
 import './style.scss';
@@ -53,6 +55,8 @@ interface EmailApiItem {
 
 // ─── Component ────────────────────────────────────────
 const TableEmailScreen: React.FC = () => {
+  const { can } = usePermission();
+  const canEditRecords = can('EDIT_RECORDS');
   const { userData } = useAppStore();
 
   // Data
@@ -189,18 +193,25 @@ const TableEmailScreen: React.FC = () => {
                 </TableCell>
               </TableRow>
             ) : (
-              dataSource.map((item) => (
+              dataSource.map(item => (
                 <TableRow key={item.objectId}>
                   <TableCell className="text-sm font-medium align-top">
                     {item.name || '---'}
                   </TableCell>
                   <TableCell
-                    className="text-xs align-top cursor-pointer hover:bg-muted/50 max-w-[500px]"
-                    onClick={() => openEditModal(item)}
-                    title="Nhấn để chỉnh sửa"
+                    className={cn(
+                      'text-xs align-top max-w-[500px]',
+                      canEditRecords && 'cursor-pointer hover:bg-muted/50'
+                    )}
+                    onClick={
+                      canEditRecords ? () => openEditModal(item) : undefined
+                    }
+                    title={canEditRecords ? 'Nhấn để chỉnh sửa' : undefined}
                   >
                     <div className="flex items-start gap-1">
-                      <Edit className="h-3 w-3 mt-0.5 shrink-0 text-muted-foreground" />
+                      {canEditRecords && (
+                        <Edit className="h-3 w-3 mt-0.5 shrink-0 text-muted-foreground" />
+                      )}
                       <pre className="whitespace-pre-wrap break-all text-xs font-mono max-h-[200px] overflow-y-auto">
                         {item.content || '---'}
                       </pre>
@@ -262,8 +273,8 @@ const TableEmailScreen: React.FC = () => {
                 <Textarea
                   className="min-h-[40vh] font-mono text-xs"
                   value={editingItem.content || ''}
-                  onChange={(e) =>
-                    setEditingItem((prev) =>
+                  onChange={e =>
+                    setEditingItem(prev =>
                       prev ? { ...prev, content: e.target.value } : null
                     )
                   }

@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import GapService from '@/app/actions/GapServices';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { usePermission } from '@/hooks/usePermission';
 import {
   Table,
   TableBody,
@@ -147,7 +148,9 @@ const TxTable: React.FC<{
   transactions: ReconTx[];
   onLink: (tx: ReconTx) => void;
   onUnlink: (tx: ReconTx) => void;
-}> = ({ title, emptyText, transactions, onLink, onUnlink }) => (
+  /** true = chỉ xem, ẩn nút gán / hủy gán */
+  readOnly: boolean;
+}> = ({ title, emptyText, transactions, onLink, onUnlink, readOnly }) => (
   <div className="break-inside-avoid-page">
     <p className="mb-1 text-sm font-semibold">{title}</p>
     <div className="max-h-[420px] overflow-y-auto rounded-lg border print:max-h-none print:overflow-visible">
@@ -218,7 +221,7 @@ const TxTable: React.FC<{
               <TableCell
                 className={`${CELL} whitespace-nowrap text-right print:hidden`}
               >
-                {tx.source === 'manual' ? (
+                {readOnly ? null : tx.source === 'manual' ? (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -412,6 +415,9 @@ interface Props {
 const ReconciliationSection: React.FC<Props> = ({ report, onChanged }) => {
   const { reconciliation } = report;
   const { inbound, outbound } = reconciliation;
+  // Quản lý chỉ xem: đồng bộ SePay, gán / hủy gán giao dịch chỉ administrator
+  const { can } = usePermission();
+  const canEdit = can('EDIT_REPORT');
 
   const [syncing, setSyncing] = useState(false);
   const [showAll, setShowAll] = useState(false);
@@ -543,7 +549,7 @@ const ReconciliationSection: React.FC<Props> = ({ report, onChanged }) => {
     await onChanged();
   };
 
-  const syncButton = reconciliation.configured.api && (
+  const syncButton = canEdit && reconciliation.configured.api && (
     <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing}>
       {syncing ? (
         <Loader2 className="h-4 w-4 animate-spin" />
@@ -664,6 +670,7 @@ const ReconciliationSection: React.FC<Props> = ({ report, onChanged }) => {
             transactions={inTxs}
             onLink={setLinkTx}
             onUnlink={setUnlinkTx}
+            readOnly={!canEdit}
           />
           <PayoutItemsTable items={outItems} />
           <TxTable
@@ -672,6 +679,7 @@ const ReconciliationSection: React.FC<Props> = ({ report, onChanged }) => {
             transactions={outTxs}
             onLink={setLinkTx}
             onUnlink={setUnlinkTx}
+            readOnly={!canEdit}
           />
         </div>
       )}

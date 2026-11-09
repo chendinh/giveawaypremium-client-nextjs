@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import GapService from '@/app/actions/GapServices';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { usePermission } from '@/hooks/usePermission';
 import {
   Select,
   SelectContent,
@@ -58,6 +59,9 @@ const EvidenceSection: React.FC<Props> = ({
   loading,
   onChanged,
 }) => {
+  // Quản lý chỉ xem chứng từ: tải lên / gỡ chỉ administrator
+  const { can } = usePermission();
+  const canEdit = can('EDIT_REPORT');
   const inputRef = useRef<HTMLInputElement>(null);
   const [kind, setKind] = useState<AttachmentKind>('payout_bill');
   const [note, setNote] = useState('');
@@ -131,54 +135,59 @@ const EvidenceSection: React.FC<Props> = ({
       title="5. Chứng từ đính kèm"
       description="Bill chuyển tiền trả khách, sao kê ngân hàng, biên nhận trả tiền mặt. Ảnh chỉ là chứng từ bổ sung; số liệu đối chiếu chính lấy từ SePay."
     >
-      <div className="mb-4 flex flex-wrap items-end gap-2 rounded-lg border bg-gray-50 p-3 print:hidden">
-        <div className="space-y-1">
-          <span className="text-xs text-muted-foreground">Loại chứng từ</span>
-          <Select
-            value={kind}
-            onValueChange={value => setKind(value as AttachmentKind)}
-          >
-            <SelectTrigger className="h-9 w-56 bg-white text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {KIND_ORDER.map(item => (
-                <SelectItem key={item} value={item}>
-                  {ATTACHMENT_KIND_LABEL[item]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="min-w-[220px] flex-1 space-y-1">
-          <span className="text-xs text-muted-foreground">
-            Ghi chú (không bắt buộc)
-          </span>
-          <Input
-            value={note}
-            onChange={e => setNote(e.target.value)}
-            maxLength={500}
-            placeholder="VD: Bill CK ký gửi 51-926 ngày 05/10"
-            className="h-9 bg-white text-xs"
+      {canEdit && (
+        <div className="mb-4 flex flex-wrap items-end gap-2 rounded-lg border bg-gray-50 p-3 print:hidden">
+          <div className="space-y-1">
+            <span className="text-xs text-muted-foreground">Loại chứng từ</span>
+            <Select
+              value={kind}
+              onValueChange={value => setKind(value as AttachmentKind)}
+            >
+              <SelectTrigger className="h-9 w-56 bg-white text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {KIND_ORDER.map(item => (
+                  <SelectItem key={item} value={item}>
+                    {ATTACHMENT_KIND_LABEL[item]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="min-w-[220px] flex-1 space-y-1">
+            <span className="text-xs text-muted-foreground">
+              Ghi chú (không bắt buộc)
+            </span>
+            <Input
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              maxLength={500}
+              placeholder="VD: Bill CK ký gửi 51-926 ngày 05/10"
+              className="h-9 bg-white text-xs"
+            />
+          </div>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={e => handleFiles(e.target.files)}
           />
+          <Button
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+          >
+            {uploading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ImagePlus className="h-4 w-4" />
+            )}
+            {uploading ? 'Đang tải lên...' : 'Chọn ảnh tải lên'}
+          </Button>
         </div>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={e => handleFiles(e.target.files)}
-        />
-        <Button onClick={() => inputRef.current?.click()} disabled={uploading}>
-          {uploading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ImagePlus className="h-4 w-4" />
-          )}
-          {uploading ? 'Đang tải lên...' : 'Chọn ảnh tải lên'}
-        </Button>
-      </div>
+      )}
 
       {loading && attachments.length === 0 && (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -222,14 +231,16 @@ const EvidenceSection: React.FC<Props> = ({
                     <p className="text-muted-foreground">
                       {item.uploadedByName} · {formatDateTime(item.createdAt)}
                     </p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-1 text-xs text-red-600 print:hidden"
-                      onClick={() => setRemoving(item)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" /> Gỡ
-                    </Button>
+                    {canEdit && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-1 text-xs text-red-600 print:hidden"
+                        onClick={() => setRemoving(item)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Gỡ
+                      </Button>
+                    )}
                   </figcaption>
                 </figure>
               ))}

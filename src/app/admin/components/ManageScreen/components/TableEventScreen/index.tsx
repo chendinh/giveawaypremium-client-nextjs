@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { Loader2, Plus, Trash2, Pencil } from 'lucide-react';
 
 import GapService from '@/app/actions/GapServices';
+import { usePermission } from '@/hooks/usePermission';
 import { useAppStore } from '@/store/useAppStore';
 
 // ─── Types ────────────────────────────────────────────
@@ -29,6 +30,9 @@ interface EventItem {
 
 // ─── Component ────────────────────────────────────────
 const TableEventScreen: React.FC = () => {
+  const { can } = usePermission();
+  const canEditRecords = can('EDIT_RECORDS');
+  const canDelete = can('DELETE');
   const { eventsRedux, setEventsRedux } = useAppStore();
 
   const [events, setEvents] = useState<EventItem[]>([]);
@@ -152,10 +156,12 @@ const TableEventScreen: React.FC = () => {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Quản lý Sự kiện</h3>
-        <Button onClick={openCreateDialog} size="sm">
-          <Plus className="h-4 w-4 mr-1" />
-          Thêm sự kiện
-        </Button>
+        {canEditRecords && (
+          <Button onClick={openCreateDialog} size="sm">
+            <Plus className="h-4 w-4 mr-1" />
+            Thêm sự kiện
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -174,22 +180,26 @@ const TableEventScreen: React.FC = () => {
                 <CardTitle className="text-base flex items-center justify-between">
                   <span>{event.name}</span>
                   <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => openEditDialog(event)}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive"
-                      onClick={() => handleDelete(event.objectId)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    {canEditRecords && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => openEditDialog(event)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    {canDelete && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive"
+                        onClick={() => handleDelete(event.objectId)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                 </CardTitle>
               </CardHeader>

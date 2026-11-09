@@ -37,6 +37,7 @@ import {
 import moment from 'moment';
 
 import GapService from '@/app/actions/GapServices';
+import { usePermission } from '@/hooks/usePermission';
 
 import './style.scss';
 
@@ -51,6 +52,8 @@ interface NoteItem {
 
 // ─── Component ────────────────────────────────────────
 const NoteScreen: React.FC = () => {
+  const { can } = usePermission();
+  const canDelete = can('DELETE');
   const [notes, setNotes] = useState<NoteItem[]>([]);
   const [totalNotes, setTotalNotes] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -220,14 +223,16 @@ const NoteScreen: React.FC = () => {
                     <Edit className="mr-1 h-3 w-3" />
                     Sửa
                   </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => setDeleteId(note.objectId)}
-                  >
-                    <Trash2 className="mr-1 h-3 w-3" />
-                    Xoá
-                  </Button>
+                  {canDelete && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setDeleteId(note.objectId)}
+                    >
+                      <Trash2 className="mr-1 h-3 w-3" />
+                      Xoá
+                    </Button>
+                  )}
                 </div>
               </Card>
             ))}

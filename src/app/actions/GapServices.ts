@@ -294,6 +294,23 @@ export class GapService {
     );
   }
 
+  /**
+   * Tài khoản hiện tại theo session token: lấy vai trò mới nhất, và biết phiên
+   * còn hiệu lực không (Parse trả code 209 khi phiên bị thu hồi, ví dụ tài khoản bị khoá).
+   */
+  static getCurrentUser(): Promise<any> {
+    return this.fetchData(
+      '/users/me',
+      REQUEST_TYPE.GET,
+      null,
+      null,
+      null,
+      null,
+      null,
+      true
+    );
+  }
+
   // Mail
   static async sendMail(
     customerInfo: CustomerInfo,

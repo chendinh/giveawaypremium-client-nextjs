@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 
 import GapService from '@/app/actions/GapServices';
+import { usePermission } from '@/hooks/usePermission';
 import { useAppStore } from '@/store/useAppStore';
 
 import { buildBankLookup } from './components/BankCheckCell';
@@ -104,8 +105,26 @@ const LoginRequired: React.FC = () => (
   </div>
 );
 
+const NoReportAccess: React.FC = () => (
+  <div className="flex min-h-screen items-center justify-center bg-white p-4">
+    <Result
+      status="403"
+      title="Báo cáo kiểm kê"
+      subTitle="Tài khoản của bạn không có quyền xem báo cáo. Liên hệ IT nếu cần."
+      extra={
+        <Link href="/admin">
+          <Button type="primary">Về trang quản trị</Button>
+        </Link>
+      }
+    />
+  </div>
+);
+
 const MonthlyReportPage: React.FC = () => {
   const { userData, isAuthenticated } = useAppStore();
+  const { can } = usePermission();
+  const canViewReport = can('VIEW_REPORT');
+  const canEditReport = can('EDIT_REPORT');
   const hasHydrated = useHasHydrated();
 
   const [month, setMonth] = useState<string>(() =>
@@ -153,10 +172,17 @@ const MonthlyReportPage: React.FC = () => {
   // trước khi tải — giữ số liệu tháng trước hiển thị kèm overlay loading, tránh
   // màn hình trắng; requestRef ở trên đã chặn kết quả trả về trễ ghi đè nhầm.
   useEffect(() => {
-    if (!hasHydrated || !isLoggedIn) return;
+    if (!hasHydrated || !isLoggedIn || !canViewReport) return;
     loadReport(month);
     loadAttachments(month);
-  }, [hasHydrated, isLoggedIn, month, loadReport, loadAttachments]);
+  }, [
+    hasHydrated,
+    isLoggedIn,
+    canViewReport,
+    month,
+    loadReport,
+    loadAttachments,
+  ]);
 
   const handlePrint = () => {
     // Trình duyệt dùng title làm tên file khi "Lưu thành PDF"
@@ -189,6 +215,7 @@ const MonthlyReportPage: React.FC = () => {
 
   if (!hasHydrated) return <div className="min-h-screen bg-white" />;
   if (!isLoggedIn) return <LoginRequired />;
+  if (!canViewReport) return <NoReportAccess />;
 
   const periodEnd = report
     ? formatDate(new Date(new Date(report.to).getTime() - 1).toISOString())
@@ -327,7 +354,11 @@ const MonthlyReportPage: React.FC = () => {
                   children: (
                     <DirectorReport
                       report={report}
-                      onEditExpenses={() => setExpensesDialogOpen(true)}
+                      onEditExpenses={
+                        canEditReport
+                          ? () => setExpensesDialogOpen(true)
+                          : undefined
+                      }
                       onViewDetail={() => setActiveTab('detail')}
                     />
                   ),

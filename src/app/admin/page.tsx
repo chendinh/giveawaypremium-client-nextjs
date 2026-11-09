@@ -31,6 +31,8 @@ import { cn } from '@/lib/utils';
 import GapService from '@/app/actions/GapServices';
 import { useAppStore } from '@/store/useAppStore';
 import { useAdminNotifications } from '@/hooks/useAdminNotifications';
+import { usePermission } from '@/hooks/usePermission';
+import { Permission, isStaffRole } from '@/lib/permissions';
 
 import Consignment from './components/Consignment';
 import ManageScreen from './components/ManageScreen';
@@ -51,6 +53,8 @@ interface MenuItemType {
   notifKey?: 'pendingAppointments' | 'pendingOrders' | 'pendingPayouts';
   /** Có href → mở route riêng thay vì đổi màn hình trong trang này */
   href?: string;
+  /** Quyền cần có để thấy mục này (không đặt = mọi nhân sự đều thấy) */
+  permission?: Permission;
 }
 
 const menuItems: MenuItemType[] = [
@@ -59,6 +63,7 @@ const menuItems: MenuItemType[] = [
     icon: <PieChart className="h-5 w-5" />,
     label: 'Thống Kê',
     isFullScreen: true,
+    permission: 'VIEW_STATS',
   },
   {
     key: 2,
@@ -89,6 +94,7 @@ const menuItems: MenuItemType[] = [
     icon: <Settings className="h-5 w-5" />,
     label: 'Cài đặt',
     isFullScreen: false,
+    permission: 'VIEW_SETTINGS',
   },
   {
     key: 7,
@@ -96,8 +102,14 @@ const menuItems: MenuItemType[] = [
     label: 'Báo cáo',
     isFullScreen: true,
     href: '/admin/bao-cao',
+    permission: 'VIEW_REPORT',
   },
 ];
+
+/** Mã lỗi Parse: session token không hợp lệ / đã bị thu hồi */
+const INVALID_SESSION_CODE = 209;
+/** Mã lỗi Parse: không đủ quyền (server từ chối đăng nhập tài khoản bị khoá) */
+const OPERATION_FORBIDDEN_CODE = 119;
 
 // ── Component ──
 const DashBoard: React.FC = () => {
@@ -107,11 +119,13 @@ const DashBoard: React.FC = () => {
     logout,
     userData,
     isAuthenticated,
+    setUserData,
     setCategoryRedux,
     setUnitAddressRedux,
     setEventsRedux,
     fetchSettings,
   } = useAppStore();
+  const { role, can, isStaff } = usePermission();
 
   const [isLogin, setIsLogin] = useState<boolean>(false);
   const [isLoadingLogin, setIsLoadingLogin] = useState<boolean>(false);
@@ -138,6 +152,37 @@ const DashBoard: React.FC = () => {
   useEffect(() => {
     checkIsSigned();
   }, [checkIsSigned]);
+
+  // ── Làm mới vai trò từ server + đăng xuất nếu phiên đã bị thu hồi ──
+  // Vai trò lưu trong localStorage từ lúc đăng nhập; không làm mới thì tài khoản
+  // vừa bị khoá hoặc đổi vai trò vẫn dùng được giao diện cũ.
+  useEffect(() => {
+    if (!isLogin || !userData?.sessionToken) return;
+    let cancelled = false;
+    const refreshMe = async () => {
+      const me = await GapService.getCurrentUser();
+      if (cancelled || !me) return;
+      if (me.code === INVALID_SESSION_CODE) {
+        logout();
+        setIsLogin(false);
+        setShowLoginDialog(true);
+        toast.error('Phiên đăng nhập đã hết hạn hoặc tài khoản đã bị khoá');
+        return;
+      }
+      if (me.objectId && me.role !== userData.role) {
+        setUserData({
+          ...userData,
+          ...me,
+          sessionToken: userData.sessionToken,
+        });
+      }
+    };
+    refreshMe();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLogin]);
 
   // ── Fetch initial data ──
   useEffect(() => {
@@ -172,7 +217,11 @@ const DashBoard: React.FC = () => {
         loginForm.username,
         loginForm.password
       );
-      if (result?.sessionToken) {
+      if (result?.sessionToken && !isStaffRole(result.role)) {
+        // Tài khoản khách hàng (hoặc vai trò lạ) không được vào trang quản trị
+        toast.error('Tài khoản này không có quyền vào trang quản trị');
+        setIsLoadingLogin(false);
+      } else if (result?.sessionToken) {
         GapService.updateIPHASH({ userData: result });
         login(result, result.sessionToken);
         toast.success('Đăng nhập thành công');
@@ -181,7 +230,11 @@ const DashBoard: React.FC = () => {
         setShowLoginDialog(false);
         setLoginForm({ username: '', password: '' });
       } else {
-        toast.error('Đăng nhập thất bại');
+        toast.error(
+          result?.code === OPERATION_FORBIDDEN_CODE && result?.error
+            ? result.error
+            : 'Đăng nhập thất bại'
+        );
         setIsLoadingLogin(false);
       }
     } catch (err) {
@@ -209,7 +262,17 @@ const DashBoard: React.FC = () => {
     if (item.notifKey) refreshNotifs();
   };
 
+  const visibleMenuItems = menuItems.filter(
+    item => !item.permission || can(item.permission)
+  );
+
   const renderContent = () => {
+    // Lớp phòng thủ thứ hai: menu đã ẩn mục không đủ quyền, đây chặn thêm
+    // trường hợp numberPage bị đặt bằng đường khác.
+    const required = menuItems.find(
+      item => item.key === numberPage
+    )?.permission;
+    if (required && !can(required)) return <Consignment />;
     switch (numberPage) {
       case 1:
         return <SummaryScreen />;
@@ -227,6 +290,23 @@ const DashBoard: React.FC = () => {
         return <Consignment />;
     }
   };
+
+  // Đã đăng nhập nhưng vai trò không hợp lệ (bị khoá, là khách hàng, chưa được cấp)
+  if (isLogin && !isStaff) {
+    return (
+      <div className="dashboard-container">
+        <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
+          <p className="text-lg font-semibold">
+            Tài khoản chưa được cấp quyền hoặc đã bị khoá
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Vai trò hiện tại: {role || '(trống)'}. Liên hệ IT để được cấp quyền.
+          </p>
+          <Button onClick={handleSignOut}>Đăng xuất</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-container">
@@ -313,7 +393,7 @@ const DashBoard: React.FC = () => {
 
           {/* Nav */}
           <nav className="sidebar-nav">
-            {menuItems.map(item => {
+            {visibleMenuItems.map(item => {
               const badgeCount = item.notifKey ? notifCounts[item.notifKey] : 0;
               return (
                 <button

@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 
 import GapService from '@/app/actions/GapServices';
+import { usePermission } from '@/hooks/usePermission';
 import { useAppStore, StoreServices } from '@/store/useAppStore';
 
 import TagPrintBox from './components/TagPrintBox';
@@ -114,6 +115,9 @@ interface ExpandedEditData {
 // ─── Component ────────────────────────────────────────
 const TableProductScreen: React.FC = () => {
   const { userData } = useAppStore();
+  const { can } = usePermission();
+  const canEditRecords = can('EDIT_RECORDS');
+  const canDelete = can('DELETE');
 
   // Data
   const [productData, setProductData] = useState<ProductItem[]>([]);
@@ -612,7 +616,7 @@ const TableProductScreen: React.FC = () => {
                 <Label className="text-xs font-semibold">
                   Ảnh ({medias.length}/5)
                 </Label>
-                {medias.length < 5 && (
+                {medias.length < 5 && canEditRecords && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -643,13 +647,15 @@ const TableProductScreen: React.FC = () => {
                           (e.target as HTMLImageElement).src = '';
                         }}
                       />
-                      <button
-                        className="absolute top-0 right-0 bg-destructive text-destructive-foreground rounded-bl p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => handleRemovePhoto(media, record)}
-                        disabled={isUploading}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
+                      {canDelete && (
+                        <button
+                          className="absolute top-0 right-0 bg-destructive text-destructive-foreground rounded-bl p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleRemovePhoto(media, record)}
+                          disabled={isUploading}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -683,13 +689,15 @@ const TableProductScreen: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => openEditModal(record)}
-              >
-                Chỉnh sửa chi tiết
-              </Button>
+              {canEditRecords && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openEditModal(record)}
+                >
+                  Chỉnh sửa chi tiết
+                </Button>
+              )}
               <TagPrintBox
                 data={record}
                 printCount={
@@ -980,6 +988,7 @@ const TableProductScreen: React.FC = () => {
                       <div className="flex items-center justify-center gap-1">
                         <Switch
                           checked={item.status === 'ACTIVE'}
+                          disabled={!canEditRecords}
                           onCheckedChange={() => handleToggleStatus(item)}
                         />
                         <span className="text-[10px] text-muted-foreground">

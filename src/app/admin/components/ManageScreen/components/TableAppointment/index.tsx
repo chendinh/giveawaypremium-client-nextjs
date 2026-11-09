@@ -24,6 +24,7 @@ import { Loader2, Search, ChevronDown } from 'lucide-react';
 import moment from 'moment';
 
 import GapService from '@/app/actions/GapServices';
+import { usePermission } from '@/hooks/usePermission';
 import { useAppStore } from '@/store/useAppStore';
 import {
   BOOKING_OPTION_EACH_DAY,
@@ -156,6 +157,10 @@ const WORKING_DAY_OPTIONS = [
 
 // ─── Component ────────────────────────────────────────
 const TableAppointmentScreen: React.FC = () => {
+  const { can } = usePermission();
+  // Cấu hình khung giờ/ngày đặt lịch = sửa dữ liệu; xoá lịch hẹn = xoá
+  const canEditRecords = can('EDIT_RECORDS');
+  const canDelete = can('DELETE');
   const { settings, setSettings, updateSettingWithKey } = useAppStore();
 
   // Day booking
@@ -605,6 +610,7 @@ const TableAppointmentScreen: React.FC = () => {
                         onCheckedChange={checked => {
                           onSelectTimeBooking(itemTime.timeCode, checked);
                         }}
+                        disabled={!canEditRecords}
                         className="mr-2 mt-auto mb-auto"
                       />
                       <div
@@ -662,6 +668,7 @@ const TableAppointmentScreen: React.FC = () => {
         <Select
           value={String(bookingOptionValue)}
           onValueChange={val => onChangeBookingOption(Number(val))}
+          disabled={!canEditRecords}
         >
           <SelectTrigger className="w-[300px]">
             <SelectValue placeholder="..." />
@@ -685,6 +692,7 @@ const TableAppointmentScreen: React.FC = () => {
         <Select
           value={String(workingDayCount)}
           onValueChange={val => onChangeWorkingDayOption(Number(val))}
+          disabled={!canEditRecords}
         >
           <SelectTrigger className="w-[300px]">
             <SelectValue placeholder="..." />
@@ -740,9 +748,11 @@ const TableAppointmentScreen: React.FC = () => {
             >
               Quay lại
             </Button>
-            <Button variant="destructive" onClick={handleDeleteAppointment}>
-              Xoá
-            </Button>
+            {canDelete && (
+              <Button variant="destructive" onClick={handleDeleteAppointment}>
+                Xoá
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

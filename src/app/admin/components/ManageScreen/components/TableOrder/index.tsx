@@ -52,6 +52,7 @@ import {
 } from 'lucide-react';
 
 import GapService from '@/app/actions/GapServices';
+import { usePermission } from '@/hooks/usePermission';
 import { useAppStore } from '@/store/useAppStore';
 import { PICKUP_TYPE, isSelfPickup } from '@/lib/constants';
 import { format, startOfMonth, addMonths, parseISO, isValid } from 'date-fns';
@@ -265,6 +266,8 @@ const isSelfPickupOrder = (item: OrderItem): boolean =>
 // ─── Component ────────────────────────────────────────
 const TableOrderScreen: React.FC = () => {
   const { userData } = useAppStore();
+  const { can } = usePermission();
+  const canDelete = can('DELETE');
 
   // Data
   const [orderData, setOrderData] = useState<OrderItem[]>([]);
@@ -1186,14 +1189,16 @@ const TableOrderScreen: React.FC = () => {
                               isSelfPickup: isSelfPickupOrder(item),
                             }}
                           />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => openDeleteDialog(item)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                          {canDelete && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => openDeleteDialog(item)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1448,17 +1453,19 @@ const TableOrderScreen: React.FC = () => {
                     </p>
                   )}
                   <div className="flex gap-2 pt-2">
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() =>
-                        handleCancelTransport(
-                          vtpDetailItem?.transporter?.order?.objectId || ''
-                        )
-                      }
-                    >
-                      Huỷ vận đơn
-                    </Button>
+                    {canDelete && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() =>
+                          handleCancelTransport(
+                            vtpDetailItem?.transporter?.order?.objectId || ''
+                          )
+                        }
+                      >
+                        Huỷ vận đơn
+                      </Button>
+                    )}
                     {orderNumber && (
                       <Button
                         variant="outline"

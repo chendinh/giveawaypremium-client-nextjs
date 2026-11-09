@@ -286,7 +286,8 @@ const ConsignerSection: React.FC<ConsignerSectionProps> = ({
 interface ExpenseSectionProps {
   totalVnd: number;
   items: { id: string; label: string; amountVnd: number; note: string }[];
-  onEdit: () => void;
+  /** Không truyền = chỉ xem (ẩn nút Sửa) */
+  onEdit?: () => void;
 }
 
 const ExpenseSection: React.FC<ExpenseSectionProps> = ({
@@ -305,14 +306,16 @@ const ExpenseSection: React.FC<ExpenseSectionProps> = ({
       </span>
     }
     extra={
-      <Button
-        size="small"
-        icon={<Pencil className="h-3.5 w-3.5" />}
-        onClick={onEdit}
-        className="print:!hidden"
-      >
-        Sửa
-      </Button>
+      onEdit ? (
+        <Button
+          size="small"
+          icon={<Pencil className="h-3.5 w-3.5" />}
+          onClick={onEdit}
+          className="print:!hidden"
+        >
+          Sửa
+        </Button>
+      ) : null
     }
   >
     {items.length > 0 ? (
@@ -344,7 +347,8 @@ const ExpenseSection: React.FC<ExpenseSectionProps> = ({
       </ul>
     ) : (
       <Text type="secondary">
-        Chưa nhập chi phí nào cho tháng này. Bấm "Sửa" để thêm.
+        Chưa nhập chi phí nào cho tháng này.
+        {onEdit ? ' Bấm "Sửa" để thêm.' : ''}
       </Text>
     )}
   </Card>
@@ -352,7 +356,8 @@ const ExpenseSection: React.FC<ExpenseSectionProps> = ({
 
 interface Props {
   report: MonthlyReport;
-  onEditExpenses: () => void;
+  /** Không truyền = chỉ xem (ẩn nút Sửa chi phí) */
+  onEditExpenses?: () => void;
   onViewDetail: () => void;
 }
 

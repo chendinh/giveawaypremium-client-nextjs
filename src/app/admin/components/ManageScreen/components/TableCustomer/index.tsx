@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 import GapService from '@/app/actions/GapServices';
+import { usePermission } from '@/hooks/usePermission';
 import { useAppStore } from '@/store/useAppStore';
 
 import './style.scss';
@@ -80,6 +81,8 @@ interface SearchFilters {
 // ─── Component ────────────────────────────────────────
 const TableCustomerScreen: React.FC = () => {
   const { userData } = useAppStore();
+  const { can } = usePermission();
+  const canEditRecords = can('EDIT_RECORDS');
 
   // Data
   const [dataSource, setDataSource] = useState<CustomerItem[]>([]);
@@ -318,23 +321,25 @@ const TableCustomerScreen: React.FC = () => {
                     {item.numberOfSale || '--'}
                   </TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEditModal(item)}>
-                          <Edit className="h-4 w-4 mr-2" />
-                          Sửa
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {canEditRecords && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditModal(item)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Sửa
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

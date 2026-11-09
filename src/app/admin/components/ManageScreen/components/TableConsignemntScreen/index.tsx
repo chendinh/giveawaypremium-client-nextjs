@@ -61,6 +61,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 import GapService from '@/app/actions/GapServices';
+import { usePermission } from '@/hooks/usePermission';
 import { StoreServices, useAppStore } from '@/store/useAppStore';
 
 import PayoutQrDialog, { PayoutQrTarget } from './PayoutQrDialog';
@@ -221,6 +222,10 @@ interface EditableProductRowProps {
   originalProduct: ProductItem;
   index: number;
   onChange: (index: number, field: keyof ProductItem, value: string) => void;
+  /** Quyền sửa từng nhóm ô (xem src/lib/permissions.ts) */
+  canEditRecords: boolean;
+  canEditPrice: boolean;
+  canEditSold: boolean;
 }
 
 const EditableProductRow: React.FC<EditableProductRowProps> = ({
@@ -228,6 +233,9 @@ const EditableProductRow: React.FC<EditableProductRowProps> = ({
   originalProduct,
   index,
   onChange,
+  canEditRecords,
+  canEditPrice,
+  canEditSold,
 }) => {
   const priceAfterFee = Number(product.priceAfterFee) || 0;
   const sold = Number(product.soldNumberProduct) || 0;
@@ -245,6 +253,7 @@ const EditableProductRow: React.FC<EditableProductRowProps> = ({
           value={product.name || ''}
           onChange={e => onChange(index, 'name', e.target.value)}
           placeholder="Tên SP"
+          disabled={!canEditRecords}
         />
       </TableCell>
       {/* Giá — sensitive */}
@@ -260,6 +269,7 @@ const EditableProductRow: React.FC<EditableProductRowProps> = ({
             value={product.price}
             onChange={e => onChange(index, 'price', e.target.value)}
             placeholder="Giá"
+            disabled={!canEditPrice}
           />
           <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">
             k
@@ -284,6 +294,7 @@ const EditableProductRow: React.FC<EditableProductRowProps> = ({
           min={0}
           value={product.count}
           onChange={e => onChange(index, 'count', e.target.value)}
+          disabled={!canEditRecords}
         />
       </TableCell>
       {/* Đã bán — sensitive, editable */}
@@ -300,6 +311,7 @@ const EditableProductRow: React.FC<EditableProductRowProps> = ({
           max={Number(product.count)}
           value={product.soldNumberProduct ?? 0}
           onChange={e => onChange(index, 'soldNumberProduct', e.target.value)}
+          disabled={!canEditSold}
         />
       </TableCell>
       {/* Còn lại — readonly */}
@@ -323,6 +335,7 @@ const EditableProductRow: React.FC<EditableProductRowProps> = ({
           value={product.note || ''}
           onChange={e => onChange(index, 'note', e.target.value)}
           placeholder="Ghi chú"
+          disabled={!canEditRecords}
         />
       </TableCell>
     </TableRow>
@@ -332,6 +345,15 @@ const EditableProductRow: React.FC<EditableProductRowProps> = ({
 // ─── Component ────────────────────────────────────────
 const TableConsignmentScreen: React.FC = () => {
   const { userData } = useAppStore();
+  const { can } = usePermission();
+  const canEditRecords = can('EDIT_RECORDS');
+  const canEditPrice = can('EDIT_PRICE');
+  const canEditSold = can('EDIT_SOLD');
+  const canConfirmPayment = can('CONFIRM_PAYMENT');
+  const canDelete = can('DELETE');
+  // Có ít nhất một thứ để lưu thì mới hiện nút "Lưu thay đổi"
+  const canSave =
+    canEditRecords || canEditPrice || canEditSold || canConfirmPayment;
   const [dataSource, setDataSource] = useState<ConsignmentItem[]>([]);
   const [allInfoTag, setAllInfoTag] = useState<TagItem[]>([]);
   const [currentTagId, setCurrentTagId] = useState<string>('');
@@ -1111,7 +1133,7 @@ const TableConsignmentScreen: React.FC = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            {!item.isGetMoney && (
+                            {!item.isGetMoney && canConfirmPayment && (
                               <>
                                 <DropdownMenuItem
                                   onClick={() => {
@@ -1143,13 +1165,15 @@ const TableConsignmentScreen: React.FC = () => {
                               <DollarSign className="h-4 w-4 mr-2" />
                               Gửi email đã trả tiền
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => openDeleteDialog(item.objectId)}
-                              className="text-red-600"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Xoá
-                            </DropdownMenuItem>
+                            {canDelete && (
+                              <DropdownMenuItem
+                                onClick={() => openDeleteDialog(item.objectId)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Xoá
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -1178,19 +1202,21 @@ const TableConsignmentScreen: React.FC = () => {
                                 >
                                   Đóng
                                 </Button>
-                                <Button
-                                  size="sm"
-                                  className="h-7 text-xs"
-                                  onClick={() => handleSaveRow(item.objectId)}
-                                  disabled={isSaving}
-                                >
-                                  {isSaving ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
-                                  ) : (
-                                    <Save className="h-3.5 w-3.5 mr-1" />
-                                  )}
-                                  Lưu thay đổi
-                                </Button>
+                                {canSave && (
+                                  <Button
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                    onClick={() => handleSaveRow(item.objectId)}
+                                    disabled={isSaving}
+                                  >
+                                    {isSaving ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                                    ) : (
+                                      <Save className="h-3.5 w-3.5 mr-1" />
+                                    )}
+                                    Lưu thay đổi
+                                  </Button>
+                                )}
                               </div>
                             </div>
 
@@ -1210,6 +1236,7 @@ const TableConsignmentScreen: React.FC = () => {
                                 </Label>
                                 <Input
                                   className="h-8 text-sm"
+                                  disabled={!canEditRecords}
                                   value={(draft.note || '')
                                     .split('\n---\n')
                                     .filter(s => !s.trim().startsWith('['))
@@ -1239,7 +1266,9 @@ const TableConsignmentScreen: React.FC = () => {
                                   <Switch
                                     // Đã trả (theo dữ liệu đang lưu) thì khoá: chỉ được chuyển
                                     // từ chưa trả sang đã trả, không hoàn lại.
-                                    disabled={!!item.isGetMoney}
+                                    disabled={
+                                      !!item.isGetMoney || !canConfirmPayment
+                                    }
                                     checked={draft.isGetMoney || false}
                                     onCheckedChange={checked =>
                                       updateDraftField(
@@ -1330,6 +1359,9 @@ const TableConsignmentScreen: React.FC = () => {
                                             product={p}
                                             originalProduct={origP}
                                             index={pIdx}
+                                            canEditRecords={canEditRecords}
+                                            canEditPrice={canEditPrice}
+                                            canEditSold={canEditSold}
                                             onChange={(i, field, val) =>
                                               updateDraftProduct(
                                                 item.objectId,
