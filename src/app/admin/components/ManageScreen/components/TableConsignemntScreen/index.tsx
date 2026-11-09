@@ -55,12 +55,15 @@ import {
   Save,
   Copy,
   Check,
+  QrCode,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 import GapService from '@/app/actions/GapServices';
 import { StoreServices, useAppStore } from '@/store/useAppStore';
+
+import PayoutQrDialog, { PayoutQrTarget } from './PayoutQrDialog';
 
 import './style.scss';
 
@@ -109,6 +112,7 @@ interface ConsignmentItem {
   numSoldConsignment?: number;
   remainNumConsignment?: number;
   moneyBack?: number;
+  totalMoney?: number;
   isGetMoney?: boolean;
   isTransferMoneyWithBank?: boolean;
   timeGetMoney?: string;
@@ -358,6 +362,10 @@ const TableConsignmentScreen: React.FC = () => {
     {}
   );
   const [savingRows, setSavingRows] = useState<Set<string>>(new Set());
+
+  // QR trả tiền khách ký gửi
+  const [qrTarget, setQrTarget] = useState<PayoutQrTarget | null>(null);
+  const [qrItem, setQrItem] = useState<ConsignmentItem | null>(null);
 
   // Delete dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
@@ -709,7 +717,12 @@ const TableConsignmentScreen: React.FC = () => {
 
   // ── Toggle get money ──
   const handleToggleGetMoney = async (item: ConsignmentItem) => {
-    const newIsGetMoney = !item.isGetMoney;
+    // Đã trả thì không hoàn lại được (server cũng chặn): tiền đã rời tài khoản.
+    if (item.isGetMoney) {
+      toast.info('Ký gửi đã trả tiền, không thể huỷ xác nhận.');
+      return;
+    }
+    const newIsGetMoney = true;
     const newTimeConfirm = newIsGetMoney
       ? format(new Date(), 'dd-MM-yyyy HH:mm')
       : undefined;
@@ -1098,14 +1111,25 @@ const TableConsignmentScreen: React.FC = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => handleToggleGetMoney(item)}
-                            >
-                              <DollarSign className="h-4 w-4 mr-2" />
-                              {item.isGetMoney
-                                ? 'Huỷ trả tiền'
-                                : 'Xác nhận trả tiền'}
-                            </DropdownMenuItem>
+                            {!item.isGetMoney && (
+                              <>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setQrItem(item);
+                                    setQrTarget(item);
+                                  }}
+                                >
+                                  <QrCode className="h-4 w-4 mr-2" />
+                                  QR trả tiền
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleToggleGetMoney(item)}
+                                >
+                                  <DollarSign className="h-4 w-4 mr-2" />
+                                  Xác nhận trả tiền
+                                </DropdownMenuItem>
+                              </>
+                            )}
                             <DropdownMenuItem
                               onClick={() => handleSendEmail(item)}
                             >
@@ -1213,6 +1237,9 @@ const TableConsignmentScreen: React.FC = () => {
                                 </Label>
                                 <div className="flex items-center gap-2 h-8">
                                   <Switch
+                                    // Đã trả (theo dữ liệu đang lưu) thì khoá: chỉ được chuyển
+                                    // từ chưa trả sang đã trả, không hoàn lại.
+                                    disabled={!!item.isGetMoney}
                                     checked={draft.isGetMoney || false}
                                     onCheckedChange={checked =>
                                       updateDraftField(
@@ -1373,6 +1400,18 @@ const TableConsignmentScreen: React.FC = () => {
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
+      )}
+
+      {qrTarget && qrItem && (
+        <PayoutQrDialog
+          key={qrItem.objectId}
+          target={qrTarget}
+          onClose={() => {
+            setQrTarget(null);
+            setQrItem(null);
+          }}
+          onConfirmManually={() => handleToggleGetMoney(qrItem)}
+        />
       )}
 
       {/* Delete Confirmation */}
