@@ -65,6 +65,16 @@ import { usePermission } from '@/hooks/usePermission';
 import { StoreServices, useAppStore } from '@/store/useAppStore';
 
 import PayoutQrDialog, { PayoutQrTarget } from './PayoutQrDialog';
+import {
+  BankDraft,
+  BankEntry,
+  BankPatch,
+  BankValue,
+  applyBankPatch,
+  buildBankAuditNote,
+  getBankPatch,
+  readBank,
+} from './bankEdit';
 
 import './style.scss';
 
@@ -121,7 +131,7 @@ interface ConsignmentItem {
   note?: string;
   productList?: ProductItem[];
   group?: { objectId: string; code?: string };
-  banks?: Array<{ type?: string; accNumber?: string }>;
+  banks?: BankEntry[];
   bankName?: string;
   bankId?: string;
   consignerIdCard?: string;
@@ -350,10 +360,13 @@ const TableConsignmentScreen: React.FC = () => {
   const canEditPrice = can('EDIT_PRICE');
   const canEditSold = can('EDIT_SOLD');
   const canConfirmPayment = can('CONFIRM_PAYMENT');
+  const canEditBank = can('EDIT_BANK');
   const canDelete = can('DELETE');
-  // Có ít nhất một thứ để lưu thì mới hiện nút "Lưu thay đổi"
-  const canSave =
+  // Quyền sửa phần còn lại của đơn (luồng lưu đầy đủ: sản phẩm, ghi chú, trạng thái tiền)
+  const canSaveRecord =
     canEditRecords || canEditPrice || canEditSold || canConfirmPayment;
+  // Có ít nhất một thứ để lưu thì mới hiện nút "Lưu thay đổi"
+  const canSave = canSaveRecord || canEditBank;
   const [dataSource, setDataSource] = useState<ConsignmentItem[]>([]);
   const [allInfoTag, setAllInfoTag] = useState<TagItem[]>([]);
   const [currentTagId, setCurrentTagId] = useState<string>('');
@@ -384,6 +397,11 @@ const TableConsignmentScreen: React.FC = () => {
     {}
   );
   const [savingRows, setSavingRows] = useState<Set<string>>(new Set());
+  // Ngân hàng đang nhập dở của từng dòng. Tách khỏi rowDrafts để lưu riêng được,
+  // không kéo theo việc ghi lại sản phẩm.
+  const [bankDrafts, setBankDrafts] = useState<Record<string, BankDraft>>({});
+  // Dòng đã sửa ô nào ngoài ngân hàng (ghi chú, trạng thái tiền, sản phẩm)
+  const [touchedRows, setTouchedRows] = useState<Set<string>>(new Set());
 
   // QR trả tiền khách ký gửi
   const [qrTarget, setQrTarget] = useState<PayoutQrTarget | null>(null);
@@ -518,17 +536,32 @@ const TableConsignmentScreen: React.FC = () => {
             productList: item.productList ? [...item.productList] : [],
           },
         }));
+        setBankDrafts(d => ({
+          ...d,
+          [item.objectId]: { base: readBank(item), input: readBank(item) },
+        }));
+        setTouchedRows(t => {
+          const n = new Set(t);
+          n.delete(item.objectId);
+          return n;
+        });
       }
       return next;
     });
   };
 
   // ── Draft mutations ──
+  const markTouched = (objectId: string) =>
+    setTouchedRows(prev =>
+      prev.has(objectId) ? prev : new Set(prev).add(objectId)
+    );
+
   const updateDraftField = (
     objectId: string,
     field: keyof ConsignmentItem,
     value: unknown
   ) => {
+    markTouched(objectId);
     setRowDrafts(d => ({
       ...d,
       [objectId]: { ...d[objectId], [field]: value },
@@ -541,6 +574,7 @@ const TableConsignmentScreen: React.FC = () => {
     field: keyof ProductItem,
     value: string
   ) => {
+    markTouched(objectId);
     setRowDrafts(d => {
       const draft = { ...d[objectId] };
       const list = [...(draft.productList || [])];
@@ -582,11 +616,140 @@ const TableConsignmentScreen: React.FC = () => {
     });
   };
 
+  const updateDraftBank = (
+    objectId: string,
+    field: keyof BankValue,
+    value: string
+  ) => {
+    setBankDrafts(d => {
+      const current = d[objectId];
+      if (!current) return d;
+      return {
+        ...d,
+        [objectId]: { ...current, input: { ...current.input, [field]: value } },
+      };
+    });
+  };
+
+  // ── Ngân hàng: ghi banks + dòng lịch sử vào note ──
+  /**
+   * Ghi phần ngân hàng người dùng đã sửa (`patch`, tính so với bản chụp của
+   * bảng). Đọc lại banks/note MỚI NHẤT từ server ngay trước khi ghi, nên dòng log
+   * ghi đúng giá trị cũ thật sự và không đè lên note vừa đổi (kể cả dòng server
+   * tự ghi khi nhận sao kê). Báo lỗi bằng toast và trả null nếu không ghi được.
+   */
+  const persistBank = async (
+    item: ConsignmentItem,
+    patch: BankPatch
+  ): Promise<{ banks: BankEntry[]; note: string; wrote: boolean } | null> => {
+    const latest = await GapService.getConsignmentBank(item.objectId);
+    if (!latest) {
+      toast.error('Không đọc được thông tin ngân hàng hiện tại. Hãy thử lại.');
+      return null;
+    }
+    const latestBanks = latest.banks ?? [];
+    const latestNote = latest.note ?? '';
+
+    // Chỉ giữ phần còn khác so với server: người khác có thể đã sửa giống hệt
+    const currentBank = readBank(latest);
+    const effective = getBankPatch(currentBank, patch);
+    if (!effective) {
+      return { banks: latestBanks, note: latestNote, wrote: false };
+    }
+
+    const staffName = userData?.fullName || userData?.username || 'Nhân viên';
+    const auditNote = buildBankAuditNote(
+      staffName,
+      item.consignmentId,
+      currentBank,
+      effective
+    );
+    const note = latestNote ? `${latestNote}\n---\n${auditNote}` : auditNote;
+    const banks = applyBankPatch(latestBanks, effective);
+
+    const result = await GapService.updateConsignmentBank(
+      item.objectId,
+      banks,
+      note
+    );
+    if (!result.success) {
+      toast.error(result.error || 'Cập nhật ngân hàng thất bại');
+      return null;
+    }
+    return { banks, note, wrote: true };
+  };
+
+  /** Đưa banks + note vừa lưu vào bảng, để cột Ngân hàng / ID NH đổi ngay */
+  const mergeSavedBank = (
+    objectId: string,
+    saved: { banks: BankEntry[]; note: string }
+  ) =>
+    setDataSource(prev =>
+      prev.map(i =>
+        i.objectId === objectId
+          ? { ...i, banks: saved.banks, note: saved.note }
+          : i
+      )
+    );
+
+  /**
+   * Chỉ đổi ngân hàng: ghi riêng banks + note rồi đóng dòng. KHÔNG đi qua
+   * updateConsignment, vì hàm đó ghi lại toàn bộ sản phẩm từ bản chụp cũ của
+   * bảng; nếu lúc đó có đơn bán làm đổi "Đã bán" thì sẽ bị đè và lệch tiền trả
+   * khách.
+   */
+  const saveBankOnly = async (item: ConsignmentItem, patch: BankPatch) => {
+    const { objectId } = item;
+    setSavingRows(prev => new Set(prev).add(objectId));
+    try {
+      const saved = await persistBank(item, patch);
+      if (saved) {
+        if (saved.wrote) toast.success('Đã cập nhật ngân hàng');
+        else
+          toast.info('Ngân hàng đã được cập nhật trước đó, không cần lưu lại');
+        mergeSavedBank(objectId, saved);
+        setExpandedRows(prev => {
+          const n = new Set(prev);
+          n.delete(objectId);
+          return n;
+        });
+      }
+    } catch {
+      toast.error('Có lỗi xảy ra');
+    } finally {
+      setSavingRows(prev => {
+        const n = new Set(prev);
+        n.delete(objectId);
+        return n;
+      });
+    }
+  };
+
   // ── Save draft — detect sensitive changes & append audit note ──
   const handleSaveRow = async (objectId: string) => {
     const draft = rowDrafts[objectId];
     const original = dataSource.find(i => i.objectId === objectId);
     if (!draft || !original) return;
+
+    // Ngân hàng: phần người dùng đã gõ khác so với lúc mở dòng (chỉ khi có quyền)
+    const bankDraft = bankDrafts[objectId];
+    const bankPatch =
+      canEditBank && bankDraft
+        ? getBankPatch(bankDraft.base, bankDraft.input)
+        : null;
+
+    // Không có quyền sửa gì khác ngoài ngân hàng, mà ngân hàng cũng không đổi:
+    // không có gì để lưu.
+    if (!canSaveRecord && !bankPatch) {
+      toast.info('Chưa có thay đổi nào để lưu');
+      return;
+    }
+
+    // Chỉ đổi ngân hàng (không đụng ô nào khác): lưu riêng, xem saveBankOnly
+    if (bankPatch && !touchedRows.has(objectId)) {
+      await saveBankOnly(original, bankPatch);
+      return;
+    }
 
     setSavingRows(prev => new Set(prev).add(objectId));
     try {
@@ -719,6 +882,21 @@ const TableConsignmentScreen: React.FC = () => {
         setDataSource(prev =>
           prev.map(i => (i.objectId === objectId ? mergedItem : i))
         );
+
+        // Đổi cả ngân hàng: ghi SAU khi lưu phần trên, để bước này đọc lại note
+        // mới nhất (vừa được lưu) và nối dòng log vào cuối, không đè ghi chú.
+        if (bankPatch) {
+          const savedBank = await persistBank(mergedItem, bankPatch);
+          if (savedBank) {
+            if (savedBank.wrote) toast.success('Đã cập nhật ngân hàng');
+            mergeSavedBank(objectId, savedBank);
+          } else {
+            toast.warning(
+              'Các thay đổi khác đã lưu, riêng ngân hàng chưa lưu được. Hãy mở lại dòng này và sửa ngân hàng lần nữa.'
+            );
+          }
+        }
+
         setExpandedRows(prev => {
           const n = new Set(prev);
           n.delete(objectId);
@@ -1014,6 +1192,12 @@ const TableConsignmentScreen: React.FC = () => {
                 const isExpanded = expandedRows.has(item.objectId);
                 const draft = rowDrafts[item.objectId] || item;
                 const isSaving = savingRows.has(item.objectId);
+                // Ô nhập ngân hàng; bankPreview = phần đã gõ khác so với lúc mở dòng
+                const bankDraft = bankDrafts[item.objectId];
+                const bankInput = bankDraft?.input ?? readBank(item);
+                const bankPreview = bankDraft
+                  ? getBankPatch(bankDraft.base, bankDraft.input)
+                  : null;
                 // Ưu tiên remainNumConsignment từ server (tính từ sum(remainNumberProduct)).
                 // Fallback tính tại chỗ nếu field chưa có (data cũ chưa được sync).
                 const remain =
@@ -1290,6 +1474,72 @@ const TableConsignmentScreen: React.FC = () => {
                                       ? 'Đã trả tiền'
                                       : 'Chưa trả'}
                                   </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Ngân hàng nhận tiền — sửa sẽ tự ghi vào note */}
+                            <div className="space-y-2">
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                Ngân hàng nhận tiền
+                                <span className="ml-2 normal-case font-normal text-orange-500">
+                                  — thay đổi sẽ tự ghi vào Lịch sử thay đổi
+                                </span>
+                              </p>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                  <Label
+                                    htmlFor={`bank-name-${item.objectId}`}
+                                    className="text-xs text-muted-foreground"
+                                  >
+                                    Ngân hàng
+                                  </Label>
+                                  <Input
+                                    id={`bank-name-${item.objectId}`}
+                                    className={cn(
+                                      'h-8 text-sm',
+                                      bankPreview?.name !== undefined &&
+                                        'border-orange-400 bg-orange-50'
+                                    )}
+                                    value={bankInput.name}
+                                    onChange={e =>
+                                      updateDraftBank(
+                                        item.objectId,
+                                        'name',
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="VD: Vietcombank, MB Bank..."
+                                    disabled={!canEditBank}
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label
+                                    htmlFor={`bank-id-${item.objectId}`}
+                                    className="text-xs text-muted-foreground"
+                                  >
+                                    ID Ngân hàng
+                                  </Label>
+                                  <Input
+                                    id={`bank-id-${item.objectId}`}
+                                    className={cn(
+                                      'h-8 text-sm font-mono',
+                                      bankPreview?.account !== undefined &&
+                                        'border-orange-400 bg-orange-50'
+                                    )}
+                                    inputMode="numeric"
+                                    value={bankInput.account}
+                                    onChange={e =>
+                                      updateDraftBank(
+                                        item.objectId,
+                                        'account',
+                                        // Số tài khoản chỉ gồm chữ số: dán "0123 4567" cũng được
+                                        e.target.value.replace(/\D/g, '')
+                                      )
+                                    }
+                                    placeholder="Số tài khoản"
+                                    disabled={!canEditBank}
+                                  />
                                 </div>
                               </div>
                             </div>

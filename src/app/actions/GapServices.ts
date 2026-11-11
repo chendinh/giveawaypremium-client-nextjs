@@ -166,6 +166,15 @@ export interface SelectedKeys {
   productId?: string;
 }
 
+/** banks + note mới nhất của một ký gửi (xem GapService.getConsignmentBank) */
+export interface ConsignmentBankState {
+  banks?: Array<{ type?: string; accNumber?: string }>;
+  /** Dữ liệu rất cũ có thể còn bankName/bankId nằm ngoài banks[0] */
+  bankName?: string;
+  bankId?: string;
+  note?: string;
+}
+
 // ============ CONSTANTS ============
 
 const REQUEST_TYPE = {
@@ -2149,6 +2158,54 @@ export class GapService {
       console.log(e);
       return false;
     }
+  }
+
+  /**
+   * Đọc banks + note MỚI NHẤT của một ký gửi thẳng từ server, không dùng bản
+   * chụp của bảng. Gọi ngay trước khi sửa ngân hàng để dòng log ghi đúng giá trị
+   * cũ và không đè lên note vừa đổi, kể cả dòng server tự ghi (vd "SePay xác
+   * nhận ĐÃ TRẢ TIỀN"). Trả null nếu đọc lỗi hoặc không có ký gửi.
+   */
+  static async getConsignmentBank(
+    objectId: string
+  ): Promise<ConsignmentBankState | null> {
+    const res = await this.fetchData(
+      `/classes/Consignment/${objectId}`,
+      REQUEST_TYPE.GET,
+      null,
+      null,
+      null,
+      null,
+      'keys=banks,bankName,bankId,note',
+      true
+    );
+    // fetchData không throw khi Parse báo lỗi mà trả JSON { code, error }
+    if (!res || res.error || !res.objectId) return null;
+    return res;
+  }
+
+  /**
+   * Chỉ ghi banks + note. Khác updateConsignment: không động đến productList /
+   * Product nên không đè số đã bán bằng bản chụp cũ của bảng.
+   */
+  static async updateConsignmentBank(
+    objectId: string,
+    banks: Array<{ type?: string; accNumber?: string }>,
+    note: string
+  ): Promise<{ success: boolean; error?: string }> {
+    const res = await this.fetchData(
+      `/classes/Consignment/${objectId}`,
+      REQUEST_TYPE.PUT,
+      null,
+      { banks, note },
+      null,
+      null,
+      null,
+      true
+    );
+    // Ghi thành công Parse trả { updatedAt }; lỗi trả { code, error }
+    if (res?.updatedAt) return { success: true };
+    return { success: false, error: res?.error };
   }
 
   static async updateConsignment(item: any): Promise<any> {

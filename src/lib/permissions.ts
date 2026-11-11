@@ -32,6 +32,8 @@ export type Permission =
   | 'EDIT_SOLD'
   /** Sửa mọi dữ liệu khác trong màn Quản lý (tên, số lượng, ghi chú, khách, sản phẩm...) */
   | 'EDIT_RECORDS'
+  /** Sửa Ngân hàng và ID ngân hàng của đơn ký gửi (mỗi lần sửa tự ghi vào Lịch sử thay đổi) */
+  | 'EDIT_BANK'
   /** Xoá/huỷ bất kỳ dữ liệu nào */
   | 'DELETE';
 
@@ -44,21 +46,26 @@ const ALL_PERMISSIONS: readonly Permission[] = [
   'CONFIRM_PAYMENT',
   'EDIT_SOLD',
   'EDIT_RECORDS',
+  'EDIT_BANK',
   'DELETE',
 ];
 
 const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   [ROLES.ADMIN]: ALL_PERMISSIONS,
-  // Quản lý: xem thống kê + báo cáo, sửa giá bán, xác nhận trả tiền. Không xoá,
-  // không sửa "Đã bán" (muốn cho phép: thêm 'EDIT_SOLD' vào danh sách này).
+  // Quản lý: xem thống kê + báo cáo, sửa giá bán, xác nhận trả tiền, sửa ngân
+  // hàng của đơn ký gửi. Không xoá, không sửa "Đã bán" (muốn cho phép: thêm
+  // 'EDIT_SOLD' vào danh sách này).
   [ROLES.MANAGER]: [
     'VIEW_STATS',
     'VIEW_REPORT',
     'EDIT_PRICE',
     'CONFIRM_PAYMENT',
+    'EDIT_BANK',
   ],
-  // Nhân viên thường: bán hàng, tạo ký gửi, ghi chú, xem màn Quản lý.
-  [ROLES.OPERATOR]: [],
+  // Nhân viên thường: bán hàng, tạo ký gửi, ghi chú, xem màn Quản lý, và sửa
+  // ngân hàng / ID ngân hàng của đơn ký gửi (nhân viên yêu cầu; mọi lần sửa đều
+  // được ghi vào Lịch sử thay đổi). Muốn thu hồi: bỏ 'EDIT_BANK' khỏi đây.
+  [ROLES.OPERATOR]: ['EDIT_BANK'],
 };
 
 export const isStaffRole = (role: unknown): role is Role =>
